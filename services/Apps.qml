@@ -224,14 +224,26 @@ Singleton {
         const names = root.candidatesFor(entry);
         if (!names.length) { entry.execute(); return; }
 
-        const tries = names
+        // Look the window up by every name we know, and then behave
+        // like a task manager: bring it to the front, or minimise it if
+        // it already has focus. Exit 9 means no window was found, so
+        // the app gets launched instead.
+        const lookups = names
             .map(n => 'w=$(kdotool search --class ' + JSON.stringify("^" + n + "$")
-                    + ' 2>/dev/null | head -1); '
-                    + '[ -n "$w" ] && exec kdotool windowactivate "$w"')
+                    + ' 2>/dev/null | head -1); [ -n "$w" ] && break')
             .join("; ");
 
+        const script =
+            'for _ in 1; do ' + lookups + '; done; '
+            + '[ -z "$w" ] && exit 9; '
+            + 'if [ "$w" = "$(kdotool getactivewindow 2>/dev/null)" ]; then '
+            + '  exec kdotool windowminimize "$w"; '
+            + 'else '
+            + '  exec kdotool windowactivate "$w"; '
+            + 'fi';
+
         activate.pendingId = id;
-        activate.exec(["sh", "-c", tries + "; exit 9"]);
+        activate.exec(["sh", "-c", script]);
     }
 
     // If there was no window to raise, launch the app instead.
