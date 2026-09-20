@@ -21,12 +21,15 @@ Item {
 
             Meter {
                 Layout.fillWidth: true
+                Layout.preferredWidth: 1
                 label: "CPU"
                 value: SysInfo.cpu
                 text: Math.round(SysInfo.cpu * 100) + "%"
+                       + (SysInfo.cpuTemp > 0 ? "  ·  " + SysInfo.cpuTemp + "°" : "")
             }
             Meter {
                 Layout.fillWidth: true
+                Layout.preferredWidth: 1
                 label: "MEMORIA"
                 value: SysInfo.memRatio
                 text: SysInfo.memUsed.toFixed(1) + " / " + SysInfo.memTotal.toFixed(0) + " GiB"
@@ -39,17 +42,31 @@ Item {
 
             Stat {
                 Layout.fillWidth: true
+                // A common base width: fillWidth only shares out the
+                // leftover space, so columns whose text differs in
+                // length end up misaligned with the row above.
+                Layout.preferredWidth: 1
                 label: "BAJADA"
                 text: SysInfo.rate(SysInfo.rxRate)
             }
             Stat {
                 Layout.fillWidth: true
+                Layout.preferredWidth: 1
                 label: "SUBIDA"
                 text: SysInfo.rate(SysInfo.txRate)
             }
+        }
+
+        // Kept at two columns per row so everything lines up with the
+        // meters above: three columns here and two up there never meet.
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 14
+            visible: root.hasBattery
+
             Stat {
                 Layout.fillWidth: true
-                visible: root.hasBattery
+                Layout.preferredWidth: 1
                 label: "BATERÍA"
                 // Depending on the version, percentage comes as 0-1 or
                 // as 0-100.
@@ -59,6 +76,7 @@ Item {
                         : root.battery.percentage) + "%"
                     : ""
             }
+            Item { Layout.fillWidth: true; Layout.preferredWidth: 1 }
         }
     }
 

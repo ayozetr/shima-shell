@@ -14,6 +14,7 @@ Singleton {
     property real memRatio: 0   // 0–1
     property real rxRate: 0     // KiB/s
     property real txRate: 0     // KiB/s
+    property int  cpuTemp: 0    // °C, 0 when unknown
 
     property bool active: false
 
@@ -33,9 +34,17 @@ Singleton {
     Process {
         id: probe
         command: ["sh", "-c",
-            "head -1 /proc/stat; " +
-            "grep -E '^(MemTotal|MemAvailable):' /proc/meminfo; " +
-            "awk 'NR>2 {rx+=$2; tx+=$10} END {print \"NET\", rx, tx}' /proc/net/dev"]
+            "head -1 /proc/stat; "
+            + "grep -E '^(MemTotal|MemAvailable):' /proc/meminfo; "
+            + "awk 'NR>2 {rx+=$2; tx+=$10} END {print \"NET\", rx, tx}' /proc/net/dev; "
+            // The hwmon number shifts between boots, so the sensor is
+            // found by name rather than by a fixed path.
+            + "for d in /sys/class/hwmon/hwmon*; do "
+            + "  case \"$(cat $d/name 2>/dev/null)\" in "
+            + "    k10temp|coretemp|zenpower) "
+            + "      echo \"CPUTEMP $(cat $d/temp1_input 2>/dev/null)\"; break;; "
+            + "  esac; done; "
+            ]
         stdout: StdioCollector {
             onStreamFinished: root.parse(text)
         }
@@ -61,6 +70,9 @@ Singleton {
                 memTotalKb = parseInt(line.split(/\s+/)[1], 10);
             } else if (line.startsWith("MemAvailable:")) {
                 memAvailKb = parseInt(line.split(/\s+/)[1], 10);
+            } else if (line.startsWith("CPUTEMP ")) {
+                const v = parseInt(line.split(/\s+/)[1], 10);
+                if (!isNaN(v)) root.cpuTemp = Math.round(v / 1000);
             } else if (line.startsWith("NET ")) {
                 const p = line.split(/\s+/);
                 const rx = parseInt(p[1], 10), tx = parseInt(p[2], 10);
