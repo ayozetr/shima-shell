@@ -111,24 +111,22 @@ Item {
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "ENFOQUE"
-            color: Theme.textTertiary
+            text: Focus.phaseLabel
+            color: Focus.onBreak ? Theme.accent : Theme.textTertiary
             font.pixelSize: 9
             font.bold: true
             font.letterSpacing: 0.8
+            Behavior on color { ColorAnimation { duration: Theme.fadeDuration } }
         }
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: {
-                const m = Math.floor(pomo.remaining / 60);
-                const sec = pomo.remaining % 60;
-                return m + ":" + (sec < 10 ? "0" : "") + sec;
-            }
-            color: pomo.running ? Theme.accent : Theme.textPrimary
+            text: Focus.timeText
+            color: Focus.running ? Theme.accent : Theme.textPrimary
             font.pixelSize: 26
             font.weight: Font.Light
             font.family: "monospace"
+            Behavior on color { ColorAnimation { duration: Theme.fadeDuration } }
         }
 
         Row {
@@ -136,26 +134,30 @@ Item {
             spacing: 6
 
             PomoButton {
-                label: pomo.running ? "Pausar" : "Iniciar"
+                label: Focus.running ? "Pausar" : "Iniciar"
                 primary: true
-                onTriggered: pomo.running = !pomo.running
+                onTriggered: Focus.toggle()
             }
             PomoButton {
-                label: "Reiniciar"
-                onTriggered: { pomo.running = false; pomo.remaining = pomo.duration; }
+                label: Focus.phase === "idle" ? "Reiniciar" : "Saltar"
+                onTriggered: Focus.phase === "idle" ? Focus.reset() : Focus.skip()
             }
         }
-    }
 
-    Timer {
-        id: pomo
-        property int duration: 25 * 60
-        property int remaining: 25 * 60
-        interval: 1000
-        repeat: true
-        onTriggered: {
-            if (remaining > 0) remaining--;
-            else running = false;
+        // How many rounds you have finished, as dots.
+        Row {
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 4
+            visible: Focus.completed > 0
+
+            Repeater {
+                model: Math.min(Focus.completed, 8)
+                Rectangle {
+                    width: 4; height: 4; radius: 2
+                    color: Theme.accent
+                    opacity: 0.7
+                }
+            }
         }
     }
 

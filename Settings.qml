@@ -237,6 +237,15 @@ FloatingWindow {
             }
 
             Controls.Row_ {
+                label: "Formato de hora"
+                Controls.Choice_ {
+                    options: [{value: "24", label: "24 h"}, {value: "12", label: "12 h"}]
+                    value: (win.c.clock24 ?? true) ? "24" : "12"
+                    onPicked: (v) => { win.c.clock24 = (v === "24"); Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
                 label: "Radio de las esquinas"
                 Controls.Slider_ {
                     from: 0; to: 34; step: 1; suffix: " px"
@@ -340,6 +349,159 @@ FloatingWindow {
                     onPicked: (v) => { win.c.islandTint = v; Config.save(); }
                 }
             }
+
+            // ── FOCUS ───────────────────────────────────────────
+            Controls.Section_ { text: "ENFOQUE" }
+
+            Controls.Row_ {
+                label: "Duración"
+                hint: "Cuánto dura una sesión de enfoque"
+                Controls.Slider_ {
+                    from: 1; to: 120; step: 1; suffix: " min"
+                    value: win.c.focusMinutes ?? 25
+                    onMoved: (v) => { win.c.focusMinutes = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: "Encadenar descanso"
+                hint: "Al acabar arranca el descanso por su cuenta"
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.focusChain ?? true
+                    onToggled: (v) => { win.c.focusChain = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: "Descanso"
+                visible: win.c.focusChain ?? true
+                Controls.Slider_ {
+                    from: 1; to: 30; step: 1; suffix: " min"
+                    value: win.c.breakMinutes ?? 5
+                    onMoved: (v) => { win.c.breakMinutes = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: "Descanso largo"
+                visible: win.c.focusChain ?? true
+                Controls.Slider_ {
+                    from: 5; to: 60; step: 5; suffix: " min"
+                    value: win.c.longBreakMinutes ?? 15
+                    onMoved: (v) => { win.c.longBreakMinutes = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: "Rondas hasta el largo"
+                visible: win.c.focusChain ?? true
+                Controls.Slider_ {
+                    from: 2; to: 8; step: 1
+                    value: win.c.focusRounds ?? 4
+                    onMoved: (v) => { win.c.focusRounds = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: "Avisar al terminar"
+                hint: "Notificación del sistema al acabar cada fase"
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.focusNotify ?? true
+                    onToggled: (v) => { win.c.focusNotify = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: "Silenciar mientras dura"
+                hint: "Inhibe los avisos sin tocar tu No molestar"
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.focusInhibit ?? true
+                    onToggled: (v) => { win.c.focusInhibit = v; Config.save(); }
+                }
+            }
+
+            // ── WEATHER ─────────────────────────────────────────
+            Controls.Section_ { text: "CLIMA" }
+
+            Controls.Row_ {
+                label: "Mostrar el clima"
+                hint: "Junto a la hora, en la isla en reposo"
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.weatherEnabled ?? true
+                    onToggled: (v) => { win.c.weatherEnabled = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: "Qué se ve"
+                visible: win.c.weatherEnabled ?? true
+                Controls.Choice_ {
+                    options: [{value: "both", label: "Ambos"},
+                              {value: "icon", label: "Icono"},
+                              {value: "temp", label: "Grados"}]
+                    value: {
+                        const i = win.c.weatherShowIcon ?? true;
+                        const t = win.c.weatherShowTemp ?? true;
+                        return (i && t) ? "both" : (i ? "icon" : "temp");
+                    }
+                    onPicked: (v) => {
+                        win.c.weatherShowIcon = (v !== "temp");
+                        win.c.weatherShowTemp = (v !== "icon");
+                        Config.save();
+                    }
+                }
+            }
+
+            Controls.Row_ {
+                label: "Fuente"
+                hint: "El Met Office es lo que usa el widget de KDE"
+                visible: win.c.weatherEnabled ?? true
+                Controls.Choice_ {
+                    options: [{value: "ukmo_seamless", label: "Met Office"},
+                              {value: "ecmwf_ifs025",  label: "ECMWF"},
+                              {value: "best_match",    label: "Auto"}]
+                    value: win.c.weatherModel ?? "ukmo_seamless"
+                    onPicked: (v) => { win.c.weatherModel = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: "Unidades"
+                visible: win.c.weatherEnabled ?? true
+                Controls.Choice_ {
+                    options: [{value: "c", label: "°C"}, {value: "f", label: "°F"}]
+                    value: (win.c.weatherFahrenheit ?? false) ? "f" : "c"
+                    onPicked: (v) => { win.c.weatherFahrenheit = (v === "f"); Config.save(); }
+                }
+            }
+
+            Controls.Section_ {
+                text: "UBICACIÓN"
+                visible: win.c.weatherEnabled ?? true
+            }
+
+            PlacePicker {
+                width: parent.width
+                visible: win.c.weatherEnabled ?? true
+                topPadding: 4
+            }
+
+            Controls.Row_ {
+                label: "Heredar de Plasma"
+                hint: "Sólo si tienes el widget meteorológico de KDE"
+                visible: win.c.weatherEnabled ?? true
+                Controls.Button_ {
+                    anchors.right: parent.right
+                    label: "Importar"
+                    onTriggered: { win.c.weatherLat = 0; Weather.importFromPlasma(); }
+                }
+            }
+
+            Item { width: 1; height: 6 }
 
             // ── COLOUR ──────────────────────────────────────────
             Controls.Section_ { text: "COLOR" }

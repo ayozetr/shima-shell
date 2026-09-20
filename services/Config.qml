@@ -61,6 +61,35 @@ Singleton {
             property bool   islandAutoHide:   false
             property int    islandHideDelay:  700
 
+            // 24-hour clock by default, which is what a Spanish locale
+            // expects; the previous hardcoded format was 12-hour.
+            property bool   clock24:          true
+
+            // ── Focus (pomodoro) ───────────────────────────────
+            property int    focusMinutes:      25
+            property int    breakMinutes:      5
+            property int    longBreakMinutes:  15
+            property int    focusRounds:       4      // before a long break
+            property bool   focusChain:        true   // start the break on its own
+            property bool   focusNotify:       true   // notify when a phase ends
+            property bool   focusInhibit:      true   // silence notifications while focusing
+
+            // ── Weather ────────────────────────────────────────
+            // The location is inherited from the Plasma weather widget
+            // on first run and resolved through Open-Meteo's geocoder.
+            property bool   weatherEnabled:    true
+            property bool   weatherShowIcon:   true
+            property bool   weatherShowTemp:   true
+            property bool   weatherFahrenheit: false
+            property real   weatherLat:        0
+            property real   weatherLon:        0
+            property string weatherPlace:      ""
+            // Forecast model. The default is the UK Met Office, which
+            // is what feeds BBC Weather and therefore Plasma's widget:
+            // picking anything else shows a different temperature than
+            // the one you are used to seeing on the panel.
+            property string weatherModel:      "ukmo_seamless"
+
             // ── Screens ────────────────────────────────────────
             // Connector names separated by commas ("DP-1,HDMI-A-1").
             // Empty means "on all of them", which is what someone with
