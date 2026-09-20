@@ -1,0 +1,28 @@
+#!/bin/sh
+# Shima Shell launcher.
+#
+# Two things before starting:
+#
+#  1. Sync the icon theme. Quickshell starts without KDE's platform
+#     integration, so Qt falls back to "hicolor" and only finds icons
+#     that live there. The real theme has to be given through a pragma,
+#     which is static, so we rewrite it whenever you change themes.
+#
+#  2. Start with -n, which refuses to open a second instance. Without
+#     that you end up with several docks stacked on top of each other
+#     fighting over the mouse, and it is hard to notice what's going on.
+
+set -e
+DIR=$(cd "$(dirname "$0")" && pwd)
+SHELL_QML="$DIR/shell.qml"
+
+theme=$(kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null || true)
+[ -n "$theme" ] || theme=breeze
+
+current=$(sed -n 's|^//@ pragma IconTheme ||p' "$SHELL_QML")
+if [ "$current" != "$theme" ]; then
+    sed -i "s|^//@ pragma IconTheme .*|//@ pragma IconTheme $theme|" "$SHELL_QML"
+    echo "Icon theme updated to $theme"
+fi
+
+exec qs -n -p "$SHELL_QML" "$@"

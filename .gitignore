@@ -1,0 +1,19 @@
+# Compiled QML caches
+*.qmlc
+*.jsc
+.qmlcache/
+
+# Qt / QML tooling
+.qmlls.ini
+build/
+
+# Editors
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Runtime leftovers
+*.log
+core

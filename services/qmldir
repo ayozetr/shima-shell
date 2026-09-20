@@ -1,0 +1,7 @@
+singleton Theme 1.0 Theme.qml
+singleton Config 1.0 Config.qml
+singleton SettingsWindow 1.0 SettingsWindow.qml
+singleton LauncherState 1.0 LauncherState.qml
+singleton Cava 1.0 Cava.qml
+singleton Apps 1.0 Apps.qml
+singleton SysInfo 1.0 SysInfo.qml
