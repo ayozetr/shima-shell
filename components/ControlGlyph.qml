@@ -5,7 +5,7 @@ import "../services"
 // don't depend on any theme.
 Canvas {
     id: root
-    property string kind: "wifi"   // wifi · bt · mute
+    property string kind: "wifi"   // wifi · bt · mute · output
     property color fill: Theme.textPrimary
 
     onKindChanged: requestPaint()
@@ -43,6 +43,24 @@ Canvas {
             ctx.lineTo(w * 0.70, h * 0.30);
             ctx.lineTo(w * 0.28, h * 0.70);
             ctx.stroke();
+        } else if (kind === "output") {
+            // Speaker with waves: where the sound is going.
+            ctx.fillRect(w * 0.10, h * 0.36, w * 0.14, h * 0.28);
+            ctx.beginPath();
+            ctx.moveTo(w * 0.24, h * 0.36);
+            ctx.lineTo(w * 0.48, h * 0.14);
+            ctx.lineTo(w * 0.48, h * 0.86);
+            ctx.lineTo(w * 0.24, h * 0.64);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.lineWidth = Math.max(1.3, w * 0.09);
+            ctx.lineCap = "round";
+            for (const r of [0.62, 0.84]) {
+                ctx.beginPath();
+                ctx.arc(w * 0.48, h * 0.5, w * r * 0.5, -Math.PI / 3.2, Math.PI / 3.2);
+                ctx.stroke();
+            }
         } else if (kind === "mute") {
             ctx.fillRect(w * 0.06, h * 0.36, w * 0.14, h * 0.28);
             ctx.beginPath();

@@ -2,14 +2,12 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Mpris
-import Quickshell.Services.Pipewire
 import "../services"
 
 // The island expanded: album art, track, transport and volume.
 Item {
     id: root
     property MprisPlayer player: null
-    readonly property var sink: Pipewire.defaultAudioSink
 
     AlbumArt {
         id: art
@@ -85,20 +83,24 @@ Item {
         spacing: 10
 
         Glyph {
-            kind: "speakerOff"
+            kind: Audio.muted ? "speakerOff" : "speakerOn"
             width: 14; height: 14
-            fill: Theme.textSecondary
+            fill: Audio.muted ? Theme.accent : Theme.textSecondary
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                onClicked: if (root.sink && root.sink.audio) root.sink.audio.muted = !root.sink.audio.muted
+                onClicked: Audio.toggleMute()
             }
         }
 
         VolumeSlider {
             Layout.fillWidth: true
-            value: root.sink && root.sink.audio ? root.sink.audio.volume : 0
-            onMoved: (v) => { if (root.sink && root.sink.audio) root.sink.audio.volume = v; }
+            value: Audio.volume
+            dimmed: Audio.muted
+            onMoved: (v) => {
+                Audio.setVolume(v);
+                if (v > 0.001 && Audio.muted) Audio.toggleMute();
+            }
         }
 
         Glyph {

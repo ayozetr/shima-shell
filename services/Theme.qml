@@ -73,6 +73,9 @@ Singleton {
     readonly property color textTertiary:  "#5c5c5c"
     readonly property color trackFill:     "#ffffff"
     readonly property color trackBg:       "#3a3a3a"
+    // The filled part while muted: clearly dimmer than trackBg so the
+    // bar still reads, but obviously switched off.
+    readonly property color trackMuted:    "#6a6a6a"
 
     readonly property int springDuration: 420
     readonly property int fadeDuration:   160

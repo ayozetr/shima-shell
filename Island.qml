@@ -2,7 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Services.Mpris
-import Quickshell.Services.Pipewire
 import "services"
 import "components"
 
@@ -31,13 +30,22 @@ PanelWindow {
         { id: "calendar", height: 186 }
     ]
     property int mode: 0
-    readonly property int expandedHeight: modes[mode].height
+
+    // A mode can ask for a different height (the control centre does,
+    // when its output list is unfolded); otherwise its fixed one.
+    readonly property int expandedHeight: {
+        const loader = modeLoaders.itemAt(win.mode);
+        const item = loader ? loader.item : null;
+        if (item && item.preferredHeight)
+            return item.preferredHeight + 42;
+        return win.modes[win.mode].height;
+    }
 
     // The window is fixed and at its largest size; what animates is
     // the rectangle inside. Resizing a layer-shell surface every frame
     // stutters, so we don't.
     implicitWidth: Theme.islandExpandedWidth + 40
-    implicitHeight: 186 + Theme.islandExpandedMargin + 24
+    implicitHeight: 320 + Theme.islandExpandedMargin + 24
 
     // Only the visible rectangle takes the mouse. Without this, the
     // transparent window would swallow the clicks around it.
@@ -114,8 +122,11 @@ PanelWindow {
         width:  win.expanded ? Theme.islandExpandedWidth  : Theme.islandCollapsedWidth
         height: win.expanded ? win.expandedHeight : Theme.islandCollapsedHeight
         color: Theme.islandBg
-        border.width: 1
-        border.color: win.expanded ? Theme.islandBorder : "transparent"
+        // Width zero rather than a transparent colour: Qt still lays a
+        // one-pixel stroke for a transparent border, and it shows up as
+        // a faint line across the top of the collapsed island.
+        border.width: win.expanded ? 1 : 0
+        border.color: Theme.islandBorder
 
         // Collapsed it sits against the top, so only the bottom
         // corners get rounded.
@@ -132,7 +143,7 @@ PanelWindow {
         Behavior on y      { NumberAnimation { duration: Theme.springDuration; easing.type: Easing.OutCubic } }
         Behavior on topLeftRadius  { NumberAnimation { duration: Theme.springDuration; easing.type: Easing.OutCubic } }
         Behavior on topRightRadius { NumberAnimation { duration: Theme.springDuration; easing.type: Easing.OutCubic } }
-        Behavior on border.color   { ColorAnimation { duration: Theme.fadeDuration } }
+        Behavior on border.width   { NumberAnimation { duration: Theme.fadeDuration } }
 
         HoverHandler {
             onHoveredChanged: {
@@ -195,6 +206,7 @@ PanelWindow {
 
             // Each mode slides in from the direction of the scroll.
             Repeater {
+                id: modeLoaders
                 model: win.modes.length
 
                 Loader {

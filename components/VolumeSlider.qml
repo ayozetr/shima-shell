@@ -5,6 +5,10 @@ import "../services"
 Item {
     id: root
     property real value: 0
+    // Dimmed means muted: the bar keeps its position but stops looking
+    // lit, which reads better than dropping it to zero and losing where
+    // the volume actually was.
+    property bool dimmed: false
     signal moved(real value)
 
     implicitHeight: 14
@@ -23,7 +27,8 @@ Item {
             width: Math.max(0, Math.min(1, root.value)) * parent.width
             height: parent.height
             radius: parent.radius
-            color: Theme.trackFill
+            color: root.dimmed ? Theme.trackMuted : Theme.trackFill
+            Behavior on color { ColorAnimation { duration: Theme.fadeDuration } }
         }
     }
 
