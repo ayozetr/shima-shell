@@ -24,9 +24,9 @@ PanelWindow {
         : WlrKeyboardFocus.None
     color: "transparent"
 
+    property string screenName: ""
     visible: LauncherState.open
-             && Config.onScreen(Config.data.dockScreens,
-                                win.screen ? win.screen.name : "")
+             && Config.onScreen(Config.data.dockScreens, win.screenName)
 
     BackgroundEffect.blurRegion: Region { item: panel; radius: 18 }
 
@@ -50,7 +50,7 @@ PanelWindow {
         anchors.bottomMargin: Theme.dockIconSize + Theme.dockDotLane
                               + Theme.dockPadding * 2 + 26
         width: 660
-        height: 440
+        height: 480
         radius: 18
         color: Qt.rgba(0, 0, 0, 0.88)
         border.width: 1
@@ -104,7 +104,12 @@ PanelWindow {
 
                 onTextChanged: LauncherState.query = text
 
-                Keys.onEscapePressed: LauncherState.hide()
+                Keys.onEscapePressed: {
+                // Escape folds the submenu first, and only closes the
+                // launcher once there is nothing left unfolded.
+                if (sessionBar.openMenu !== "") sessionBar.openMenu = "";
+                else LauncherState.hide();
+            }
                 Keys.onReturnPressed: {
                     if (win.apps.length > 0) {
                         win.apps[0].execute();
@@ -189,8 +194,8 @@ PanelWindow {
             anchors.rightMargin: 8
             anchors.top: searchBox.bottom
             anchors.topMargin: 12
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 12
+            anchors.bottom: sessionBar.top
+            anchors.bottomMargin: 6
             clip: true
 
             cellWidth: 118
@@ -212,6 +217,41 @@ PanelWindow {
             text: "Nada que se parezca a eso"
             color: Theme.textTertiary
             font.pixelSize: 13
+        }
+
+        // A click anywhere in the panel folds the session submenus
+        // back. It sits above the grid but below the submenus
+        // themselves, which carry a higher z.
+        MouseArea {
+            anchors.fill: parent
+            enabled: sessionBar.openMenu !== ""
+            z: 40
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onClicked: sessionBar.openMenu = ""
+        }
+
+        // ── Bottom bar: power, session and settings ──────────────
+        SessionBar {
+            id: sessionBar
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: 14
+            anchors.rightMargin: 14
+            anchors.bottomMargin: 8
+            onDismissed: LauncherState.hide()
+        }
+
+        // A hairline above it, to set it apart from the grid.
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: sessionBar.top
+            anchors.leftMargin: 14
+            anchors.rightMargin: 14
+            anchors.bottomMargin: 2
+            height: 1
+            color: "#18ffffff"
         }
     }
 }

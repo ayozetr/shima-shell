@@ -8,3 +8,4 @@ singleton SysInfo 1.0 SysInfo.qml
 singleton Weather 1.0 Weather.qml
 singleton Audio 1.0 Audio.qml
 singleton Focus 1.0 Focus.qml
+singleton Session 1.0 Session.qml
