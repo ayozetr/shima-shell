@@ -250,45 +250,4 @@ Singleton {
         if (hours < 24) return I18n.t.hoursAgo.replace("%1", hours);
         return I18n.t.daysAgo.replace("%1", Math.floor(hours / 24));
     }
-
-    // ── Development hook ─────────────────────────────────────────
-    // Lets a fake notification be thrown at the shell from a terminal
-    // while Plasma still owns the real bus name:
-    //   qs ipc call notifications send "App" "Title" "Body"
-    function fake(app, summary, body, urgency, buttons) {
-        const acts = [];
-        for (const label of (buttons || "").split(",")) {
-            if (label.trim() !== "")
-                acts.push({ identifier: label.trim(), text: label.trim() });
-        }
-        root.receive({
-            id: 90000 + root.serial,
-            appName: app,
-            summary: summary,
-            body: body,
-            appIcon: "",
-            image: "",
-            desktopEntry: "",
-            urgency: urgency,
-            transient: false,
-            actions: acts,
-            expireTimeout: -1,
-            tracked: false
-        });
-        return "sent";
-    }
-
-    IpcHandler {
-        target: "notifications"
-
-        function send(app: string, summary: string, body: string): string {
-            return root.fake(app, summary, body, 1, "");
-        }
-
-        // qs ipc call notifications card "App" "Title" "Body" 2 "Yes,No"
-        function card(app: string, summary: string, body: string,
-                      urgency: int, buttons: string): string {
-            return root.fake(app, summary, body, urgency, buttons);
-        }
-    }
 }
