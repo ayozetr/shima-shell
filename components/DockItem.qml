@@ -108,7 +108,7 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: root.dragging ? Qt.ClosedHandCursor : Qt.PointingHandCursor
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
         property real pressX: 0
         property real originX: 0
@@ -152,11 +152,25 @@ Item {
             // Whatever happens, never leave a drag half-finished.
             if (moved) { root.dock.commitDrag(); moved = false; return; }
 
+            if (e.button === Qt.MiddleButton) {
+                // Middle click offers the windows by title instead of
+                // stepping through them one click at a time.
+                if (root.dockWindow && root.dock) {
+                    // Relative to the icon row: the window resizes when
+                    // a popup opens, so window coordinates taken now
+                    // would point somewhere else by the time it shows.
+                    const c = root.mapToItem(root.dock, root.width / 2, 0);
+                    root.dockWindow.openWindowList(root.appId,
+                        root.entry ? root.entry.name : root.appId, c.x);
+                }
+                return;
+            }
+
             if (e.button === Qt.RightButton) {
                 // The menu lives in the dock's window; we hand it the
                 // icon's centre in those coordinates.
-                if (root.dockWindow) {
-                    const c = root.mapToItem(null, root.width / 2, 0);
+                if (root.dockWindow && root.dock) {
+                    const c = root.mapToItem(root.dock, root.width / 2, 0);
                     root.dockWindow.openMenu(root.appId,
                         root.entry ? root.entry.name : root.appId,
                         root.isPinned, c.x);
@@ -170,7 +184,11 @@ Item {
     }
 
     ToolTipLabel {
+        // Hidden while a popup is open: the name would float over the
+        // menu that just took its place.
         show: mouse.containsMouse && !root.dragging
+              && (Config.data.showAppNames ?? true)
+              && !(root.dockWindow && root.dockWindow.popupOpen)
         text: root.entry ? root.entry.name : root.appId
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.top

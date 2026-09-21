@@ -15,53 +15,101 @@ PanelWindow {
     property string menuAppName: ""
     property bool   menuPinned: true
     property real   menuX: 0
-    readonly property bool menuOpen: menuAppId !== ""
+    // Any popup is open: used for the input mask and for the click
+    // that dismisses them. Each popup has its own condition, or opening
+    // one would open the other along with it.
+    readonly property bool popupOpen: menuShown || listShown
+    property bool menuShown: false
+    readonly property bool menuOpen: menuShown
 
     function openMenu(id, name, pinned, xInWindow) {
+        // Clicking the same icon again closes it, rather than
+        // reopening the same menu on top of itself.
+        if (menuShown && menuAppId === id) { closeMenu(); return; }
+        menuCleanup.stop();
+        menuShown = true;
         // Opening a menu closes the launcher: leaving both open at
         // once is confusing and forces you to dismiss them separately.
         LauncherState.hide();
+        closeWindowList();
         menuAppId = id;
         menuAppName = name;
         menuPinned = pinned;
         menuX = xInWindow;
     }
-    function closeMenu() { menuAppId = ""; }
+    // The contents outlive the fade: clearing the id right away empties
+    // the menu and changes its height mid-animation, which reads as the
+    // fade being cut short.
+    function closeMenu() {
+        menuShown = false;
+        menuCleanup.restart();
+    }
+
+    Timer {
+        id: menuCleanup
+        interval: 200
+        onTriggered: win.menuAppId = ""
+    }
+
+    // The window list, opened with a middle click. It shares the menu's
+    // plumbing: same window, same mask, closed by the same click.
+    property string listAppId: ""
+    property string listAppName: ""
+    property real   listX: 0
+    property bool listShown: false
+    readonly property bool listOpen: listShown
+
+    function openWindowList(id, name, xInWindow) {
+        if (listShown && listAppId === id) { closeWindowList(); return; }
+        listCleanup.stop();
+        listShown = true;
+        LauncherState.hide();
+        closeMenu();
+        listAppId = id;
+        listAppName = name;
+        listX = xInWindow;
+        Apps.loadWindows(id);
+    }
+    function closeWindowList() {
+        listShown = false;
+        listCleanup.restart();
+    }
+
+    Timer {
+        id: listCleanup
+        interval: 200
+        onTriggered: win.listAppId = ""
+    }
 
     readonly property bool autoHide: Config.data.dockAutoHide ?? false
     // It won't hide while a menu is open or you're dragging.
-    readonly property bool revealed: !autoHide || hovering || menuOpen || row.dragIndex >= 0
+    readonly property bool revealed: !autoHide || hovering || popupOpen || row.dragIndex >= 0
 
     readonly property bool atTop: Config.data.dockPosition === "top"
     readonly property bool floating: Config.data.dockFloating ?? false
     readonly property int edgeMargin: floating ? (Config.data.dockMargin ?? 10) : -1
 
-    anchors.top: atTop
-    anchors.bottom: !atTop
+    // The window always covers the screen, so a click anywhere can
+    // dismiss a popup. What keeps it from stealing the desktop's clicks
+    // is the mask, not the window size: resizing it on open and close
+    // made the dock visibly jump as it was laid out again.
+    anchors.top: true
+    anchors.bottom: true
+    anchors.left: true
+    anchors.right: true
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "shima-dock"
     color: "transparent"
-    // screen can briefly be null while KWin removes a monitor, so we
-    // don't take it for granted.
-    visible: Config.onScreen(Config.data.dockScreens,
-                             win.screen ? win.screen.name : "")
-
-    // The window is deliberately roomy: a magnified icon grows upwards
-    // and its name floats above it, and anything outside the window is
-    // clipped. Input stays confined to the pill by the mask, so the
-    // spare room bothers nobody.
-    implicitWidth: pill.width + 260
-    // Fixed height, with room for the menu whether it is open or not.
-    // If it grew on opening, the pill would be repositioned relative to
-    // the window and the auto-hide animation would make a very visible
-    // round trip.
-    implicitHeight: pill.height + 150 + Math.max(0, win.edgeMargin)
+    // Handed down by the shell, not read from window.screen: doing
+    // the latter inside `visible` loops, since hiding clears it.
+    property string screenName: ""
+    visible: Config.onScreen(Config.data.dockScreens, win.screenName)
 
     // While hidden the mouse is only needed on a strip at the edge;
     // that is what keeps the rest of the screen belonging to the
     // desktop instead of swallowing its clicks.
-    mask: win.menuOpen ? null : (win.revealed ? pillRegion : edgeRegion)
+    mask: win.popupOpen ? null : (win.revealed ? pillRegion : edgeRegion)
 
     Region {
         id: edgeRegion
@@ -102,9 +150,9 @@ PanelWindow {
     // A click anywhere else dismisses the menu.
     MouseArea {
         anchors.fill: parent
-        enabled: win.menuOpen
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onClicked: win.closeMenu()
+        enabled: win.popupOpen
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+        onClicked: { win.closeMenu(); win.closeWindowList(); }
     }
 
     Rectangle {
@@ -128,9 +176,10 @@ PanelWindow {
                 : (win.height - height - win.edgeMargin);
         }
         // Only animates when hiding and peeking out; any other
-        // recalculation of the position must be instant.
+        // recalculation of the position must be instant, including the
+        // window growing to fit a menu.
         Behavior on y {
-            enabled: win.autoHide
+            enabled: win.autoHide && !win.popupOpen
             NumberAnimation { duration: 260; easing.type: Easing.OutCubic }
         }
 
@@ -253,14 +302,18 @@ PanelWindow {
     }
 
     DockMenu {
+        id: dockMenu
         appId: win.menuAppId
         appName: win.menuAppName
         pinned: win.menuPinned
         open: win.menuOpen
         onCloseRequested: win.closeMenu()
 
-        // Centred over its icon, without running off the window.
-        x: Math.max(6, Math.min(win.width - width - 6, win.menuX - width / 2))
+        // Centred over its icon, without running off the window. The
+        // stored position is relative to the icon row, so the pill's
+        // own position is added here, when it is already laid out.
+        x: Math.max(6, Math.min(win.width - width - 6,
+                                pill.x + row.x + win.menuX - width / 2))
         y: pill.y - height - 10
     }
 
@@ -268,5 +321,17 @@ PanelWindow {
         id: hideTimer
         interval: Config.data.dockHideDelay ?? 700
         onTriggered: win.hovering = false
+    }
+
+    WindowList {
+        id: windowList
+        appId: win.listAppId
+        appName: win.listAppName
+        open: win.listOpen
+        onCloseRequested: win.closeWindowList()
+
+        x: Math.max(6, Math.min(win.width - width - 6,
+                                pill.x + row.x + win.listX - width / 2))
+        y: pill.y - height - 10
     }
 }

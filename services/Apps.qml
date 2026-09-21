@@ -218,33 +218,121 @@ Singleton {
         // window on Wayland, so all that's left is launching the app.
         if (!root.hasKdotool) { entry.execute(); return; }
 
-        // The .desktop id is not necessarily the window class (Dolphin
-        // is "dolphin", Spotify is "Spotify"), so we try every name we
-        // know for the app.
-        const names = root.candidatesFor(entry);
-        if (!names.length) { entry.execute(); return; }
+        const lookups = root.windowLookup(id);
+        if (!lookups) { entry.execute(); return; }
 
-        // Look the window up by every name we know, and then behave
-        // like a task manager: bring it to the front, or minimise it if
-        // it already has focus. Exit 9 means no window was found, so
-        // the app gets launched instead.
+        // One window: raise it, or minimise it if it already has focus,
+        // like any task manager. Several: step to the next one, so
+        // clicking repeatedly walks through them.
+        const script =
+            'wins=""; ' + lookups + '; '
+            + '[ -z "$wins" ] && exit 9; '
+            + 'n=$(printf "%s\n" "$wins" | grep -c .); '
+            + 'active=$(kdotool getactivewindow 2>/dev/null); '
+            + 'if [ "$n" = "1" ]; then '
+            + '  if [ "$wins" = "$active" ]; then exec kdotool windowminimize "$wins"; '
+            + '  else exec kdotool windowactivate "$wins"; fi; '
+            + 'fi; '
+            + 'next=""; found=0; '
+            + 'for w in $wins; do '
+            + '  if [ "$found" = "1" ]; then next="$w"; break; fi; '
+            + '  [ "$w" = "$active" ] && found=1; '
+            + 'done; '
+            + '[ -z "$next" ] && next=$(printf "%s\n" "$wins" | head -1); '
+            + 'exec kdotool windowactivate "$next"';
+
+        activate.pendingId = id;
+        activate.exec(["sh", "-c", script]);
+    }
+
+    // Collects every window of an app into $wins, trying each name the
+    // app is known by until one of them matches.
+    function windowLookup(id) {
+        const entry = root.entryFor(id);
+        if (!entry) return "";
+        const names = root.candidatesFor(entry);
+        if (!names.length) return "";
+        return names
+            .map(n => '[ -z "$wins" ] && wins=$(kdotool search --class '
+                    + JSON.stringify("^" + n + "$") + ' 2>/dev/null)')
+            .join("; ");
+    }
+
+    // ── Listing the windows of an app ──────────────────────────
+    //
+    // Used by the middle click, which offers them by title so you can
+    // pick one instead of stepping through them.
+    property string windowsAppId: ""
+    property var windows: []
+
+    function loadWindows(id) {
+        root.windowsAppId = id;
+        root.windows = [];
+        if (!root.hasKdotool) return;
+
+        const lookups = root.windowLookup(id);
+        if (!lookups) return;
+
+        windowLister.exec(["sh", "-c",
+            'wins=""; ' + lookups + '; '
+            + 'for w in $wins; do '
+            + '  printf "%s\t%s\n" "$w" "$(kdotool getwindowname "$w" 2>/dev/null)"; '
+            + 'done']);
+    }
+
+    Process {
+        id: windowLister
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const out = [];
+                for (const line of text.split("\n")) {
+                    const tab = line.indexOf("\t");
+                    if (tab < 1) continue;
+                    out.push({ id: line.slice(0, tab),
+                               title: line.slice(tab + 1).trim() });
+                }
+                root.windows = out;
+            }
+        }
+    }
+
+    function activateWindow(winId) {
+        if (!winId) return;
+        windowProc.exec(["kdotool", "windowactivate", winId]);
+    }
+
+    // ── Window actions ─────────────────────────────────────────
+    //
+    // Minimise and close need a window, so they go through kdotool like
+    // everything else. Without it they simply do nothing, and the menu
+    // hides them.
+    function windowCommand(id, command) {
+        if (!root.hasKdotool) return;
+        const entry = root.entryFor(id);
+        if (!entry) return;
+
+        const names = root.candidatesFor(entry);
+        if (!names.length) return;
+
         const lookups = names
             .map(n => 'w=$(kdotool search --class ' + JSON.stringify("^" + n + "$")
                     + ' 2>/dev/null | head -1); [ -n "$w" ] && break')
             .join("; ");
 
-        const script =
+        windowProc.exec(["sh", "-c",
             'for _ in 1; do ' + lookups + '; done; '
-            + '[ -z "$w" ] && exit 9; '
-            + 'if [ "$w" = "$(kdotool getactivewindow 2>/dev/null)" ]; then '
-            + '  exec kdotool windowminimize "$w"; '
-            + 'else '
-            + '  exec kdotool windowactivate "$w"; '
-            + 'fi';
-
-        activate.pendingId = id;
-        activate.exec(["sh", "-c", script]);
+            + '[ -n "$w" ] && exec kdotool ' + command + ' "$w"']);
     }
+
+    function closeWindow(id) { root.windowCommand(id, "windowclose"); }
+
+    // Launch another instance regardless of what is already open.
+    function launchNew(id) {
+        const entry = root.entryFor(id);
+        if (entry) entry.execute();
+    }
+
+    Process { id: windowProc }
 
     // If there was no window to raise, launch the app instead.
     Process {
