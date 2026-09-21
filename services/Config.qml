@@ -45,6 +45,14 @@ Singleton {
             property bool   showLauncher:     true   // application launcher button
             property bool   showAppNames:     true   // the name floating over an icon
             property bool   showTray:         true   // the system tray icons
+
+            // ── Global shortcut ────────────────────────────────
+            property bool   shortcutEnabled: true
+            // A Qt key code with its modifiers, as the settings page
+            // captures it. Qt::Key_Meta on its own is the Meta key,
+            // which KWin answers through a different road entirely.
+            property int    shortcutKey:     16777250
+            property string shortcutLabel:   "Meta"
             // Folded behind a chevron, like Plasma's arrow, or always out.
             property bool   trayCollapsible:  true
             property bool   dockAutoHide:     false

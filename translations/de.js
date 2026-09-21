@@ -128,6 +128,10 @@ var strings = {
 
     launcherButton: "Anwendungsschaltfläche",
     launcherButtonHint: "Öffnet das Startmenü vom Dock aus",
+    shortcut: "Tastenkürzel",
+    shortcutHint: "Öffnet die Anwendungen und fährt das Dock aus",
+    shortcutKey: "Taste",
+    pressAKey: "Taste drücken…",
     showNames: "Namen anzeigen",
     showNamesHint: "Der Name, der beim Überfahren über dem Symbol schwebt",
     showRunning: "Offene Anwendungen anzeigen",

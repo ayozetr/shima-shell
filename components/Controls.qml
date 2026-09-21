@@ -248,6 +248,106 @@ Item {
         }
     }
 
+    // ── Key capture ──────────────────────────────────────────────
+    //
+    // Click it, press the combination you want, and it reports the Qt
+    // key code with its modifiers, which is exactly what KDE wants to
+    // be told. A bare modifier counts: the Meta key on its own is the
+    // usual answer here, and KWin has a separate road for it.
+    component KeyCapture_: Rectangle {
+        id: cap
+        property int value: 0
+        property string label: ""
+        property bool listening: false
+        signal captured(int key, string label)
+
+        readonly property var modifierNames: ({
+            16777248: "Shift", 16777249: "Ctrl",
+            16777250: "Meta",  16777251: "Alt"
+        })
+
+        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+        width: Math.max(96, capText.implicitWidth + 22)
+        height: 26
+        radius: 8
+        color: cap.listening ? Theme.accentSoft
+                             : (capMouse.containsMouse ? "#25ffffff" : "#15ffffff")
+        border.width: 1
+        border.color: cap.listening ? Theme.accent : "#1affffff"
+        Behavior on color { ColorAnimation { duration: Theme.hoverDuration } }
+
+        Text {
+            id: capText
+            anchors.centerIn: parent
+            text: cap.listening ? I18n.t.pressAKey : (cap.label || "—")
+            color: cap.listening ? Theme.accent : Theme.textPrimary
+            font.pixelSize: 11
+        }
+
+        MouseArea {
+            id: capMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+                cap.listening = true;
+                cap.forceActiveFocus();
+            }
+        }
+
+        focus: cap.listening
+        Keys.onPressed: (event) => {
+            if (!cap.listening) return;
+            event.accepted = true;
+
+            if (event.key === Qt.Key_Escape) { cap.listening = false; return; }
+
+            // A modifier pressed alone is a valid answer, but only once
+            // it arrives without any other modifier held down.
+            const isModifier = cap.modifierNames[event.key] !== undefined;
+            if (isModifier) {
+                const others = event.modifiers & ~Qt.KeypadModifier;
+                const own = { 16777248: Qt.ShiftModifier, 16777249: Qt.ControlModifier,
+                              16777250: Qt.MetaModifier, 16777251: Qt.AltModifier }[event.key];
+                if ((others & ~own) !== 0) return;   // still building a combination
+                cap.listening = false;
+                cap.captured(event.key, cap.modifierNames[event.key]);
+                return;
+            }
+
+            const parts = [];
+            if (event.modifiers & Qt.MetaModifier) parts.push("Meta");
+            if (event.modifiers & Qt.ControlModifier) parts.push("Ctrl");
+            if (event.modifiers & Qt.AltModifier) parts.push("Alt");
+            if (event.modifiers & Qt.ShiftModifier) parts.push("Shift");
+            parts.push(cap.nameOf(event.key, event.text));
+
+            cap.listening = false;
+            cap.captured(event.key | event.modifiers, parts.join("+"));
+        }
+
+        function nameOf(key, text) {
+            if (key >= Qt.Key_F1 && key <= Qt.Key_F35)
+                return "F" + (key - Qt.Key_F1 + 1);
+            switch (key) {
+                case Qt.Key_Space:  return "Space";
+                case Qt.Key_Return:
+                case Qt.Key_Enter:  return "Enter";
+                case Qt.Key_Tab:    return "Tab";
+                case Qt.Key_Backspace: return "Backspace";
+                case Qt.Key_Delete: return "Delete";
+                case Qt.Key_Home:   return "Home";
+                case Qt.Key_End:    return "End";
+                case Qt.Key_Up:     return "Up";
+                case Qt.Key_Down:   return "Down";
+                case Qt.Key_Left:   return "Left";
+                case Qt.Key_Right:  return "Right";
+            }
+            if (key >= 0x20 && key <= 0x7e) return String.fromCharCode(key).toUpperCase();
+            return text ? text.toUpperCase() : "?";
+        }
+    }
+
     // ── Section heading ──────────────────────────────────────────
     component Section_: Text {
         color: Theme.textTertiary

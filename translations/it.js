@@ -128,6 +128,10 @@ var strings = {
 
     launcherButton: "Pulsante delle applicazioni",
     launcherButtonHint: "Apre il menu di avvio dal dock",
+    shortcut: "Scorciatoia da tastiera",
+    shortcutHint: "Apre le applicazioni e mostra il dock",
+    shortcutKey: "Tasto",
+    pressAKey: "Premi un tasto…",
     showNames: "Mostra i nomi",
     showNamesHint: "Il nome che compare sopra l'icona al passaggio del mouse",
     showRunning: "Mostra le app aperte",

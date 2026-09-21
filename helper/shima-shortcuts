@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""Global shortcut helper for Shima Shell.
+
+KDE hands a global shortcut to whoever registered it with KGlobalAccel,
+over D-Bus, and Quickshell speaks its own IPC over a socket and cannot
+own a D-Bus name. So this sits between them: it registers the shortcut,
+waits for it, and runs the shell's own IPC command. It holds no state of
+its own — the configuration is Shima's, and this reads it.
+
+The Meta key on its own is a shortcut like any other here, which is how
+Plasma binds its launcher to it: as Qt::Key_Meta. It does not need
+KWin's modifier-only mechanism, which would only answer by calling a
+D-Bus method and, unlike this, does not take effect until the session is
+restarted.
+"""
+
+import ctypes
+import json
+import os
+import signal
+import subprocess
+import sys
+
+import dbus
+import dbus.service
+from dbus.mainloop.glib import DBusGMainLoop
+
+import gi
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio, GLib
+
+BUS_NAME = "dev.ayozetr.Shima"
+OBJ_PATH = "/Shell"
+INTERFACE = "dev.ayozetr.Shima"
+
+# What KGlobalAccel is told we are. The first two identify the action,
+# the last two are what the shortcuts settings page shows.
+ACTION = ["shima", "toggleLauncher", "Shima", "Open applications"]
+
+CONFIG = os.path.expanduser("~/.config/shima/config.json")
+
+# Qt::Key_Meta, the Windows key, which is the default.
+KEY_META = 0x01000022
+
+def die_with_parent():
+    """Go when the shell goes.
+
+    The launcher execs into Quickshell, so this process ends up parented
+    to it; asking the kernel for a signal on its death is simpler and
+    more reliable than a trap, which only fires if the script is still
+    around to run it.
+    """
+    try:
+        PR_SET_PDEATHSIG = 1
+        ctypes.CDLL("libc.so.6", use_errno=True).prctl(
+            PR_SET_PDEATHSIG, signal.SIGTERM)
+    except OSError:
+        pass
+
+
+def shell_path():
+    """Where the running shell lives, so ipc calls reach the right one."""
+    env = os.environ.get("SHIMA_SHELL")
+    if env:
+        return env
+    return os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "shell.qml")
+
+
+def read_config():
+    try:
+        with open(CONFIG) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def ipc(action):
+    subprocess.Popen(
+        ["qs", "-p", shell_path(), "ipc", "call", "launcher", action],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+class Shell(dbus.service.Object):
+    """What KWin calls when the Meta key is pressed.
+
+    Modifier-only shortcuts are the one thing KWin will not do by
+    running a command: it calls a D-Bus method, so there has to be
+    something on the bus to call.
+    """
+
+    def __init__(self, bus):
+        name = dbus.service.BusName(BUS_NAME, bus, replace_existing=True)
+        super().__init__(name, OBJ_PATH)
+
+    @dbus.service.method(INTERFACE)
+    def Toggle(self):
+        ipc("toggle")
+
+    @dbus.service.method(INTERFACE)
+    def Show(self):
+        ipc("show")
+
+    @dbus.service.method(INTERFACE)
+    def Hide(self):
+        ipc("hide")
+
+
+class Helper:
+    def __init__(self):
+        DBusGMainLoop(set_as_default=True)
+        self.bus = dbus.SessionBus()
+        self.shell = Shell(self.bus)
+        self.accel = dbus.Interface(
+            self.bus.get_object("org.kde.kglobalaccel", "/kglobalaccel"),
+            "org.kde.KGlobalAccel")
+
+    # ── The shortcut itself ─────────────────────────────────────
+    def listen(self):
+        self.bus.add_signal_receiver(
+            self.on_pressed,
+            signal_name="globalShortcutPressed",
+            dbus_interface="org.kde.kglobalaccel.Component")
+
+    def on_pressed(self, component, action, timestamp):
+        if str(component) == ACTION[0] and str(action) == ACTION[1]:
+            ipc("toggle")
+
+    def free_key(self, key):
+        """Take the key off whoever else has it.
+
+        Plasma holds Meta for its own launcher, and a key already
+        claimed is simply not given to us. Only the four-part action id
+        works here; the two-part one is accepted and does nothing.
+        """
+        try:
+            held = self.accel.getGlobalShortcutsByKey(key)
+        except dbus.DBusException:
+            return
+        for info in held:
+            component, action = str(info[2]), str(info[0])
+            if component == ACTION[0]:
+                continue
+            friendly_action, friendly_component = str(info[1]), str(info[3])
+            keys = [int(k) for k in info[6] if int(k) != key]
+            try:
+                self.accel.setForeignShortcut(
+                    [component, action, friendly_component, friendly_action],
+                    keys)
+                print("took %s off %s" % (key, component), file=sys.stderr)
+            except dbus.DBusException as e:
+                print("could not free the key:", e, file=sys.stderr)
+
+    def set_shortcut(self, key):
+        """key: a Qt key code with its modifiers, or 0 for none."""
+        if key:
+            self.free_key(key)
+        try:
+            self.accel.doRegister(ACTION)
+            # NoAutoloading | SetPresent. Without NoAutoloading the
+            # call loads whatever is in the config file and reports
+            # that back, so it looks like it worked and nothing is
+            # bound.
+            self.accel.setShortcut(ACTION, [key] if key else [], 6)
+        except dbus.DBusException as e:
+            print("could not set the shortcut:", e, file=sys.stderr, flush=True)
+
+    # ── Following the configuration ─────────────────────────────
+    def apply(self, *args):
+        cfg = read_config()
+        enabled = cfg.get("shortcutEnabled", True)
+        key = int(cfg.get("shortcutKey", KEY_META) or 0)
+
+        self.set_shortcut(key if enabled else 0)
+
+    def watch_config(self):
+        self.monitor = Gio.File.new_for_path(CONFIG).monitor_file(
+            Gio.FileMonitorFlags.NONE, None)
+        self.monitor.connect("changed", self.apply)
+
+    def run(self):
+        self.listen()
+        self.apply()
+        self.watch_config()
+        GLib.MainLoop().run()
+
+
+if __name__ == "__main__":
+    die_with_parent()
+    try:
+        Helper().run()
+    except KeyboardInterrupt:
+        sys.exit(0)

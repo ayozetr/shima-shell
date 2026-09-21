@@ -128,6 +128,10 @@ var strings = {
 
     launcherButton: "Botó d'aplicacions",
     launcherButtonHint: "Obre el menú d'inici des del dock",
+    shortcut: "Drecera de teclat",
+    shortcutHint: "Obre les aplicacions i desplega el dock",
+    shortcutKey: "Tecla",
+    pressAKey: "Premeu una tecla…",
     showNames: "Mostra els noms",
     showNamesHint: "El nom que apareix sobre la icona en passar-hi el ratolí",
     showRunning: "Mostra les apps obertes",

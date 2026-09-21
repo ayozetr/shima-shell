@@ -1,5 +1,6 @@
 pragma Singleton
 import Quickshell
+import Quickshell.Io
 
 // Whether the launcher is open and which category it is showing.
 Singleton {
@@ -23,4 +24,18 @@ Singleton {
         root.open = true;
     }
     function hide()   { root.open = false; }
+
+    // What the global shortcut calls. It is a plain toggle so the same
+    // key closes what it opened.
+    IpcHandler {
+        target: "launcher"
+
+        function toggle(): string {
+            root.toggle();
+            return root.open ? "open" : "closed";
+        }
+
+        function show(): string { root.show(); return "open"; }
+        function hide(): string { root.hide(); return "closed"; }
+    }
 }

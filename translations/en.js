@@ -116,6 +116,10 @@ var strings = {
 
     launcherButton: "Applications button",
     launcherButtonHint: "Opens the start menu from the dock",
+    shortcut: "Keyboard shortcut",
+    shortcutHint: "Opens the applications and brings the dock out",
+    shortcutKey: "Key",
+    pressAKey: "Press a key…",
     showNames: "Show names",
     showNamesHint: "The name floating over an icon on hover",
     showRunning: "Show open apps",

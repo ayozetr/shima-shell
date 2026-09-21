@@ -159,6 +159,31 @@ FloatingWindow {
             }
 
             Controls.Row_ {
+                label: I18n.t.shortcut
+                hint: I18n.t.shortcutHint
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.shortcutEnabled ?? true
+                    onToggled: (v) => { win.c.shortcutEnabled = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.shortcutKey
+                visible: win.c.shortcutEnabled ?? true
+                Controls.KeyCapture_ {
+                    anchors.right: parent.right
+                    value: win.c.shortcutKey ?? 16777250
+                    label: win.c.shortcutLabel ?? "Meta"
+                    onCaptured: (key, text) => {
+                        win.c.shortcutKey = key;
+                        win.c.shortcutLabel = text;
+                        Config.save();
+                    }
+                }
+            }
+
+            Controls.Row_ {
                 label: I18n.t.showNames
                 hint: I18n.t.showNamesHint
                 Controls.Toggle_ {

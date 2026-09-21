@@ -128,6 +128,10 @@ var strings = {
 
     launcherButton: "Botón de aplicaciones",
     launcherButtonHint: "Abre el menú de inicio desde el dock",
+    shortcut: "Atajo de teclado",
+    shortcutHint: "Abre las aplicaciones y despliega el dock",
+    shortcutKey: "Tecla",
+    pressAKey: "Pulsa una tecla…",
     showNames: "Mostrar nombres",
     showNamesHint: "El nombre que flota sobre el icono al pasar el ratón",
     showRunning: "Mostrar apps abiertas",

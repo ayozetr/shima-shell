@@ -8,7 +8,12 @@
 #     that live there. The real theme has to be given through a pragma,
 #     which is static, so we rewrite it whenever you change themes.
 #
-#  2. Start with -n, which refuses to open a second instance. Without
+#  2. Start the shortcut helper. Quickshell cannot own a D-Bus name,
+#     and KDE hands out global shortcuts over D-Bus, so a small
+#     companion does that part and calls back in over the shell's own
+#     IPC. It dies with the shell.
+#
+#  3. Start with -n, which refuses to open a second instance. Without
 #     that you end up with several docks stacked on top of each other
 #     fighting over the mouse, and it is hard to notice what's going on.
 
@@ -23,6 +28,15 @@ current=$(sed -n 's|^//@ pragma IconTheme ||p' "$SHELL_QML")
 if [ "$current" != "$theme" ]; then
     sed -i "s|^//@ pragma IconTheme .*|//@ pragma IconTheme $theme|" "$SHELL_QML"
     echo "Icon theme updated to $theme"
+fi
+
+SHIMA_SHELL="$SHELL_QML"
+export SHIMA_SHELL
+
+# The helper asks the kernel to be killed when its parent dies, and exec
+# below keeps this process id, so it goes when the shell goes.
+if [ -x "$DIR/helper/shima-shortcuts" ]; then
+    "$DIR/helper/shima-shortcuts" &
 fi
 
 exec qs -n -p "$SHELL_QML" "$@"
