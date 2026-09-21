@@ -6,6 +6,7 @@ import "../translations/fr.js" as Fr
 import "../translations/it.js" as It
 import "../translations/de.js" as De
 import "../translations/ca.js" as Ca
+import "../translations/pt.js" as Pt
 
 // Interface strings, one file per language under translations/.
 //
@@ -22,7 +23,8 @@ Singleton {
         fr: Fr.strings,
         it: It.strings,
         de: De.strings,
-        ca: Ca.strings
+        ca: Ca.strings,
+        pt: Pt.strings
     })
 
     // Each language is named in itself, the way language pickers do it:
@@ -34,7 +36,8 @@ Singleton {
         { code: "en",   label: "English" },
         { code: "fr",   label: "Français" },
         { code: "it",   label: "Italiano" },
-        { code: "de",   label: "Deutsch" }
+        { code: "de",   label: "Deutsch" },
+        { code: "pt",   label: "Português (Brasil)" }
     ]
 
     // "auto" follows the session. LANGUAGE wins over LANG when both are
@@ -62,6 +65,6 @@ Singleton {
     // tracks the language, so each one gets a sensible region.
     readonly property string qtLocale: ({
         es: "es_ES", ca: "ca_ES", en: "en_GB",
-        fr: "fr_FR", it: "it_IT", de: "de_DE"
+        fr: "fr_FR", it: "it_IT", de: "de_DE", pt: "pt_BR"
     })[root.language] ?? "en_GB"
 }
