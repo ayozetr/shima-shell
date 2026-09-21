@@ -200,6 +200,16 @@ FloatingWindow {
             }
 
             Controls.Row_ {
+                label: I18n.t.inheritFavorites
+                hint: I18n.t.inheritFavoritesHint
+                Controls.Button_ {
+                    anchors.right: parent.right
+                    label: I18n.t.import
+                    onTriggered: Apps.importFavoritesFromPlasma()
+                }
+            }
+
+            Controls.Row_ {
                 label: I18n.t.inheritTaskbar
                 hint: I18n.t.inheritTaskbarHint
                 Controls.Button_ {

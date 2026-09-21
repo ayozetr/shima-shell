@@ -13,7 +13,12 @@ Singleton {
     // there show up here without restarting anything.
     function show() {
         Apps.readMenu();
-        root.category = "all";
+        Apps.refreshFavorites();
+        Apps.readFrequent();
+        // Favourites first, which is the point of having them — unless
+        // there are none yet, and an empty panel would be a poor
+        // greeting.
+        root.category = Apps.favorites.length > 0 ? "favorites" : "all";
         root.query = "";
         root.open = true;
     }

@@ -125,7 +125,13 @@ PanelWindow {
                 selectByMouse: true
                 focus: LauncherState.open
 
-                onTextChanged: LauncherState.query = text
+                onTextChanged: {
+                    LauncherState.query = text;
+                    // Typing searches everything: looking for something
+                    // inside Favourites and being told it isn't there
+                    // would be true and useless.
+                    if (text !== "") LauncherState.category = "all";
+                }
 
                 Keys.onEscapePressed: {
                 // Escape folds the submenu first, and only closes the
@@ -241,11 +247,21 @@ PanelWindow {
             boundsBehavior: Flickable.StopAtBounds
 
             delegate: AppTile {
+                required property int index
+                required property var modelData
+
                 entry: modelData
                 width: grid.cellWidth - 6
                 height: grid.cellHeight - 6
                 launcherWindow: win
+                itemIndex: index
+                gridView: grid
+                // Only the favourites are a list of yours to arrange;
+                // everywhere else the order is not ours to change.
+                reorderable: LauncherState.category === "favorites"
+                             && LauncherState.query === ""
                 onLaunched: LauncherState.hide()
+                onReordered: (from, to) => Apps.moveFavorite(from, to)
             }
         }
 
