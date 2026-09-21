@@ -46,7 +46,10 @@ Singleton {
     // bindings something to depend on.
     property int revision: 0
 
-    Component.onCompleted: DesktopEntries.applications.values.length
+    Component.onCompleted: {
+        DesktopEntries.applications.values.length;
+        root.readMenu();
+    }
 
     // On a hot reload, applicationsChanged already fired before we
     // existed, so that signal never reaches us and the bindings would
@@ -86,12 +89,92 @@ Singleton {
 
     function isRunning(id) { return root.runningIds[id] === true; }
 
+    // ── The KDE menu ───────────────────────────────────────────
+    //
+    // The launcher shows what the K menu shows, because reading the
+    // .desktop files ourselves shows entries that were deliberately
+    // hidden from it — deleting one in KDE's menu editor does not
+    // delete anything, it parks the entry in a ".hidden" submenu and
+    // excludes it. Resolving all that (merges, per-user edits,
+    // excludes, .directory names) is what KDE already does, and it
+    // will print the result.
+    //
+    // It only reads: the cache is left alone when it is up to date.
+    property var menuApps: ({})     // category → [ids], KDE's own order
+    property var menuCats: []       // category names, as KDE names them
+    property bool hasMenu: false
+    property real menuReadAt: 0
+
+    Process {
+        id: menuProbe
+        command: ["kbuildsycoca6", "--menutest"]
+        stdout: StdioCollector { onStreamFinished: root.parseMenu(text) }
+    }
+
+    function readMenu() {
+        // Cheap (some 45 ms) but not free, and the launcher asks every
+        // time it opens.
+        if (menuProbe.running || Date.now() - root.menuReadAt < 3000) return;
+        root.menuReadAt = Date.now();
+        menuProbe.running = true;
+    }
+
+    function parseMenu(text) {
+        const byCat = {};
+        const order = [];
+
+        for (const line of text.split("\n")) {
+            const parts = line.split("\t");
+            if (parts.length < 2) continue;
+            const path = parts[0].replace(/\/+$/, "");
+            const file = parts[1].trim();
+            if (!path || !file.endsWith(".desktop")) continue;
+
+            // Nested submenus (Wine/Programs/Vital) fold into their
+            // top level: a sidebar one level deep is a sidebar you can
+            // read at a glance.
+            const cat = path.split("/")[0];
+            const id = file.slice(0, -".desktop".length);
+
+            if (!byCat[cat]) { byCat[cat] = []; order.push(cat); }
+            if (byCat[cat].indexOf(id) === -1) byCat[cat].push(id);
+        }
+
+        if (order.length === 0) {
+            // No KDE menu to read: fall back to sorting by the
+            // categories in each .desktop, which is what this did
+            // before.
+            root.hasMenu = false;
+            return;
+        }
+
+        order.sort((a, b) => a.localeCompare(b, I18n.language));
+        root.menuApps = byCat;
+        root.menuCats = order;
+        root.hasMenu = true;
+        root.revision++;
+    }
+
     // ── Categories ─────────────────────────────────────────────
     //
     // A .desktop declares several categories at once ("Qt;KDE;System;"),
     // so we keep the first of the main ones that shows up, in this
     // order.
-    readonly property var categories: [
+    readonly property var categories: {
+        if (!root.hasMenu) return root.ownCategories;
+        const out = [
+            { id: "favorites", label: I18n.t.catFavorites, match: [] },
+            { id: "all", label: I18n.t.catAll, match: [] }
+        ];
+        // KDE has already translated these, so they are its words and
+        // not ours. That is the point: the sidebar says what the K
+        // menu says.
+        for (const c of root.menuCats) out.push({ id: c, label: c, match: [] });
+        return out;
+    }
+
+    // Used only when KDE's menu can't be read.
+    readonly property var ownCategories: [
         { id: "favorites", label: I18n.t.catFavorites, match: [] },
         { id: "all",     label: I18n.t.catAll,      match: [] },
         { id: "net",     label: I18n.t.catNet,   match: ["Network", "WebBrowser", "Email"] },
@@ -107,7 +190,7 @@ Singleton {
 
     function categoryOf(entry) {
         const cats = entry.categories || [];
-        for (const c of root.categories) {
+        for (const c of root.ownCategories) {
             // These three are not read off the .desktop: two are
             // catch-alls and the third is a list you keep yourself.
             if (c.id === "all" || c.id === "other" || c.id === "favorites") continue;
@@ -148,12 +231,30 @@ Singleton {
             return out;
         }
 
-        for (const e of DesktopEntries.applications.values) {
-            if (e.noDisplay) continue;
-            if (category && category !== "all"
-                && root.categoryOf(e) !== category) continue;
-            if (!root.matchesQuery(e, q)) continue;
-            out.push(e);
+        if (root.hasMenu) {
+            // One pass over the menu, so an app that KDE lists in two
+            // places is not listed twice here.
+            const seen = {};
+            const cats = (category && category !== "all")
+                ? [category] : root.menuCats;
+            for (const c of cats) {
+                for (const id of (root.menuApps[c] || [])) {
+                    if (seen[id]) continue;
+                    seen[id] = true;
+                    const e = root.entryFor(id);
+                    if (!e || e.noDisplay) continue;
+                    if (!root.matchesQuery(e, q)) continue;
+                    out.push(e);
+                }
+            }
+        } else {
+            for (const e of DesktopEntries.applications.values) {
+                if (e.noDisplay) continue;
+                if (category && category !== "all"
+                    && root.categoryOf(e) !== category) continue;
+                if (!root.matchesQuery(e, q)) continue;
+                out.push(e);
+            }
         }
 
         out.sort((a, b) => a.name.localeCompare(b.name, I18n.language));
@@ -199,6 +300,16 @@ Singleton {
     // How many apps each category holds, so empty ones stay hidden.
     function categoryCounts() {
         const counts = {};
+        if (root.hasMenu) {
+            const seen = {};
+            for (const c of root.menuCats) {
+                counts[c] = (root.menuApps[c] || []).length;
+                for (const id of (root.menuApps[c] || [])) seen[id] = true;
+            }
+            counts.all = Object.keys(seen).length;
+            counts.favorites = root.favorites.length;
+            return counts;
+        }
         for (const e of DesktopEntries.applications.values) {
             if (e.noDisplay) continue;
             const c = root.categoryOf(e);

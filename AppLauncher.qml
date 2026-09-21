@@ -152,13 +152,25 @@ PanelWindow {
         }
 
         // ── Categories ───────────────────────────────────────────
-        Column {
+        // KDE's menu brings however many categories it has, which here
+        // is fifteen: enough to run past the bottom of the panel and
+        // under the session bar. So it scrolls.
+        Flickable {
             id: cats
             anchors.left: parent.left
             anchors.leftMargin: 14
             anchors.top: searchBox.bottom
             anchors.topMargin: 12
+            anchors.bottom: sessionBar.top
+            anchors.bottomMargin: 8
             width: 132
+            clip: true
+            contentHeight: catList.height
+            boundsBehavior: Flickable.StopAtBounds
+
+        Column {
+            id: catList
+            width: parent.width
             spacing: 2
 
             Repeater {
@@ -207,6 +219,7 @@ PanelWindow {
                     }
                 }
             }
+        }
         }
 
         // ── Application grid ─────────────────────────────────────
