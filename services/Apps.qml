@@ -173,8 +173,7 @@ Singleton {
         if (!root.hasMenu) return root.ownCategories;
         const out = [
             { id: "favorites", label: I18n.t.catFavorites, match: [] },
-            { id: "frequent", label: I18n.t.catFrequent, match: [] },
-            { id: "places", label: I18n.t.catPlaces, match: [] },
+                { id: "places", label: I18n.t.catPlaces, match: [] },
             { id: "all", label: I18n.t.catAll, match: [] }
         ];
         // KDE has already translated these, so they are its words and
@@ -187,7 +186,6 @@ Singleton {
     // Used only when KDE's menu can't be read.
     readonly property var ownCategories: [
         { id: "favorites", label: I18n.t.catFavorites, match: [] },
-        { id: "frequent", label: I18n.t.catFrequent, match: [] },
         { id: "places",  label: I18n.t.catPlaces,   match: [] },
         { id: "all",     label: I18n.t.catAll,      match: [] },
         { id: "net",     label: I18n.t.catNet,   match: ["Network", "WebBrowser", "Email"] },
@@ -206,8 +204,8 @@ Singleton {
         for (const c of root.ownCategories) {
             // These three are not read off the .desktop: two are
             // catch-alls and the third is a list you keep yourself.
-            if (c.id === "all" || c.id === "other" || c.id === "favorites"
-                || c.id === "frequent" || c.id === "places") continue;
+            if (c.id === "all" || c.id === "other"
+                || c.id === "favorites" || c.id === "places") continue;
             for (const m of c.match)
                 if (cats.indexOf(m) !== -1) return c.id;
         }
@@ -242,13 +240,11 @@ Singleton {
             return out;
         }
 
-        // These two are ordered lists, not catalogues: favourites by
-        // the order you arranged them, frequent by how much you use
-        // them. Sorting either alphabetically would throw away the
-        // only thing they say.
-        if (category === "favorites" || category === "frequent") {
-            const ids = category === "favorites" ? root.favorites : root.frequent;
-            for (const id of ids) {
+        // Favourites keep the order they were added in. Sorting them
+        // alphabetically would undo the only thing that makes them a
+        // list of yours rather than another view of the same catalogue.
+        if (category === "favorites") {
+            for (const id of root.favorites) {
                 const e = root.entryFor(id);
                 if (!e || e.noDisplay) continue;
                 if (!root.matchesQuery(e, q)) continue;
@@ -288,48 +284,6 @@ Singleton {
     }
 
     function isFavorite(id) { return root.favorites.indexOf(id) !== -1; }
-
-    // ── Frequently used ────────────────────────────────────────
-    //
-    // The same database that holds the favourites also scores what
-    // gets opened, which is where the K menu's "frequently used" comes
-    // from. A resource can be scored once per activity, so the scores
-    // are added up rather than taken one by one.
-    property var frequent: []
-
-    Process {
-        id: freqProbe
-        command: ["sh", "-c",
-            "sqlite3 \"$HOME/.local/share/kactivitymanagerd/resources/database\" "
-            + "\"SELECT targettedResource FROM ResourceScoreCache "
-            + "  WHERE targettedResource LIKE 'applications:%' "
-            + "  GROUP BY targettedResource "
-            + "  ORDER BY SUM(cachedScore) DESC LIMIT 40;\" 2>/dev/null"]
-        stdout: StdioCollector { onStreamFinished: root.parseFrequent(text) }
-    }
-
-    function readFrequent() {
-        if (!freqProbe.running) freqProbe.running = true;
-    }
-
-    function parseFrequent(text) {
-        const out = [];
-        for (const raw of text.split("\n")) {
-            let id = raw.trim();
-            if (id.indexOf("applications:") !== 0) continue;
-            id = id.slice("applications:".length);
-            if (id.endsWith(".desktop")) id = id.slice(0, -".desktop".length);
-            if (out.indexOf(id) !== -1) continue;
-            if (!root.entryFor(id)) continue;
-            out.push(id);
-            // A "frequently used" list long enough to scroll is just
-            // the catalogue again, in a worse order.
-            if (out.length >= 20) break;
-        }
-        if (out.join("\u0000") === root.frequent.join("\u0000")) return;
-        root.frequent = out;
-        root.revision++;
-    }
 
     // ── Inheriting the K menu's favourites ─────────────────────
     //
@@ -511,7 +465,6 @@ Singleton {
             }
             counts.all = Object.keys(seen).length;
             counts.favorites = root.favorites.length;
-            counts.frequent = root.frequent.length;
         counts.places = Places.entries.length;
             counts.places = Places.entries.length;
             return counts;
@@ -525,7 +478,6 @@ Singleton {
         // Not read off the .desktop, so it has to be counted apart or
         // the category would hide itself for being empty.
         counts.favorites = root.favorites.length;
-        counts.frequent = root.frequent.length;
         counts.places = Places.entries.length;
         return counts;
     }
@@ -613,11 +565,91 @@ Singleton {
             const url = entry.execString.match(/steam:\/\/(?:rungameid|run)\/(\d+)/);
             if (url) out.push("steam_app_" + url[1]);
         }
+
+        // A game that runs under Proton names its window after the
+        // Steam id, which the line above covers. One built for Linux
+        // names it after its binary instead — Terraria's window class
+        // is "Terraria.bin.x86_64" — and that is not in the .desktop
+        // at all, since the Exec goes through Steam. Its display name
+        // is the only thing left to match on.
+        if (entry.name && entry.name.indexOf(" ") === -1)
+            out.push(entry.name.toLowerCase());
+
         return out;
     }
 
+    // The window class as the index knows it, or undefined.
+    function idForClass(name) {
+        const direct = root.procIndex[name];
+        if (direct !== undefined) return direct;
+
+        // "terraria.bin.x86_64" is the binary, and its first segment
+        // is the name. Reversed-domain ids are left alone: the first
+        // segment of "org.kde.dolphin" says nothing.
+        if (/^(org|com|net|io|dev|app|me|xyz|fr|eu)\./.test(name)) return undefined;
+        const head = name.split(".")[0];
+        if (head && head !== name && head.length >= 3) return root.procIndex[head];
+        return undefined;
+    }
+
     function entryFor(id) {
-        return DesktopEntries.byId(id) ?? null;
+        const real = DesktopEntries.byId(id);
+        if (real) return real;
+        // A game with no shortcut created has no .desktop at all, so
+        // one is made up from what Steam already knows.
+        if (id && id.indexOf("steam_app_") === 0) return root.steamEntry(id);
+        return null;
+    }
+
+    // ── Steam games without a shortcut ─────────────────────────
+    //
+    // Creating a shortcut writes a .desktop; not creating one leaves
+    // nothing to read, and the game is simply missing from the dock
+    // even while you are playing it. Steam does keep a manifest per
+    // installed game with its name, and installs an icon for it, so
+    // that is enough to stand in for the entry.
+    property var steamGames: ({})
+
+    Process {
+        id: steamScan
+        running: true
+        command: ["sh", "-c",
+            "for lib in \"$HOME/.steam/steam/steamapps\" "
+            + "\"$HOME/.local/share/Steam/steamapps\"; do "
+            + "  [ -d \"$lib\" ] || continue; "
+            + "  for f in \"$lib\"/appmanifest_*.acf; do "
+            + "    [ -f \"$f\" ] || continue; "
+            + "    id=${f##*appmanifest_}; id=${id%.acf}; "
+            + "    name=$(sed -n 's/^\\t\"name\"\\t*\"\\(.*\\)\"$/\\1/p' \"$f\" | head -1); "
+            + "    [ -n \"$name\" ] && printf '%s\\t%s\\n' \"$id\" \"$name\"; "
+            + "  done; "
+            + "done"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const games = {};
+                for (const line of text.split("\n")) {
+                    const tab = line.indexOf("\t");
+                    if (tab < 0) continue;
+                    games[line.slice(0, tab).trim()] = line.slice(tab + 1).trim();
+                }
+                root.steamGames = games;
+                root.revision++;
+            }
+        }
+    }
+
+    function steamEntry(id) {
+        const appId = id.slice("steam_app_".length);
+        const name = root.steamGames[appId];
+        if (!name) return null;
+        return {
+            id: id,
+            name: name,
+            icon: "steam_icon_" + appId,
+            comment: "",
+            isSteamGame: true,
+            appId: appId
+        };
     }
 
     // Find the application a notification came from.
@@ -668,6 +700,10 @@ Singleton {
         // A place is a folder, not a program: it opens in whatever
         // handles it, which here is the file manager.
         if (entry.isPlace) { Places.open(entry); return; }
+        if (entry.isSteamGame) {
+            Quickshell.execDetached(["steam", "steam://rungameid/" + entry.appId]);
+            return;
+        }
         if (root.hasKstart && entry.id)
             Quickshell.execDetached(["kstart", "--application", entry.id]);
         else
@@ -769,9 +805,13 @@ Singleton {
         if (!entry) return "";
         const names = root.candidatesFor(entry);
         if (!names.length) return "";
+        // The trailing segment is optional because a native game's
+        // window carries the binary's full name: "Terraria" has to
+        // match "Terraria.bin.x86_64". kdotool ignores case, so the
+        // candidates being lowercase costs nothing.
         return names
             .map(n => '[ -z "$wins" ] && wins=$(kdotool search --class '
-                    + JSON.stringify("^" + n + "$") + ' 2>/dev/null)')
+                    + JSON.stringify("^" + n + "(\\..*)?$") + ' 2>/dev/null)')
             .join("; ");
     }
 
@@ -957,8 +997,13 @@ Singleton {
                 // every entry for each process.
                 const alive = {};
                 for (const p of procs) {
-                    const id = root.procIndex[p];
-                    if (id !== undefined) alive[id] = true;
+                    const id = root.idForClass(p);
+                    if (id !== undefined) { alive[id] = true; continue; }
+                    // An installed game with no .desktop is known by
+                    // its window class and nothing else.
+                    if (p.indexOf("steam_app_") === 0
+                        && root.steamGames[p.slice("steam_app_".length)] !== undefined)
+                        alive[p] = true;
                 }
 
                 // Pinned apps need their own check: their binary may
