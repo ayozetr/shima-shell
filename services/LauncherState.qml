@@ -15,7 +15,7 @@ Singleton {
     function show() {
         Apps.readMenu();
         Apps.refreshFavorites();
-        Apps.readFrequent();
+        Apps.readRecent();
         // Favourites first, which is the point of having them — unless
         // there are none yet, and an empty panel would be a poor
         // greeting.

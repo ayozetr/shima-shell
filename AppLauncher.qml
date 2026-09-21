@@ -213,7 +213,7 @@ PanelWindow {
                     // carry a mark instead of a count, and a rule below
                     // the last of them sets the three apart.
                     readonly property string mark: ({
-                        favorites: "star", frequent: "clock", places: "bookmark"
+                        favorites: "star", recent: "clock", places: "bookmark"
                     })[modelData.id] || ""
                     readonly property bool lastFixed: modelData.id === "places"
 
@@ -289,6 +289,71 @@ PanelWindow {
         }
         }
 
+        // ── Recently used: two sections, not one list ────────────
+        //
+        // Applications and files are different kinds of thing and mix
+        // badly in one grid, so each gets its own heading. A GridView
+        // cannot do sections — only a ListView can — so this is a
+        // column of two plain grids.
+        Flickable {
+            id: recentView
+            anchors.left: cats.right
+            anchors.leftMargin: 10
+            anchors.right: parent.right
+            anchors.rightMargin: 8
+            anchors.top: searchBox.bottom
+            anchors.topMargin: 12
+            anchors.bottom: sessionBar.top
+            anchors.bottomMargin: 6
+            clip: true
+            visible: LauncherState.category === "recent" && LauncherState.query === ""
+            contentHeight: recentColumn.height
+            boundsBehavior: Flickable.StopAtBounds
+
+            Column {
+                id: recentColumn
+                width: recentView.width
+                spacing: 4
+
+                component Heading: Text {
+                    color: Theme.textTertiary
+                    font.pixelSize: 10
+                    font.letterSpacing: 0.6
+                    topPadding: 6
+                    leftPadding: 6
+                }
+
+                component Tiles: Grid {
+                    property var model: []
+                    width: recentColumn.width
+                    columns: Math.max(1, Math.floor(width / 118))
+                    Repeater {
+                        model: parent.model
+                        AppTile {
+                            required property var modelData
+                            entry: modelData
+                            width: 112
+                            height: 86
+                            launcherWindow: win
+                            onLaunched: LauncherState.hide()
+                        }
+                    }
+                }
+
+                Heading {
+                    text: I18n.t.recentApps
+                    visible: Apps.recentApps.length > 0
+                }
+                Tiles { model: Apps.recentApps }
+
+                Heading {
+                    text: I18n.t.recentFiles
+                    visible: Apps.recentFiles.length > 0
+                }
+                Tiles { model: Apps.recentFiles }
+            }
+        }
+
         // ── Application grid ─────────────────────────────────────
         GridView {
             id: grid
@@ -301,6 +366,7 @@ PanelWindow {
             anchors.bottom: sessionBar.top
             anchors.bottomMargin: 6
             clip: true
+            visible: !recentView.visible
 
             cellWidth: 118
             cellHeight: 92
@@ -328,7 +394,7 @@ PanelWindow {
 
         Text {
             anchors.centerIn: grid
-            visible: win.apps.length === 0
+            visible: win.apps.length === 0 && !recentView.visible
             text: I18n.t.noMatches
             color: Theme.textTertiary
             font.pixelSize: 13
