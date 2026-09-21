@@ -72,7 +72,7 @@ Rectangle {
                     anchors.right: parent.right
                     anchors.rightMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
-                    text: modelData.title || "(sin título)"
+                    text: modelData.title || I18n.t.untitled
                     color: Theme.textPrimary
                     font.pixelSize: 11
                     elide: Text.ElideRight

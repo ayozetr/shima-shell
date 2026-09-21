@@ -18,6 +18,7 @@ var strings = {
     searchApps: "Buscar aplicaciones…",
     noMatches: "Nada que se parezca a eso",
     addApp: "Añadir una aplicación…",
+    searchPlace: "Buscar una localidad…",
 
     // ── Categories ──
     catFavorites: "Favoritos",
@@ -29,6 +30,27 @@ var strings = {
     copyResult: "copiar",
     runCommand: "Ejecutar en la terminal",
     searching: "Buscando…",
+    // ── Weather, pomodoro and odds and ends ──
+    wxClear: "Despejado",
+    wxMostlyClear: "Poco nuboso",
+    wxPartlyCloudy: "Parcialmente nublado",
+    wxCloudy: "Nublado",
+    wxFog: "Niebla",
+    wxDrizzle: "Llovizna",
+    wxRain: "Lluvia",
+    wxSnow: "Nieve",
+    wxShowers: "Chubascos",
+    wxSnowShowers: "Nevadas",
+    wxThunderstorm: "Tormenta",
+    reset: "Reiniciar",
+    skip: "Saltar",
+    searchPlace: "Buscar una localidad…",
+    focusOver: "Sesión terminada",
+    breakOver: "Descanso terminado",
+    takeABreak: "Tómate un descanso.",
+    backToWork: "De vuelta al trabajo.",
+    untitled: "(sin título)",
+    nothingPlaying: "Sin reproducción",
 
     catRecent: "Recientes",
     catPlaces: "Lugares",
@@ -83,11 +105,14 @@ var strings = {
     battery: "BATERÍA",
 
     // ── Island: media and focus ──
+    nothingPlaying: "Sin reproducción",
     focus: "ENFOQUE",
     breakLabel: "DESCANSO",
     longBreak: "DESCANSO LARGO",
     start: "Iniciar",
     pause: "Pausar",
+    reset: "Reiniciar",
+    skip: "Saltar",
 
     // ── Settings: sections ──
     secScreens: "PANTALLAS",

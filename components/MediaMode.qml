@@ -29,7 +29,8 @@ Item {
 
         Text {
             Layout.fillWidth: true
-            text: root.player ? (root.player.trackTitle || "Sin reproducción") : "Sin reproducción"
+            text: root.player ? (root.player.trackTitle || I18n.t.nothingPlaying)
+                              : I18n.t.nothingPlaying
             color: Theme.textPrimary
             font.pixelSize: 15
             font.weight: Font.DemiBold

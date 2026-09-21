@@ -114,10 +114,8 @@ Singleton {
 
     function notify(wasFocus) {
         if (!(Config.data.focusNotify ?? true)) return;
-        const title = wasFocus ? "Sesión terminada" : "Descanso terminado";
-        const body = wasFocus
-            ? "Tómate un descanso."
-            : "De vuelta al trabajo.";
+        const title = wasFocus ? I18n.t.focusOver : I18n.t.breakOver;
+        const body = wasFocus ? I18n.t.takeABreak : I18n.t.backToWork;
         notifier.exec(["notify-send", "-a", "Shima", "-i", "clock", title, body]);
     }
 
@@ -146,7 +144,7 @@ Singleton {
             "--dest", "org.freedesktop.Notifications",
             "--object-path", "/org/freedesktop/Notifications",
             "--method", "org.freedesktop.Notifications.Inhibit",
-            "shima", "Sesión de enfoque", "{}"]);
+            "shima", I18n.t.focus, "{}"]);
     }
 
     function release() {

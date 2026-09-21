@@ -18,6 +18,7 @@ var strings = {
     searchApps: "Cerca aplicacions…",
     noMatches: "Cap resultat",
     addApp: "Afegeix una aplicació…",
+    searchPlace: "Cerca una localitat…",
 
     // ── Categories ──
     catFavorites: "Preferits",
@@ -29,6 +30,27 @@ var strings = {
     copyResult: "copia",
     runCommand: "Executa al terminal",
     searching: "S'està cercant…",
+    // ── Weather, pomodoro and odds and ends ──
+    wxClear: "Serè",
+    wxMostlyClear: "Poc ennuvolat",
+    wxPartlyCloudy: "Parcialment ennuvolat",
+    wxCloudy: "Ennuvolat",
+    wxFog: "Boira",
+    wxDrizzle: "Plugim",
+    wxRain: "Pluja",
+    wxSnow: "Neu",
+    wxShowers: "Ruixats",
+    wxSnowShowers: "Nevades",
+    wxThunderstorm: "Tempesta",
+    reset: "Reinicia",
+    skip: "Omet",
+    searchPlace: "Cerca una localitat…",
+    focusOver: "Sessió acabada",
+    breakOver: "Descans acabat",
+    takeABreak: "Fes un descans.",
+    backToWork: "Torna a la feina.",
+    untitled: "(sense títol)",
+    nothingPlaying: "Sense reproducció",
 
     catRecent: "Recents",
     catPlaces: "Llocs",
@@ -83,11 +105,14 @@ var strings = {
     battery: "BATERIA",
 
     // ── Island: media and focus ──
+    nothingPlaying: "Cap reproducció",
     focus: "CONCENTRACIÓ",
     breakLabel: "DESCANS",
     longBreak: "DESCANS LLARG",
     start: "Inicia",
     pause: "Pausa",
+    reset: "Reinicia",
+    skip: "Salta",
 
     // ── Settings: sections ──
     secScreens: "PANTALLES",
