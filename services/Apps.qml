@@ -210,6 +210,32 @@ Singleton {
         return DesktopEntries.byId(id) ?? null;
     }
 
+    // Find the application a notification came from.
+    //
+    // The spec has a field for this, but plenty of senders leave it
+    // empty and only give a display name, so that is matched too. It
+    // is the difference between every notification wearing the same
+    // generic icon and wearing the sender's own.
+    function matchApp(desktopEntry, appName) {
+        if (desktopEntry) {
+            const id = desktopEntry.replace(/\.desktop$/, "");
+            const byId = DesktopEntries.byId(id);
+            if (byId) return byId;
+        }
+        if (!appName) return null;
+
+        const want = appName.toLowerCase();
+        let tail = null;
+        for (const e of DesktopEntries.applications.values) {
+            if (e.name && e.name.toLowerCase() === want) return e;
+            if (e.id && e.id.toLowerCase() === want) return e;
+            // "org.kde.discover" answers to "discover", but only if
+            // nothing matched outright.
+            if (!tail && e.id && e.id.split(".").pop().toLowerCase() === want) tail = e;
+        }
+        return tail;
+    }
+
     function launch(id) {
         const entry = root.entryFor(id);
         if (!entry) return;

@@ -381,6 +381,65 @@ FloatingWindow {
                 }
             }
 
+            Item { width: 1; height: 6 }
+
+            // ── NOTIFICATIONS ───────────────────────────────────
+            Controls.Section_ { text: I18n.t.notifications }
+
+            Controls.Row_ {
+                label: I18n.t.notificationsEnabled
+                hint: I18n.t.notificationsEnabledHint
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.notificationsEnabled ?? true
+                    onToggled: (v) => { win.c.notificationsEnabled = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.notificationPeekSeconds
+                visible: win.c.notificationsEnabled ?? true
+                Controls.Slider_ {
+                    from: 2; to: 15; step: 1; suffix: " s"
+                    value: win.c.notificationPeekSeconds ?? 5
+                    onMoved: (v) => { win.c.notificationPeekSeconds = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.notificationCards
+                hint: I18n.t.notificationCardsHint
+                visible: win.c.notificationsEnabled ?? true
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.notificationCards ?? true
+                    onToggled: (v) => { win.c.notificationCards = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.notificationCardSeconds
+                visible: (win.c.notificationsEnabled ?? true)
+                         && (win.c.notificationCards ?? true)
+                Controls.Slider_ {
+                    from: 4; to: 40; step: 1; suffix: " s"
+                    value: win.c.notificationCardSeconds ?? 12
+                    onMoved: (v) => { win.c.notificationCardSeconds = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.notificationHistory
+                visible: win.c.notificationsEnabled ?? true
+                Controls.Slider_ {
+                    from: 10; to: 200; step: 10
+                    value: win.c.notificationHistory ?? 50
+                    onMoved: (v) => { win.c.notificationHistory = v; Config.save(); }
+                }
+            }
+
+            Item { width: 1; height: 6 }
+
             // ── FOCUS ───────────────────────────────────────────
             Controls.Section_ { text: I18n.t.focus }
 

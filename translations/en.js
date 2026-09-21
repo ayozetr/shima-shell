@@ -41,6 +41,13 @@ var strings = {
     output: "Output",
     noOutputs: "No audio outputs",
 
+    notifications: "Notifications",
+    noNotifications: "No notifications",
+    clearAll: "Clear",
+    justNow: "now",
+    minutesAgo: "%1 min ago",
+    hoursAgo: "%1 h ago",
+    daysAgo: "%1 d ago",
     nightLight: "Night light",
     screens: "Screens",
 
@@ -70,6 +77,13 @@ var strings = {
     secColour: "COLOUR",
     secLanguage: "LANGUAGE",
 
+    notificationsEnabled: "Notification server",
+    notificationsEnabledHint: "Shima takes over as soon as Plasma releases the service",
+    notificationPeekSeconds: "Time in the island",
+    notificationCards: "Floating cards",
+    notificationCardsHint: "For urgent ones and those with buttons",
+    notificationCardSeconds: "Card timeout",
+    notificationHistory: "History",
     showTray: "System tray",
     showTrayHint: "The icons applications publish, like Discord or Steam",
     trayCollapsible: "Collapsible tray",

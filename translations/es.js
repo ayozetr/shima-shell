@@ -48,6 +48,14 @@ var strings = {
     nightLight: "Luz nocturna",
     screens: "Pantallas",
 
+    // ── Island: notifications ──
+    notifications: "Notificaciones",
+    noNotifications: "Sin notificaciones",
+    clearAll: "Vaciar",
+    justNow: "ahora",
+    minutesAgo: "hace %1 min",
+    hoursAgo: "hace %1 h",
+    daysAgo: "hace %1 d",
 
     // ── Island: status ──
     cpu: "CPU",
@@ -79,6 +87,13 @@ var strings = {
     secLanguage: "IDIOMA",
 
     // ── Tray ──
+    notificationsEnabled: "Servidor de notificaciones",
+    notificationsEnabledHint: "Shima las mostrará en cuanto Plasma libere el servicio",
+    notificationPeekSeconds: "Tiempo en la isla",
+    notificationCards: "Tarjetas flotantes",
+    notificationCardsHint: "Para las urgentes y las que traen botones",
+    notificationCardSeconds: "Tiempo de la tarjeta",
+    notificationHistory: "Historial",
     showTray: "Bandeja del sistema",
     showTrayHint: "Los iconos que publican las apps, como Discord o Steam",
     trayCollapsible: "Bandeja plegable",

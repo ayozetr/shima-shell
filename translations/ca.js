@@ -48,6 +48,14 @@ var strings = {
     nightLight: "Llum nocturna",
     screens: "Pantalles",
 
+    // ── Island: notifications ──
+    notifications: "Notificacions",
+    noNotifications: "Sense notificacions",
+    clearAll: "Buida",
+    justNow: "ara",
+    minutesAgo: "fa %1 min",
+    hoursAgo: "fa %1 h",
+    daysAgo: "fa %1 d",
 
     // ── Island: status ──
     cpu: "CPU",
@@ -79,6 +87,13 @@ var strings = {
     secLanguage: "IDIOMA",
 
     // ── Tray ──
+    notificationsEnabled: "Servidor de notificacions",
+    notificationsEnabledHint: "Shima les mostrarà quan Plasma alliberi el servei",
+    notificationPeekSeconds: "Temps a l'illa",
+    notificationCards: "Targetes flotants",
+    notificationCardsHint: "Per a les urgents i les que porten botons",
+    notificationCardSeconds: "Temps de la targeta",
+    notificationHistory: "Historial",
     showTray: "Safata del sistema",
     showTrayHint: "Les icones que publiquen les apps, com el Discord o l'Steam",
     trayCollapsible: "Safata plegable",

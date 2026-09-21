@@ -22,6 +22,7 @@ ShellRoot {
             Island      { screen: modelData; screenName: modelData.name }
             Dock        { screen: modelData; screenName: modelData.name }
             AppLauncher { screen: modelData; screenName: modelData.name }
+            NotificationCards { screen: modelData; screenName: modelData.name }
         }
     }
 
@@ -37,6 +38,9 @@ ShellRoot {
         Apps.revision;
         Brightness.available;
         NightLight.available;
+        // The notification server has to be up before anything is
+        // sent, not when the history is first opened.
+        Notifications.enabled;
         // The tray needs to register as a host and wait for the items
         // to answer; woken late it reports an empty tray for seconds.
         SystemTray.items.values.length;

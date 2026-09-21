@@ -27,7 +27,8 @@ PanelWindow {
         { id: "media",    height: 146 },
         { id: "control",  height: 162 },
         { id: "status",   height: 142 },
-        { id: "calendar", height: 186 }
+        { id: "calendar", height: 186 },
+        { id: "notifications", height: 228 }
     ]
     property int mode: 0
 
@@ -87,10 +88,33 @@ PanelWindow {
     readonly property int  topMargin: floating ? (Config.data.islandMargin ?? 8) : 0
 
     // It won't hide while expanded, obviously.
-    readonly property bool revealed: !autoHide || hovering || expanded
+    readonly property bool revealed: !autoHide || hovering || expanded || peeking
 
     property bool hovering: false
     property bool expanded: false
+
+    // ── A notification passing through ─────────────────────────
+    //
+    // It only takes the island when the island is idle: interrupting
+    // someone who is in the middle of changing the volume would be
+    // worse than making them wait. Missed ones are in the history.
+    readonly property var peek: (win.expanded || !Config.onScreen(
+        Config.data.islandScreens, win.screenName)) ? null : Notifications.peek
+    readonly property bool peeking: win.peek !== null
+    readonly property int peekHeight: 84
+
+    onPeekChanged: {
+        if (win.peek) peekTimer.restart();
+        else peekTimer.stop();
+    }
+
+    Timer {
+        id: peekTimer
+        interval: win.peek ? Notifications.peekSeconds(win.peek) * 1000 : 5000
+        // Hovering holds it open: it is being read.
+        running: false
+        onTriggered: Notifications.dismissPeek()
+    }
 
     readonly property MprisPlayer player: {
         const players = Mpris.players.values;
@@ -114,6 +138,11 @@ PanelWindow {
         SysInfo.active = (win.mode === 2 && win.expanded);
         Brightness.active = (win.mode === 1 && win.expanded);
         NightLight.active = (win.mode === 1 && win.expanded);
+        // Having the list on screen is reading it. This can't live in
+        // the mode itself: its neighbour is preloaded, so arriving at
+        // the calendar would clear the unread mark without you ever
+        // seeing the notifications.
+        if (win.mode === 4 && win.expanded) Notifications.markAllRead();
     }
 
     Rectangle {
@@ -125,19 +154,21 @@ PanelWindow {
             if (win.expanded) return Math.max(win.topMargin, Theme.islandExpandedMargin);
             return win.topMargin;
         }
-        width:  win.expanded ? Theme.islandExpandedWidth  : Theme.islandCollapsedWidth
-        height: win.expanded ? win.expandedHeight : Theme.islandCollapsedHeight
+        width:  (win.expanded || win.peeking) ? Theme.islandExpandedWidth
+                                              : Theme.islandCollapsedWidth
+        height: win.expanded ? win.expandedHeight
+                             : (win.peeking ? win.peekHeight : Theme.islandCollapsedHeight)
         color: Theme.islandBg
         // Width zero rather than a transparent colour: Qt still lays a
         // one-pixel stroke for a transparent border, and it shows up as
         // a faint line across the top of the collapsed island.
-        border.width: win.expanded ? 1 : 0
+        border.width: (win.expanded || win.peeking) ? 1 : 0
         border.color: Theme.islandBorder
 
         // Collapsed it sits against the top, so only the bottom
         // corners get rounded.
-        topLeftRadius:     (win.expanded || win.floating) ? Theme.islandRadius : 0
-        topRightRadius:    (win.expanded || win.floating) ? Theme.islandRadius : 0
+        topLeftRadius:     (win.expanded || win.peeking || win.floating) ? Theme.islandRadius : 0
+        topRightRadius:    (win.expanded || win.peeking || win.floating) ? Theme.islandRadius : 0
         bottomLeftRadius:  Theme.islandRadius
         bottomRightRadius: Theme.islandRadius
         readonly property int radius: Theme.islandRadius
@@ -153,7 +184,15 @@ PanelWindow {
 
         HoverHandler {
             onHoveredChanged: {
-                win.expanded = hovered;
+                // While a notification is up, the pointer reads it
+                // instead of expanding the island: the countdown stops
+                // and picks up again when the pointer leaves.
+                if (win.peeking) {
+                    if (hovered) peekTimer.stop();
+                    else peekTimer.restart();
+                } else {
+                    win.expanded = hovered;
+                }
                 if (hovered) { hideTimer.stop(); win.hovering = true; }
                 else if (win.autoHide) hideTimer.restart();
             }
@@ -179,9 +218,45 @@ PanelWindow {
         CollapsedContent {
             anchors.fill: parent
             player: win.player
-            opacity: win.expanded ? 0 : 1
+            opacity: (win.expanded || win.peeking) ? 0 : 1
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
+        }
+
+        // Something came in while you were away. It lives in the
+        // bottom corner because the collapsed island already has the
+        // bars on one side and the album art on the other.
+        Rectangle {
+            anchors.right: parent.right
+            anchors.rightMargin: 11
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 7
+            width: 5; height: 5; radius: 2.5
+            color: Theme.accent
+            opacity: (!win.expanded && !win.peeking && Notifications.unread > 0) ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
+        }
+
+        NotificationPeek {
+            anchors.fill: parent
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            entry: win.peek
+            opacity: win.peeking ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
+
+            onDismissed: Notifications.dismissPeek()
+            onActivated: {
+                // The first action is the default one by convention,
+                // which is what clicking a notification runs.
+                if (win.peek) {
+                    Notifications.markRead(win.peek.key);
+                    if (win.peek.actionCount > 0) Notifications.invoke(win.peek.id, 0);
+                }
+                Notifications.dismissPeek();
+            }
         }
 
         // Its own strip for the mode indicator, so no content ever
@@ -193,7 +268,7 @@ PanelWindow {
             anchors.topMargin: 11
             count: win.modes.length
             current: win.mode
-            opacity: win.expanded ? 1 : 0
+            opacity: (win.expanded && !win.peeking) ? 1 : 0
             visible: opacity > 0
             z: 5
             onPicked: (i) => win.mode = i
@@ -229,7 +304,8 @@ PanelWindow {
                             case 0:  return mediaMode;
                             case 1:  return controlMode;
                             case 2:  return statusMode;
-                            default: return calendarMode;
+                            case 3:  return calendarMode;
+                            default: return notificationMode;
                         }
                     }
                 }
@@ -241,4 +317,5 @@ PanelWindow {
     Component { id: controlMode;  ControlMode {} }
     Component { id: statusMode;   StatusMode {} }
     Component { id: calendarMode; CalendarMode {} }
+    Component { id: notificationMode; NotificationMode {} }
 }

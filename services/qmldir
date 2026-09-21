@@ -12,3 +12,4 @@ singleton Focus 1.0 Focus.qml
 singleton Session 1.0 Session.qml
 singleton Brightness 1.0 Brightness.qml
 singleton NightLight 1.0 NightLight.qml
+singleton Notifications 1.0 Notifications.qml

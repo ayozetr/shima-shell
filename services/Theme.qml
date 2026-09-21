@@ -77,6 +77,10 @@ Singleton {
     // bar still reads, but obviously switched off.
     readonly property color trackMuted:    "#6a6a6a"
 
+    // Urgency is not a matter of taste, so it does not follow the
+    // accent: a red dot means the same whatever colour the island is.
+    readonly property color urgent:        "#f4564a"
+
     readonly property int springDuration: 420
     readonly property int fadeDuration:   160
     readonly property int hoverDuration:  180
