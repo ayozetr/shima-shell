@@ -5,7 +5,7 @@ import "../services"
 // don't depend on any theme.
 Canvas {
     id: root
-    property string kind: "wifi"   // wifi · bt · mute · output
+    property string kind: "wifi"   // wifi · bt · mute · output · brightness · night · back
     property color fill: Theme.textPrimary
 
     onKindChanged: requestPaint()
@@ -76,6 +76,45 @@ Canvas {
             ctx.beginPath();
             ctx.moveTo(w * 0.58, h * 0.34); ctx.lineTo(w * 0.88, h * 0.66);
             ctx.moveTo(w * 0.88, h * 0.34); ctx.lineTo(w * 0.58, h * 0.66);
+            ctx.stroke();
+        } else if (kind === "brightness") {
+            // Sun: a filled core with eight rays, so it still reads as
+            // brightness at fourteen pixels.
+            ctx.beginPath();
+            ctx.arc(w / 2, h / 2, w * 0.22, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.lineWidth = Math.max(1.3, w * 0.09);
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+                const a = i * Math.PI / 4;
+                ctx.moveTo(w / 2 + Math.cos(a) * w * 0.34,
+                           h / 2 + Math.sin(a) * h * 0.34);
+                ctx.lineTo(w / 2 + Math.cos(a) * w * 0.46,
+                           h / 2 + Math.sin(a) * h * 0.46);
+            }
+            ctx.stroke();
+        } else if (kind === "night") {
+            // Crescent: a disc with a second one bitten out of it,
+            // which keeps the horns sharp at any size.
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(w * 0.50, h * 0.50, w * 0.42, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.beginPath();
+            ctx.arc(w * 0.76, h * 0.30, w * 0.40, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        } else if (kind === "back") {
+            ctx.lineWidth = Math.max(1.4, w * 0.13);
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            ctx.moveTo(w * 0.62, h * 0.18);
+            ctx.lineTo(w * 0.34, h * 0.50);
+            ctx.lineTo(w * 0.62, h * 0.82);
             ctx.stroke();
         }
     }

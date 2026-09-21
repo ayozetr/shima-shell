@@ -35,6 +35,8 @@ ShellRoot {
         Audio.ready;
         Weather.ready;
         Apps.revision;
+        Brightness.available;
+        NightLight.available;
         // The tray needs to register as a host and wait for the items
         // to answer; woken late it reports an empty tray for seconds.
         SystemTray.items.values.length;

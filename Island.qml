@@ -106,9 +106,15 @@ PanelWindow {
         function onIsPlayingChanged() { Cava.setActive(win.player.isPlaying); }
     }
 
-    // The /proc readings only run while the Status mode is on screen.
-    onModeChanged: SysInfo.active = (mode === 2 && win.expanded)
-    onExpandedChanged: SysInfo.active = (mode === 2 && win.expanded)
+    // Polling follows whatever is on screen: the /proc readings while
+    // Status is up, the brightness of each monitor while Control is.
+    onModeChanged: win.syncPolling()
+    onExpandedChanged: win.syncPolling()
+    function syncPolling() {
+        SysInfo.active = (win.mode === 2 && win.expanded);
+        Brightness.active = (win.mode === 1 && win.expanded);
+        NightLight.active = (win.mode === 1 && win.expanded);
+    }
 
     Rectangle {
         id: shell
@@ -161,7 +167,6 @@ PanelWindow {
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             onWheel: (e) => {
-                console.log("[shima] rueda:", e.angleDelta.y, "expandida:", win.expanded);
                 if (!win.expanded) return;
                 const dy = e.angleDelta.y !== 0 ? e.angleDelta.y : e.angleDelta.x;
                 if (dy === 0) return;

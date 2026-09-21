@@ -41,6 +41,9 @@ var strings = {
     output: "Output",
     noOutputs: "No audio outputs",
 
+    nightLight: "Night light",
+    screens: "Screens",
+
     cpu: "CPU",
     memory: "MEMORY",
     download: "DOWN",

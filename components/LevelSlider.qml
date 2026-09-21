@@ -1,13 +1,15 @@
 import QtQuick
 import "../services"
 
-// Volume bar: thickens when the mouse hovers over it.
+// A bar that thickens when the mouse hovers over it. Used for volume
+// and for brightness: neither needs a handle, and the fill alone reads
+// better at this size.
 Item {
     id: root
     property real value: 0
-    // Dimmed means muted: the bar keeps its position but stops looking
-    // lit, which reads better than dropping it to zero and losing where
-    // the volume actually was.
+    // Dimmed keeps the bar where it is but stops it looking lit. For
+    // volume that means muted, which reads better than dropping to zero
+    // and losing where the level actually was.
     property bool dimmed: false
     signal moved(real value)
 

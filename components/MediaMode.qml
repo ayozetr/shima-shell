@@ -93,7 +93,7 @@ Item {
             }
         }
 
-        VolumeSlider {
+        LevelSlider {
             Layout.fillWidth: true
             value: Audio.volume
             dimmed: Audio.muted

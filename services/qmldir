@@ -10,3 +10,5 @@ singleton Weather 1.0 Weather.qml
 singleton Audio 1.0 Audio.qml
 singleton Focus 1.0 Focus.qml
 singleton Session 1.0 Session.qml
+singleton Brightness 1.0 Brightness.qml
+singleton NightLight 1.0 NightLight.qml

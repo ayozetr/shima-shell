@@ -45,6 +45,9 @@ var strings = {
     bluetooth: "Bluetooth",
     output: "Salida",
     noOutputs: "No hay salidas de audio",
+    nightLight: "Luz nocturna",
+    screens: "Pantallas",
+
 
     // ── Island: status ──
     cpu: "CPU",
