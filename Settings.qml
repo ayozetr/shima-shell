@@ -159,6 +159,16 @@ FloatingWindow {
             }
 
             Controls.Row_ {
+                label: "Mostrar nombres"
+                hint: "El nombre que flota sobre el icono al pasar el ratón"
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.showAppNames ?? true
+                    onToggled: (v) => { win.c.showAppNames = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
                 label: "Mostrar apps abiertas"
                 hint: "Añade al dock lo que tengas abierto aunque no esté anclado"
                 Controls.Toggle_ {

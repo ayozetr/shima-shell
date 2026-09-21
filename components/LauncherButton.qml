@@ -63,6 +63,8 @@ Item {
 
     ToolTipLabel {
         show: ma.containsMouse && !LauncherState.open
+              && (Config.data.showAppNames ?? true)
+              && !(root.dockWindow && root.dockWindow.popupOpen)
         text: "Aplicaciones"
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.top

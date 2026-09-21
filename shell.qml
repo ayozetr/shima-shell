@@ -15,9 +15,12 @@ ShellRoot {
         model: Quickshell.screens
         delegate: Scope {
             required property var modelData
-            Island      { screen: modelData }
-            Dock        { screen: modelData }
-            AppLauncher { screen: modelData }
+            // The screen name is handed down rather than read back
+            // from the window: reading window.screen inside `visible`
+            // is a binding loop, because hiding a window clears it.
+            Island      { screen: modelData; screenName: modelData.name }
+            Dock        { screen: modelData; screenName: modelData.name }
+            AppLauncher { screen: modelData; screenName: modelData.name }
         }
     }
 

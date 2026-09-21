@@ -18,9 +18,9 @@ PanelWindow {
     WlrLayershell.namespace: "shima-island"
     color: "transparent"
 
+    property string screenName: ""
     visible: (Config.data.islandEnabled ?? true)
-             && Config.onScreen(Config.data.islandScreens,
-                                win.screen ? win.screen.name : "")
+             && Config.onScreen(Config.data.islandScreens, win.screenName)
 
     // ── Modes ──────────────────────────────────────────────────
     readonly property var modes: [

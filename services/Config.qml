@@ -43,6 +43,7 @@ Singleton {
             property bool   dockMagnify:      true
             property bool   showRunning:      true   // open apps that are not pinned
             property bool   showLauncher:     true   // application launcher button
+            property bool   showAppNames:     true   // the name floating over an icon
             property bool   dockAutoHide:     false
             property int    dockHideDelay:    700    // ms before hiding
 
