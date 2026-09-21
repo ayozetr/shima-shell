@@ -75,6 +75,12 @@ var strings = {
     secColour: "COLORE",
     secLanguage: "LINGUA",
 
+    // ── Tray ──
+    showTray: "Area di notifica",
+    showTrayHint: "Le icone che pubblicano le app, come Discord o Steam",
+    trayCollapsible: "Area richiudibile",
+    trayCollapsibleHint: "Si richiude dietro una freccia invece di restare sempre visibile",
+
     // ── Settings: entries ──
     settingsTitle: "Shima Shell",
     settingsWindowTitle: "Impostazioni di Shima",

@@ -75,6 +75,12 @@ var strings = {
     secColour: "FARBE",
     secLanguage: "SPRACHE",
 
+    // ── Tray ──
+    showTray: "Systemabschnitt",
+    showTrayHint: "Die Symbole, die Anwendungen bereitstellen, etwa Discord oder Steam",
+    trayCollapsible: "Einklappbar",
+    trayCollapsibleHint: "Klappt hinter einen Pfeil, statt immer sichtbar zu sein",
+
     // ── Settings: entries ──
     settingsTitle: "Shima Shell",
     settingsWindowTitle: "Shima-Einstellungen",

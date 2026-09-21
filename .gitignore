@@ -17,3 +17,6 @@ build/
 # Runtime leftovers
 *.log
 core
+
+# Personal
+context.md

@@ -75,6 +75,12 @@ var strings = {
     secColour: "COLOR",
     secLanguage: "IDIOMA",
 
+    // ── Tray ──
+    showTray: "Safata del sistema",
+    showTrayHint: "Les icones que publiquen les apps, com el Discord o l'Steam",
+    trayCollapsible: "Safata plegable",
+    trayCollapsibleHint: "S'amaga darrere una fletxa en lloc d'estar sempre visible",
+
     // ── Settings: entries ──
     settingsTitle: "Shima Shell",
     settingsWindowTitle: "Configuració de Shima",

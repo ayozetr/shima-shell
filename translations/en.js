@@ -67,6 +67,10 @@ var strings = {
     secColour: "COLOUR",
     secLanguage: "LANGUAGE",
 
+    showTray: "System tray",
+    showTrayHint: "The icons applications publish, like Discord or Steam",
+    trayCollapsible: "Collapsible tray",
+    trayCollapsibleHint: "Folds behind a chevron instead of always being out",
     settingsTitle: "Shima Shell",
     settingsWindowTitle: "Shima settings",
     settingsSubtitle: "Changes apply immediately.",

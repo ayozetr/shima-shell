@@ -169,6 +169,27 @@ FloatingWindow {
             }
 
             Controls.Row_ {
+                label: I18n.t.showTray
+                hint: I18n.t.showTrayHint
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.showTray ?? true
+                    onToggled: (v) => { win.c.showTray = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.trayCollapsible
+                hint: I18n.t.trayCollapsibleHint
+                visible: win.c.showTray ?? true
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.trayCollapsible ?? true
+                    onToggled: (v) => { win.c.trayCollapsible = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
                 label: I18n.t.showRunning
                 hint: I18n.t.showRunningHint
                 Controls.Toggle_ {

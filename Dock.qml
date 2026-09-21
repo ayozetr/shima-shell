@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Services.SystemTray
 import "services"
 import "components"
 
@@ -195,7 +196,10 @@ PanelWindow {
         border.width: 1
         border.color: Theme.dockBorder
 
-        Behavior on width  { NumberAnimation { duration: Theme.springDuration; easing.type: Easing.OutCubic } }
+        // No animation on the width here: it comes from the icon row,
+        // which animates it already. Animating it twice made the pill
+        // lag behind its own contents, leaving tray icons outside the
+        // edge while it caught up.
         Behavior on color  { ColorAnimation  { duration: Theme.fadeDuration } }
 
         // The cursor position is tracked with a HoverHandler and not a
@@ -231,9 +235,47 @@ PanelWindow {
             readonly property int step: Theme.dockIconSize + Theme.dockIconSpacing
             // The launcher button takes its own slot ahead of everything.
             readonly property int lead: hasLauncher ? step : 0
+
+            // The tray sits at the end, smaller than the app icons and
+            // behind its own divider: they are indicators, not launchers.
+            readonly property bool hasTray: (Config.data.showTray ?? true)
+                                            && trayModel.length > 0
+            readonly property var trayModel: {
+                const out = [];
+                for (const i of SystemTray.items.values)
+                    if (i.status !== SystemTrayItem.Passive) out.push(i);
+                return out;
+            }
+            readonly property int trayStep: Math.round(Theme.dockIconSize * 0.62)
+                                            + Math.round(Theme.dockIconSpacing * 0.55)
+
+            // Folded, only the chevron shows; unfolded, the icons follow
+            // it. Set to stay out, there is no chevron at all.
+            readonly property bool trayFolds: Config.data.trayCollapsible ?? true
+            property bool trayOut: false
+            readonly property bool trayShown: hasTray && (!trayFolds || trayOut)
+            readonly property int toggleStep: (trayFolds && hasTray)
+                ? Math.round(Theme.dockIconSize * 0.62 * 0.62)
+                  + Math.round(Theme.dockIconSpacing * 0.55)
+                : 0
+
+            readonly property int trayLead: lead + count * step
+                                            + (hasTray ? Theme.dockIconSpacing : 0)
+            readonly property int trayIconsLead: trayLead + toggleStep
             readonly property int count: Apps.dockItems.length
             readonly property int pinnedCount: Apps.pinned.length
-            width: Math.max(0, lead + count * step - Theme.dockIconSpacing)
+            width: Math.max(0, !hasTray
+                ? lead + count * step - Theme.dockIconSpacing
+                : trayIconsLead
+                  + (trayShown ? trayModel.length * trayStep : 0)
+                  - (trayShown ? Math.round(Theme.dockIconSpacing * 0.55)
+                               : Math.round(Theme.dockIconSpacing * 0.55)))
+            // The pill has to finish widening before the icons finish
+            // appearing, or they sit outside it for a moment. Folding
+            // is the other way round: they leave first.
+            Behavior on width {
+                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+            }
             height: Theme.dockIconSize + Theme.dockDotLane
 
             // Which one is being dragged and where it would land now.
@@ -283,6 +325,56 @@ PanelWindow {
                 width: 1
                 height: Theme.dockIconSize - 8
                 color: "#20ffffff"
+            }
+
+            // Divider before the tray.
+            Rectangle {
+                visible: row.hasTray && row.count > 0
+                x: row.trayLead - Theme.dockIconSpacing / 2 - width / 2
+                y: 4
+                width: 1
+                height: Theme.dockIconSize - 8
+                color: "#20ffffff"
+            }
+
+            TrayToggle {
+                visible: row.hasTray && row.trayFolds
+                expanded: row.trayOut
+                x: row.trayLead
+                y: 0
+                onToggled: row.trayOut = !row.trayOut
+            }
+
+            Repeater {
+                model: row.trayModel
+                TrayItem {
+                    // Both have to be declared: asking for modelData
+                    // makes the delegate required-only, and index stops
+                    // being injected.
+                    required property var modelData
+                    required property int index
+                    item: modelData
+                    dockWindow: win
+                    // Folded, they sit on top of the chevron and slide
+                    // out from behind it. Animating only the opacity
+                    // left them at their final position from the first
+                    // frame, outside the pill until it finished
+                    // widening. Same duration and curve as the width,
+                    // so icon and edge travel together.
+                    x: row.trayShown
+                        ? row.trayIconsLead + index * row.trayStep
+                        : row.trayLead
+                    y: 0
+                    Behavior on x {
+                        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                    }
+
+                    visible: opacity > 0
+                    opacity: row.trayShown ? 1 : 0
+                    Behavior on opacity {
+                        NumberAnimation { duration: 170 }
+                    }
+                }
             }
 
             Repeater {

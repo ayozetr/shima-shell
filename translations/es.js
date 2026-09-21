@@ -75,6 +75,12 @@ var strings = {
     secColour: "COLOR",
     secLanguage: "IDIOMA",
 
+    // ── Tray ──
+    showTray: "Bandeja del sistema",
+    showTrayHint: "Los iconos que publican las apps, como Discord o Steam",
+    trayCollapsible: "Bandeja plegable",
+    trayCollapsibleHint: "Se esconde tras una flecha en vez de estar siempre a la vista",
+
     // ── Settings: entries ──
     settingsTitle: "Shima Shell",
     settingsWindowTitle: "Ajustes de Shima",

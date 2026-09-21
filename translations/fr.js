@@ -75,6 +75,12 @@ var strings = {
     secColour: "COULEUR",
     secLanguage: "LANGUE",
 
+    // ── Tray ──
+    showTray: "Zone de notification",
+    showTrayHint: "Les icônes que publient les applications, comme Discord ou Steam",
+    trayCollapsible: "Zone repliable",
+    trayCollapsibleHint: "Se replie derrière une flèche au lieu de rester visible",
+
     // ── Settings: entries ──
     settingsTitle: "Shima Shell",
     settingsWindowTitle: "Réglages de Shima",
