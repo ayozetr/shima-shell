@@ -1,0 +1,170 @@
+.pragma library
+
+// Shima Shell interface strings.
+
+var strings = {
+
+    // ── Dock ──
+    open: "Apri",
+    newWindow: "Nuova finestra",
+    closeWindow: "Chiudi",
+    pinToDock: "Aggiungi al dock",
+    unpinFromDock: "Togli dal dock",
+    applications: "Applicazioni",
+    searchingWindows: "Ricerca delle finestre…",
+    untitledWindow: "(senza titolo)",
+
+    // ── Launcher ──
+    searchApps: "Cerca applicazioni…",
+    noMatches: "Nessun risultato",
+    addApp: "Aggiungi un'applicazione…",
+    searchPlace: "Cerca una località…",
+
+    // ── Categories ──
+    catAll: "Tutte",
+    catNet: "Internet",
+    catMedia: "Multimedia",
+    catGames: "Giochi",
+    catGfx: "Grafica",
+    catOffice: "Ufficio",
+    catDev: "Sviluppo",
+    catSystem: "Sistema",
+    catUtils: "Utilità",
+    catOther: "Altre",
+
+    // ── Session ──
+    suspend: "Sospendi",
+    reboot: "Riavvia",
+    shutdown: "Spegni",
+    lockSession: "Blocca la sessione",
+    switchUser: "Cambia utente",
+    logout: "Chiudi la sessione",
+
+    // ── Island: control centre ──
+    wifi: "Wi-Fi",
+    bluetooth: "Bluetooth",
+    output: "Uscita",
+    noOutputs: "Nessuna uscita audio",
+
+    // ── Island: status ──
+    cpu: "CPU",
+    memory: "MEMORIA",
+    download: "DOWNLOAD",
+    upload: "UPLOAD",
+    battery: "BATTERIA",
+
+    // ── Island: media and focus ──
+    nothingPlaying: "Nessuna riproduzione",
+    focus: "CONCENTRAZIONE",
+    breakLabel: "PAUSA",
+    longBreak: "PAUSA LUNGA",
+    start: "Avvia",
+    pause: "Metti in pausa",
+    reset: "Reimposta",
+    skip: "Salta",
+
+    // ── Settings: sections ──
+    secScreens: "SCHERMI",
+    secDock: "DOCK",
+    secDockApps: "APPLICAZIONI DEL DOCK",
+    secIcons: "ICONE",
+    secIsland: "ISOLA",
+    secFocus: "CONCENTRAZIONE",
+    secWeather: "METEO",
+    secLocation: "LOCALITÀ",
+    secColour: "COLORE",
+    secLanguage: "LINGUA",
+
+    // ── Settings: entries ──
+    settingsTitle: "Shima Shell",
+    settingsWindowTitle: "Impostazioni di Shima",
+    settingsSubtitle: "Le modifiche si applicano subito.",
+    settingsPath: "Impostazioni in ",
+
+    position: "Posizione",
+    bottom: "In basso",
+    top: "In alto",
+    floating: "Fluttuante",
+    floatingHint: "Staccato dal bordo dello schermo",
+    edgeGap: "Distanza dal bordo",
+    autoHide: "Nascondi automaticamente",
+    autoHideDockHint: "Riappare avvicinando il puntatore al bordo",
+    autoHideIslandHint: "Riappare avvicinando il puntatore al bordo superiore",
+    hideDelay: "Ritardo prima di nascondersi",
+    opacity: "Opacità",
+    blur: "Sfocatura dello sfondo",
+    blurHint: "Usa ext_background_effect di KWin",
+    blurIslandHint: "Si nota solo abbassando l'opacità",
+    cornerRadius: "Raggio degli angoli",
+
+    launcherButton: "Pulsante delle applicazioni",
+    launcherButtonHint: "Apre il menu di avvio dal dock",
+    showNames: "Mostra i nomi",
+    showNamesHint: "Il nome che compare sopra l'icona al passaggio del mouse",
+    showRunning: "Mostra le app aperte",
+    showRunningHint: "Aggiunge ciò che hai aperto anche se non è fissato",
+    inheritTaskbar: "Eredita dalla barra delle applicazioni",
+    inheritTaskbarHint: "Sostituisce l'elenco con quello fissato in Plasma",
+    import: "Importa",
+
+    shape: "Forma",
+    rounded: "Arrotondata",
+    circle: "Cerchio",
+    square: "Quadrato",
+    curvature: "Curvatura",
+    curvatureHint: "Solo con la forma arrotondata",
+    size: "Dimensione",
+    sizeHint: "Spazio e margini si ricalcolano da soli",
+    magnify: "Ingrandisci al passaggio",
+
+    showIsland: "Mostra l'isola",
+    clockFormat: "Formato dell'ora",
+    hours24: "24 h",
+    hours12: "12 h",
+    collapsedWidth: "Larghezza a riposo",
+    expandedWidth: "Larghezza espansa",
+    collapsedHeight: "Altezza a riposo",
+    detached: "Staccata dal bordo",
+    detachedHint: "Lascia uno spazio sopra invece di nascere dal bordo",
+    topGap: "Spazio superiore",
+    islandTint: "Tinta dell'isola",
+
+    duration: "Durata",
+    durationHint: "Quanto dura una sessione di concentrazione",
+    chainBreak: "Concatena la pausa",
+    chainBreakHint: "Alla fine avvia la pausa da solo",
+    breakSetting: "Pausa",
+    longBreakSetting: "Pausa lunga",
+    roundsBeforeLong: "Cicli prima di quella lunga",
+    notifyOnEnd: "Avvisa alla fine",
+    notifyOnEndHint: "Una notifica di sistema alla fine di ogni fase",
+    silenceWhile: "Silenzia durante la sessione",
+    silenceWhileHint: "Sospende gli avvisi senza toccare il Non disturbare",
+
+    showWeather: "Mostra il meteo",
+    showWeatherHint: "Accanto all'ora, sull'isola a riposo",
+    whatShows: "Cosa mostrare",
+    both: "Entrambi",
+    iconOnly: "Icona",
+    degreesOnly: "Gradi",
+    source: "Fonte",
+    autoSource: "Auto",
+    sourceHint: "Il Met Office è ciò che usa il widget di KDE",
+    units: "Unità",
+    inheritPlasma: "Eredita da Plasma",
+    inheritPlasmaHint: "Solo se hai il widget meteo di KDE",
+    pickPlace: "Scegli una località per vedere il meteo.",
+
+    accent: "Accento",
+    accentHint: "Punto dell'app attiva e controlli",
+    dockTint: "Tinta del dock",
+    automatic: "Automatico",
+    language: "Lingua",
+    languageHint: "Automatico segue la lingua del sistema",
+
+    island: "Isola",
+    dock: "Dock",
+
+    // Monday first, as the week runs here.
+    weekdays: ["L", "M", "M", "G", "V", "S", "D"]
+};

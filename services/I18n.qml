@@ -2,6 +2,10 @@ pragma Singleton
 import Quickshell
 import "../translations/es.js" as Es
 import "../translations/en.js" as En
+import "../translations/fr.js" as Fr
+import "../translations/it.js" as It
+import "../translations/de.js" as De
+import "../translations/ca.js" as Ca
 
 // Interface strings, one file per language under translations/.
 //
@@ -14,7 +18,11 @@ Singleton {
 
     readonly property var strings: ({
         es: Es.strings,
-        en: En.strings
+        en: En.strings,
+        fr: Fr.strings,
+        it: It.strings,
+        de: De.strings,
+        ca: Ca.strings
     })
 
     // Each language is named in itself, the way language pickers do it:
@@ -22,7 +30,11 @@ Singleton {
     readonly property var available: [
         { code: "auto", label: root.t.automatic },
         { code: "es",   label: "Español" },
+        { code: "ca",   label: "Català" },
         { code: "en",   label: "English" },
+        { code: "fr",   label: "Français" },
+        { code: "it",   label: "Italiano" },
+        { code: "de",   label: "Deutsch" }
     ]
 
     // "auto" follows the session. LANGUAGE wins over LANG when both are
@@ -49,6 +61,7 @@ Singleton {
     // Qt wants a full locale to format month names; the shell only
     // tracks the language, so each one gets a sensible region.
     readonly property string qtLocale: ({
-        es: "es_ES", en: "en_GB"
+        es: "es_ES", ca: "ca_ES", en: "en_GB",
+        fr: "fr_FR", it: "it_IT", de: "de_DE"
     })[root.language] ?? "en_GB"
 }

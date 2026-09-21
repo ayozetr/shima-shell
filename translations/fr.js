@@ -1,0 +1,170 @@
+.pragma library
+
+// Shima Shell interface strings.
+
+var strings = {
+
+    // ── Dock ──
+    open: "Ouvrir",
+    newWindow: "Nouvelle fenêtre",
+    closeWindow: "Fermer",
+    pinToDock: "Épingler au dock",
+    unpinFromDock: "Retirer du dock",
+    applications: "Applications",
+    searchingWindows: "Recherche des fenêtres…",
+    untitledWindow: "(sans titre)",
+
+    // ── Launcher ──
+    searchApps: "Rechercher des applications…",
+    noMatches: "Aucun résultat",
+    addApp: "Ajouter une application…",
+    searchPlace: "Rechercher une ville…",
+
+    // ── Categories ──
+    catAll: "Toutes",
+    catNet: "Internet",
+    catMedia: "Multimédia",
+    catGames: "Jeux",
+    catGfx: "Graphisme",
+    catOffice: "Bureautique",
+    catDev: "Développement",
+    catSystem: "Système",
+    catUtils: "Utilitaires",
+    catOther: "Autres",
+
+    // ── Session ──
+    suspend: "Mettre en veille",
+    reboot: "Redémarrer",
+    shutdown: "Éteindre",
+    lockSession: "Verrouiller la session",
+    switchUser: "Changer d'utilisateur",
+    logout: "Fermer la session",
+
+    // ── Island: control centre ──
+    wifi: "Wi-Fi",
+    bluetooth: "Bluetooth",
+    output: "Sortie",
+    noOutputs: "Aucune sortie audio",
+
+    // ── Island: status ──
+    cpu: "CPU",
+    memory: "MÉMOIRE",
+    download: "RÉCEPTION",
+    upload: "ENVOI",
+    battery: "BATTERIE",
+
+    // ── Island: media and focus ──
+    nothingPlaying: "Aucune lecture",
+    focus: "CONCENTRATION",
+    breakLabel: "PAUSE",
+    longBreak: "PAUSE LONGUE",
+    start: "Démarrer",
+    pause: "Pause",
+    reset: "Réinitialiser",
+    skip: "Passer",
+
+    // ── Settings: sections ──
+    secScreens: "ÉCRANS",
+    secDock: "DOCK",
+    secDockApps: "APPLICATIONS DU DOCK",
+    secIcons: "ICÔNES",
+    secIsland: "ÎLOT",
+    secFocus: "CONCENTRATION",
+    secWeather: "MÉTÉO",
+    secLocation: "LIEU",
+    secColour: "COULEUR",
+    secLanguage: "LANGUE",
+
+    // ── Settings: entries ──
+    settingsTitle: "Shima Shell",
+    settingsWindowTitle: "Réglages de Shima",
+    settingsSubtitle: "Les changements s'appliquent aussitôt.",
+    settingsPath: "Réglages dans ",
+
+    position: "Position",
+    bottom: "En bas",
+    top: "En haut",
+    floating: "Flottant",
+    floatingHint: "Détaché du bord de l'écran",
+    edgeGap: "Écart au bord",
+    autoHide: "Masquer automatiquement",
+    autoHideDockHint: "Réapparaît quand le pointeur approche du bord",
+    autoHideIslandHint: "Réapparaît quand le pointeur approche du bord supérieur",
+    hideDelay: "Délai avant de se masquer",
+    opacity: "Opacité",
+    blur: "Flou d'arrière-plan",
+    blurHint: "Utilise ext_background_effect de KWin",
+    blurIslandHint: "Visible seulement si vous baissez l'opacité",
+    cornerRadius: "Rayon des coins",
+
+    launcherButton: "Bouton des applications",
+    launcherButtonHint: "Ouvre le menu de démarrage depuis le dock",
+    showNames: "Afficher les noms",
+    showNamesHint: "Le nom qui flotte au-dessus de l'icône au survol",
+    showRunning: "Afficher les applications ouvertes",
+    showRunningHint: "Ajoute au dock ce qui est ouvert, même sans être épinglé",
+    inheritTaskbar: "Hériter de la barre des tâches",
+    inheritTaskbarHint: "Remplace la liste par ce qui est épinglé dans Plasma",
+    import: "Importer",
+
+    shape: "Forme",
+    rounded: "Arrondie",
+    circle: "Cercle",
+    square: "Carré",
+    curvature: "Courbure",
+    curvatureHint: "Uniquement avec la forme arrondie",
+    size: "Taille",
+    sizeHint: "L'écart et la marge se recalculent d'eux-mêmes",
+    magnify: "Agrandir au survol",
+
+    showIsland: "Afficher l'îlot",
+    clockFormat: "Format de l'heure",
+    hours24: "24 h",
+    hours12: "12 h",
+    collapsedWidth: "Largeur au repos",
+    expandedWidth: "Largeur déployé",
+    collapsedHeight: "Hauteur au repos",
+    detached: "Détaché du bord",
+    detachedHint: "Laisse un espace au-dessus au lieu de naître du bord",
+    topGap: "Espace supérieur",
+    islandTint: "Teinte de l'îlot",
+
+    duration: "Durée",
+    durationHint: "Durée d'une séance de concentration",
+    chainBreak: "Enchaîner la pause",
+    chainBreakHint: "Lance la pause automatiquement à la fin",
+    breakSetting: "Pause",
+    longBreakSetting: "Pause longue",
+    roundsBeforeLong: "Cycles avant la longue",
+    notifyOnEnd: "Prévenir à la fin",
+    notifyOnEndHint: "Une notification système à la fin de chaque phase",
+    silenceWhile: "Silence pendant la séance",
+    silenceWhileHint: "Suspend les alertes sans toucher à votre Ne pas déranger",
+
+    showWeather: "Afficher la météo",
+    showWeatherHint: "À côté de l'heure, sur l'îlot au repos",
+    whatShows: "Ce qui s'affiche",
+    both: "Les deux",
+    iconOnly: "Icône",
+    degreesOnly: "Degrés",
+    source: "Source",
+    autoSource: "Auto",
+    sourceHint: "Le composant de KDE utilise le Met Office",
+    units: "Unités",
+    inheritPlasma: "Hériter de Plasma",
+    inheritPlasmaHint: "Seulement avec le composant météo de KDE",
+    pickPlace: "Choisissez une ville pour voir la météo.",
+
+    accent: "Accent",
+    accentHint: "Point d'application active et contrôles",
+    dockTint: "Teinte du dock",
+    automatic: "Automatique",
+    language: "Langue",
+    languageHint: "Automatique suit la langue du système",
+
+    island: "Îlot",
+    dock: "Dock",
+
+    // Monday first, as the week runs here.
+    weekdays: ["L", "M", "M", "J", "V", "S", "D"]
+};
