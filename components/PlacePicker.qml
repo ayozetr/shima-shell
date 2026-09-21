@@ -26,7 +26,7 @@ Column {
             anchors.right: parent.right
             anchors.margins: 10
             anchors.verticalCenter: parent.verticalCenter
-            text: "Elige una localidad para ver el clima."
+            text: I18n.t.pickPlace
             color: Theme.textSecondary
             font.pixelSize: 11
             wrapMode: Text.WordWrap

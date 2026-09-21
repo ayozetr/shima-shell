@@ -22,7 +22,7 @@ Item {
             Meter {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
-                label: "CPU"
+                label: I18n.t.cpu
                 value: SysInfo.cpu
                 text: Math.round(SysInfo.cpu * 100) + "%"
                        + (SysInfo.cpuTemp > 0 ? "  ·  " + SysInfo.cpuTemp + "°" : "")
@@ -30,7 +30,7 @@ Item {
             Meter {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
-                label: "MEMORIA"
+                label: I18n.t.memory
                 value: SysInfo.memRatio
                 text: SysInfo.memUsed.toFixed(1) + " / " + SysInfo.memTotal.toFixed(0) + " GiB"
             }
@@ -46,13 +46,13 @@ Item {
                 // leftover space, so columns whose text differs in
                 // length end up misaligned with the row above.
                 Layout.preferredWidth: 1
-                label: "BAJADA"
+                label: I18n.t.download
                 text: SysInfo.rate(SysInfo.rxRate)
             }
             Stat {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
-                label: "SUBIDA"
+                label: I18n.t.upload
                 text: SysInfo.rate(SysInfo.txRate)
             }
         }
@@ -67,7 +67,7 @@ Item {
             Stat {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
-                label: "BATERÍA"
+                label: I18n.t.battery
                 // Depending on the version, percentage comes as 0-1 or
                 // as 0-100.
                 text: root.hasBattery

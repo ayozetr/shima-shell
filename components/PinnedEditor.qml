@@ -91,7 +91,7 @@ Column {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: search.text === "" && !search.activeFocus
-                text: "Añadir una aplicación…"
+                text: I18n.t.addApp
                 color: Theme.textTertiary
                 font.pixelSize: 12
             }

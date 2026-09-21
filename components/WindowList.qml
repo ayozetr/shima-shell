@@ -96,7 +96,7 @@ Rectangle {
             height: 26
             verticalAlignment: Text.AlignVCenter
             visible: root.windows.length === 0
-            text: "Buscando ventanas…"
+            text: I18n.t.searchingWindows
             color: Theme.textTertiary
             font.pixelSize: 11
         }

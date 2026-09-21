@@ -29,7 +29,7 @@ Item {
 
             Tile {
                 Layout.fillWidth: true
-                label: "Wi-Fi"
+                label: I18n.t.wifi
                 glyph: "wifi"
                 on: Networking.wifiEnabled
                 enabled: Networking.wifiHardwareEnabled
@@ -37,7 +37,7 @@ Item {
             }
             Tile {
                 Layout.fillWidth: true
-                label: "Bluetooth"
+                label: I18n.t.bluetooth
                 glyph: "bt"
                 on: root.adapter ? root.adapter.enabled : false
                 enabled: root.adapter !== null
@@ -47,7 +47,7 @@ Item {
             // this slot is free for choosing where the sound goes.
             Tile {
                 Layout.fillWidth: true
-                label: "Salida"
+                label: I18n.t.output
                 glyph: "output"
                 on: root.showOutputs
                 enabled: Audio.ready

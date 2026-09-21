@@ -64,7 +64,7 @@ Item {
             spacing: 0
 
             Repeater {
-                model: ["L", "M", "X", "J", "V", "S", "D"]
+                model: I18n.t.weekdays
                 Text {
                     width: root.cellW; height: 13
                     horizontalAlignment: Text.AlignHCenter

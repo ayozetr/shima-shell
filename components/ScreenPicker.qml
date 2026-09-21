@@ -87,7 +87,7 @@ Column {
                     spacing: 3
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "Isla"
+                        text: I18n.t.island
                         color: Theme.textTertiary
                         font.pixelSize: 9
                     }
@@ -102,7 +102,7 @@ Column {
                     spacing: 3
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "Dock"
+                        text: I18n.t.dock
                         color: Theme.textTertiary
                         font.pixelSize: 9
                     }

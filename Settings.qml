@@ -9,7 +9,7 @@ FloatingWindow {
     visible: SettingsWindow.open
     implicitWidth: 520
     implicitHeight: 640
-    title: "Ajustes de Shima"
+    title: I18n.t.settingsWindowTitle
     color: "#0e0e0e"
 
     // Shortcut to the values, which write themselves when touched.
@@ -28,14 +28,14 @@ FloatingWindow {
             spacing: 2
 
             Text {
-                text: "Shima Shell"
+                text: I18n.t.settingsTitle
                 color: Theme.textPrimary
                 font.pixelSize: 22
                 font.weight: Font.DemiBold
                 bottomPadding: 2
             }
             Text {
-                text: "Los cambios se aplican al momento."
+                text: I18n.t.settingsSubtitle
                 color: Theme.textTertiary
                 font.pixelSize: 11
                 bottomPadding: 6
@@ -43,7 +43,7 @@ FloatingWindow {
 
             // ── SCREENS ─────────────────────────────────────────
             Controls.Section_ {
-                text: "PANTALLAS"
+                text: I18n.t.secScreens
                 visible: Quickshell.screens.length > 1
             }
 
@@ -59,20 +59,20 @@ FloatingWindow {
             }
 
             // ── DOCK ────────────────────────────────────────────
-            Controls.Section_ { text: "DOCK" }
+            Controls.Section_ { text: I18n.t.secDock }
 
             Controls.Row_ {
-                label: "Posición"
+                label: I18n.t.position
                 Controls.Choice_ {
-                    options: [{value: "bottom", label: "Abajo"}, {value: "top", label: "Arriba"}]
+                    options: [{value: "bottom", label: I18n.t.bottom}, {value: "top", label: I18n.t.top}]
                     value: win.c.dockPosition ?? "bottom"
                     onPicked: (v) => { win.c.dockPosition = v; Config.save(); }
                 }
             }
 
             Controls.Row_ {
-                label: "Flotante"
-                hint: "Despegado del borde de la pantalla"
+                label: I18n.t.floating
+                hint: I18n.t.floatingHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.dockFloating ?? false
@@ -81,7 +81,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Separación del borde"
+                label: I18n.t.edgeGap
                 visible: win.c.dockFloating ?? false
                 Controls.Slider_ {
                     from: 0; to: 40; step: 1; suffix: " px"
@@ -91,8 +91,8 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Ocultar automáticamente"
-                hint: "Se asoma al acercar el ratón al borde"
+                label: I18n.t.autoHide
+                hint: I18n.t.autoHideDockHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.dockAutoHide ?? false
@@ -101,7 +101,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Tarda en esconderse"
+                label: I18n.t.hideDelay
                 visible: win.c.dockAutoHide ?? false
                 Controls.Slider_ {
                     from: 200; to: 2000; step: 50; suffix: " ms"
@@ -111,7 +111,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Transparencia"
+                label: I18n.t.opacity
                 Controls.Slider_ {
                     from: 0.2; to: 1; step: 0.01
                     value: win.c.dockOpacity ?? 0.8
@@ -120,8 +120,8 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Desenfoque de fondo"
-                hint: "Usa ext_background_effect de KWin"
+                label: I18n.t.blur
+                hint: I18n.t.blurHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.dockBlur ?? true
@@ -130,7 +130,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Radio de las esquinas"
+                label: I18n.t.cornerRadius
                 Controls.Slider_ {
                     from: 0; to: 40; step: 1; suffix: " px"
                     value: win.c.dockCornerRadius ?? 28
@@ -139,7 +139,7 @@ FloatingWindow {
             }
 
             // ── APPLICATIONS ────────────────────────────────────
-            Controls.Section_ { text: "APLICACIONES DEL DOCK" }
+            Controls.Section_ { text: I18n.t.secDockApps }
 
             PinnedEditor {
                 width: parent.width
@@ -149,8 +149,8 @@ FloatingWindow {
             Item { width: 1; height: 8 }
 
             Controls.Row_ {
-                label: "Botón de aplicaciones"
-                hint: "Abre el menú de inicio desde el dock"
+                label: I18n.t.launcherButton
+                hint: I18n.t.launcherButtonHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.showLauncher ?? true
@@ -159,8 +159,8 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Mostrar nombres"
-                hint: "El nombre que flota sobre el icono al pasar el ratón"
+                label: I18n.t.showNames
+                hint: I18n.t.showNamesHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.showAppNames ?? true
@@ -169,8 +169,8 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Mostrar apps abiertas"
-                hint: "Añade al dock lo que tengas abierto aunque no esté anclado"
+                label: I18n.t.showRunning
+                hint: I18n.t.showRunningHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.showRunning ?? true
@@ -179,11 +179,11 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Heredar de la barra de tareas"
-                hint: "Sustituye la lista por lo que tengas anclado en Plasma"
+                label: I18n.t.inheritTaskbar
+                hint: I18n.t.inheritTaskbarHint
                 Controls.Button_ {
                     anchors.right: parent.right
-                    label: "Importar"
+                    label: I18n.t.import
                     onTriggered: Apps.importFromPlasma()
                 }
             }
@@ -191,22 +191,22 @@ FloatingWindow {
             Item { width: 1; height: 6 }
 
             // ── ICONS ───────────────────────────────────────────
-            Controls.Section_ { text: "ICONOS" }
+            Controls.Section_ { text: I18n.t.secIcons }
 
             Controls.Row_ {
-                label: "Forma"
+                label: I18n.t.shape
                 Controls.Choice_ {
-                    options: [{value: "squircle", label: "Redondeado"},
-                              {value: "circle",   label: "Círculo"},
-                              {value: "square",   label: "Cuadrado"}]
+                    options: [{value: "squircle", label: I18n.t.rounded},
+                              {value: "circle",   label: I18n.t.circle},
+                              {value: "square",   label: I18n.t.square}]
                     value: win.c.iconShape ?? "squircle"
                     onPicked: (v) => { win.c.iconShape = v; Config.save(); }
                 }
             }
 
             Controls.Row_ {
-                label: "Curvatura"
-                hint: "Sólo con la forma redondeada"
+                label: I18n.t.curvature
+                hint: I18n.t.curvatureHint
                 visible: (win.c.iconShape ?? "squircle") === "squircle"
                 Controls.Slider_ {
                     from: 5; to: 50; step: 1; suffix: " %"
@@ -216,8 +216,8 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Tamaño"
-                hint: "El hueco y el relleno se recalculan solos"
+                label: I18n.t.size
+                hint: I18n.t.sizeHint
                 Controls.Slider_ {
                     from: 32; to: 88; step: 2; suffix: " px"
                     value: win.c.dockIconSize ?? 56
@@ -226,7 +226,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Ampliar al pasar"
+                label: I18n.t.magnify
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.dockMagnify ?? true
@@ -235,10 +235,10 @@ FloatingWindow {
             }
 
             // ── ISLAND ──────────────────────────────────────────
-            Controls.Section_ { text: "ISLA" }
+            Controls.Section_ { text: I18n.t.secIsland }
 
             Controls.Row_ {
-                label: "Mostrar la isla"
+                label: I18n.t.showIsland
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.islandEnabled ?? true
@@ -247,7 +247,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Formato de hora"
+                label: I18n.t.clockFormat
                 Controls.Choice_ {
                     options: [{value: "24", label: "24 h"}, {value: "12", label: "12 h"}]
                     value: (win.c.clock24 ?? true) ? "24" : "12"
@@ -256,7 +256,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Radio de las esquinas"
+                label: I18n.t.cornerRadius
                 Controls.Slider_ {
                     from: 0; to: 34; step: 1; suffix: " px"
                     value: win.c.islandRadius ?? 22
@@ -265,7 +265,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Ancho en reposo"
+                label: I18n.t.collapsedWidth
                 Controls.Slider_ {
                     from: 220; to: 620; step: 5; suffix: " px"
                     value: win.c.islandCollapsedWidth ?? 410
@@ -274,7 +274,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Ancho desplegada"
+                label: I18n.t.expandedWidth
                 Controls.Slider_ {
                     from: 320; to: 720; step: 5; suffix: " px"
                     value: win.c.islandExpandedWidth ?? 425
@@ -283,7 +283,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Alto en reposo"
+                label: I18n.t.collapsedHeight
                 Controls.Slider_ {
                     from: 26; to: 60; step: 1; suffix: " px"
                     value: win.c.islandCollapsedHeight ?? 38
@@ -292,8 +292,8 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Separada del borde"
-                hint: "Deja un hueco arriba en vez de nacer del borde"
+                label: I18n.t.detached
+                hint: I18n.t.detachedHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.islandFloating ?? false
@@ -302,7 +302,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Hueco superior"
+                label: I18n.t.topGap
                 visible: win.c.islandFloating ?? false
                 Controls.Slider_ {
                     from: 0; to: 40; step: 1; suffix: " px"
@@ -312,8 +312,8 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Ocultar automáticamente"
-                hint: "Se asoma al acercar el ratón al borde de arriba"
+                label: I18n.t.autoHide
+                hint: I18n.t.autoHideIslandHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.islandAutoHide ?? false
@@ -322,7 +322,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Tarda en esconderse"
+                label: I18n.t.hideDelay
                 visible: win.c.islandAutoHide ?? false
                 Controls.Slider_ {
                     from: 200; to: 2000; step: 50; suffix: " ms"
@@ -332,7 +332,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Transparencia"
+                label: I18n.t.opacity
                 Controls.Slider_ {
                     from: 0.2; to: 1; step: 0.01
                     value: win.c.islandOpacity ?? 1.0
@@ -341,8 +341,8 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Desenfoque de fondo"
-                hint: "Sólo se nota si bajas la transparencia"
+                label: I18n.t.blur
+                hint: I18n.t.blurIslandHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.islandBlur ?? false
@@ -351,7 +351,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Tono de la isla"
+                label: I18n.t.islandTint
                 Controls.Swatches_ {
                     anchors.right: parent.right
                     colors: ["#000000", "#12121a", "#1a1410", "#101a14", "#181818"]
@@ -361,11 +361,11 @@ FloatingWindow {
             }
 
             // ── FOCUS ───────────────────────────────────────────
-            Controls.Section_ { text: "ENFOQUE" }
+            Controls.Section_ { text: I18n.t.focus }
 
             Controls.Row_ {
-                label: "Duración"
-                hint: "Cuánto dura una sesión de enfoque"
+                label: I18n.t.duration
+                hint: I18n.t.durationHint
                 Controls.Slider_ {
                     from: 1; to: 120; step: 1; suffix: " min"
                     value: win.c.focusMinutes ?? 25
@@ -374,8 +374,8 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Encadenar descanso"
-                hint: "Al acabar arranca el descanso por su cuenta"
+                label: I18n.t.chainBreak
+                hint: I18n.t.chainBreakHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.focusChain ?? true
@@ -384,7 +384,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Descanso"
+                label: I18n.t.breakSetting
                 visible: win.c.focusChain ?? true
                 Controls.Slider_ {
                     from: 1; to: 30; step: 1; suffix: " min"
@@ -394,7 +394,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Descanso largo"
+                label: I18n.t.longBreakSetting
                 visible: win.c.focusChain ?? true
                 Controls.Slider_ {
                     from: 5; to: 60; step: 5; suffix: " min"
@@ -404,7 +404,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Rondas hasta el largo"
+                label: I18n.t.roundsBeforeLong
                 visible: win.c.focusChain ?? true
                 Controls.Slider_ {
                     from: 2; to: 8; step: 1
@@ -414,8 +414,8 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Avisar al terminar"
-                hint: "Notificación del sistema al acabar cada fase"
+                label: I18n.t.notifyOnEnd
+                hint: I18n.t.notifyOnEndHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.focusNotify ?? true
@@ -424,8 +424,8 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Silenciar mientras dura"
-                hint: "Inhibe los avisos sin tocar tu No molestar"
+                label: I18n.t.silenceWhile
+                hint: I18n.t.silenceWhileHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.focusInhibit ?? true
@@ -434,11 +434,11 @@ FloatingWindow {
             }
 
             // ── WEATHER ─────────────────────────────────────────
-            Controls.Section_ { text: "CLIMA" }
+            Controls.Section_ { text: I18n.t.secWeather }
 
             Controls.Row_ {
-                label: "Mostrar el clima"
-                hint: "Junto a la hora, en la isla en reposo"
+                label: I18n.t.showWeather
+                hint: I18n.t.showWeatherHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.weatherEnabled ?? true
@@ -447,12 +447,12 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Qué se ve"
+                label: I18n.t.whatShows
                 visible: win.c.weatherEnabled ?? true
                 Controls.Choice_ {
-                    options: [{value: "both", label: "Ambos"},
-                              {value: "icon", label: "Icono"},
-                              {value: "temp", label: "Grados"}]
+                    options: [{value: "both", label: I18n.t.both},
+                              {value: "icon", label: I18n.t.iconOnly},
+                              {value: "temp", label: I18n.t.degreesOnly}]
                     value: {
                         const i = win.c.weatherShowIcon ?? true;
                         const t = win.c.weatherShowTemp ?? true;
@@ -467,20 +467,20 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Fuente"
-                hint: "El Met Office es lo que usa el widget de KDE"
+                label: I18n.t.source
+                hint: I18n.t.sourceHint
                 visible: win.c.weatherEnabled ?? true
                 Controls.Choice_ {
                     options: [{value: "ukmo_seamless", label: "Met Office"},
                               {value: "ecmwf_ifs025",  label: "ECMWF"},
-                              {value: "best_match",    label: "Auto"}]
+                              {value: "best_match",    label: I18n.t.autoSource}]
                     value: win.c.weatherModel ?? "ukmo_seamless"
                     onPicked: (v) => { win.c.weatherModel = v; Config.save(); }
                 }
             }
 
             Controls.Row_ {
-                label: "Unidades"
+                label: I18n.t.units
                 visible: win.c.weatherEnabled ?? true
                 Controls.Choice_ {
                     options: [{value: "c", label: "°C"}, {value: "f", label: "°F"}]
@@ -490,7 +490,7 @@ FloatingWindow {
             }
 
             Controls.Section_ {
-                text: "UBICACIÓN"
+                text: I18n.t.secLocation
                 visible: win.c.weatherEnabled ?? true
             }
 
@@ -501,24 +501,40 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Heredar de Plasma"
-                hint: "Sólo si tienes el widget meteorológico de KDE"
+                label: I18n.t.inheritPlasma
+                hint: I18n.t.inheritPlasmaHint
                 visible: win.c.weatherEnabled ?? true
                 Controls.Button_ {
                     anchors.right: parent.right
-                    label: "Importar"
+                    label: I18n.t.import
                     onTriggered: { win.c.weatherLat = 0; Weather.importFromPlasma(); }
                 }
             }
 
             Item { width: 1; height: 6 }
 
-            // ── COLOUR ──────────────────────────────────────────
-            Controls.Section_ { text: "COLOR" }
+            // ── LANGUAGE ────────────────────────────────────────
+            Controls.Section_ { text: I18n.t.secLanguage }
 
             Controls.Row_ {
-                label: "Acento"
-                hint: "Punto de app activa y controles"
+                label: I18n.t.language
+                hint: I18n.t.languageHint
+                Controls.Choice_ {
+                    options: I18n.available.map(
+                        l => ({ value: l.code, label: l.label }))
+                    value: win.c.language ?? "auto"
+                    onPicked: (v) => { win.c.language = v; Config.save(); }
+                }
+            }
+
+            Item { width: 1; height: 6 }
+
+            // ── COLOUR ──────────────────────────────────────────
+            Controls.Section_ { text: I18n.t.secColour }
+
+            Controls.Row_ {
+                label: I18n.t.accent
+                hint: I18n.t.accentHint
                 Controls.Swatches_ {
                     anchors.right: parent.right
                     colors: ["#a78bfa", "#60a5fa", "#34d399", "#fbbf24", "#f87171", "#ffffff"]
@@ -528,7 +544,7 @@ FloatingWindow {
             }
 
             Controls.Row_ {
-                label: "Tono del dock"
+                label: I18n.t.dockTint
                 Controls.Swatches_ {
                     anchors.right: parent.right
                     colors: ["#000000", "#12121a", "#1a1410", "#101a14", "#181818"]
@@ -540,7 +556,7 @@ FloatingWindow {
             Item { width: 1; height: 18 }
 
             Text {
-                text: "Ajustes en " + Config.path
+                text: I18n.t.settingsPath + Config.path
                 color: Theme.textTertiary
                 font.pixelSize: 10
             }
