@@ -18,7 +18,6 @@ var strings = {
     searchApps: "Anwendungen suchen…",
     noMatches: "Keine Treffer",
     addApp: "Anwendung hinzufügen…",
-    searchPlace: "Ort suchen…",
 
     // ── Categories ──
     catFavorites: "Favoriten",
@@ -27,6 +26,10 @@ var strings = {
     editApp: "Anwendung bearbeiten",
     recentApps: "ANWENDUNGEN",
     recentFiles: "DATEIEN",
+    copyResult: "kopieren",
+    runCommand: "Im Terminal ausführen",
+    searching: "Wird gesucht…",
+
     catRecent: "Zuletzt",
     catPlaces: "Orte",
     placeHome: "Persönlicher Ordner",
@@ -80,14 +83,11 @@ var strings = {
     battery: "AKKU",
 
     // ── Island: media and focus ──
-    nothingPlaying: "Keine Wiedergabe",
     focus: "FOKUS",
     breakLabel: "PAUSE",
     longBreak: "LANGE PAUSE",
     start: "Starten",
     pause: "Anhalten",
-    reset: "Zurücksetzen",
-    skip: "Überspringen",
 
     // ── Settings: sections ──
     secScreens: "BILDSCHIRME",

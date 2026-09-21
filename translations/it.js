@@ -18,7 +18,6 @@ var strings = {
     searchApps: "Cerca applicazioni…",
     noMatches: "Nessun risultato",
     addApp: "Aggiungi un'applicazione…",
-    searchPlace: "Cerca una località…",
 
     // ── Categories ──
     catFavorites: "Preferiti",
@@ -27,6 +26,10 @@ var strings = {
     editApp: "Modifica applicazione",
     recentApps: "APPLICAZIONI",
     recentFiles: "FILE",
+    copyResult: "copia",
+    runCommand: "Esegui nel terminale",
+    searching: "Ricerca…",
+
     catRecent: "Recenti",
     catPlaces: "Risorse",
     placeHome: "Cartella home",
@@ -80,14 +83,11 @@ var strings = {
     battery: "BATTERIA",
 
     // ── Island: media and focus ──
-    nothingPlaying: "Nessuna riproduzione",
     focus: "CONCENTRAZIONE",
     breakLabel: "PAUSA",
     longBreak: "PAUSA LUNGA",
     start: "Avvia",
     pause: "Metti in pausa",
-    reset: "Reimposta",
-    skip: "Salta",
 
     // ── Settings: sections ──
     secScreens: "SCHERMI",

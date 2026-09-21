@@ -18,7 +18,6 @@ var strings = {
     searchApps: "Cerca aplicacions…",
     noMatches: "Cap resultat",
     addApp: "Afegeix una aplicació…",
-    searchPlace: "Cerca una localitat…",
 
     // ── Categories ──
     catFavorites: "Preferits",
@@ -27,6 +26,10 @@ var strings = {
     editApp: "Edita l'aplicació",
     recentApps: "APLICACIONS",
     recentFiles: "FITXERS",
+    copyResult: "copia",
+    runCommand: "Executa al terminal",
+    searching: "S'està cercant…",
+
     catRecent: "Recents",
     catPlaces: "Llocs",
     placeHome: "Carpeta personal",
@@ -80,14 +83,11 @@ var strings = {
     battery: "BATERIA",
 
     // ── Island: media and focus ──
-    nothingPlaying: "Cap reproducció",
     focus: "CONCENTRACIÓ",
     breakLabel: "DESCANS",
     longBreak: "DESCANS LLARG",
     start: "Inicia",
     pause: "Pausa",
-    reset: "Reinicia",
-    skip: "Salta",
 
     // ── Settings: sections ──
     secScreens: "PANTALLES",

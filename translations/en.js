@@ -16,7 +16,6 @@ var strings = {
     searchApps: "Search applications…",
     noMatches: "Nothing matches that",
     addApp: "Add an application…",
-    searchPlace: "Search for a town…",
 
     catFavorites: "Favourites",
     addFavorite: "Add to favourites",
@@ -24,6 +23,10 @@ var strings = {
     editApp: "Edit application",
     recentApps: "APPLICATIONS",
     recentFiles: "FILES",
+    copyResult: "copy",
+    runCommand: "Run in terminal",
+    searching: "Searching…",
+
     catRecent: "Recent",
     catPlaces: "Places",
     placeHome: "Home",
@@ -72,14 +75,11 @@ var strings = {
     upload: "UP",
     battery: "BATTERY",
 
-    nothingPlaying: "Nothing playing",
     focus: "FOCUS",
     breakLabel: "BREAK",
     longBreak: "LONG BREAK",
     start: "Start",
     pause: "Pause",
-    reset: "Reset",
-    skip: "Skip",
 
     secScreens: "SCREENS",
     secDock: "DOCK",
