@@ -203,6 +203,17 @@ Singleton {
         }
         if (entry.startupClass) out.push(entry.startupClass.split(".").pop().toLowerCase());
         if (entry.id) out.push(entry.id.split(".").pop().toLowerCase());
+
+        // Steam games have no window class of their own: they run as
+        // steam_app_<id>, and the id is in the URL their .desktop
+        // launches. Ignoring the "steam" binary above is what keeps
+        // them from all claiming the Steam process, but it also threw
+        // away the one thing that identifies them, so it is read back
+        // from the URL — which points at one game and one only.
+        if (entry.execString) {
+            const url = entry.execString.match(/steam:\/\/(?:rungameid|run)\/(\d+)/);
+            if (url) out.push("steam_app_" + url[1]);
+        }
         return out;
     }
 
