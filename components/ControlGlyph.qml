@@ -6,7 +6,7 @@ import "../services"
 Canvas {
     id: root
     property string kind: "wifi"   // wifi · bt · mute · output · brightness · night · back
-                                   // · bell · bellOff · trash
+                                   // · bell · bellOff · trash · awake
     property color fill: Theme.textPrimary
 
     onKindChanged: requestPaint()
@@ -161,6 +161,19 @@ Canvas {
             ctx.moveTo(w * 0.58, h * 0.42); ctx.lineTo(w * 0.58, h * 0.85);
             ctx.stroke();
             ctx.restore();
+        } else if (kind === "awake") {
+            // A ring with a bar across it, the way KDE marks blocking
+            // sleep. A bar reads at this size where an eye did not.
+            ctx.lineWidth = Math.max(1.5, w * 0.13);
+            ctx.beginPath();
+            ctx.arc(w * 0.50, h * 0.50, w * 0.38, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(w * 0.30, h * 0.50);
+            ctx.lineTo(w * 0.70, h * 0.50);
+            ctx.stroke();
         } else if (kind === "back") {
             ctx.lineWidth = Math.max(1.4, w * 0.13);
             ctx.lineCap = "round";

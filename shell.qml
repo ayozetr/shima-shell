@@ -42,6 +42,7 @@ ShellRoot {
         // sent, not when the history is first opened.
         Notifications.enabled;
         Places.entries.length;
+        Power.available;
         // The tray needs to register as a host and wait for the items
         // to answer; woken late it reports an empty tray for seconds.
         SystemTray.items.values.length;

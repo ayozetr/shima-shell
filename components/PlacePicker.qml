@@ -58,7 +58,7 @@ Column {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: search.text === "" && !search.activeFocus
-                text: Weather.place || "Buscar una localidad…"
+                text: Weather.place || I18n.t.searchPlace
                 color: Weather.place ? Theme.textSecondary : Theme.textTertiary
                 font.pixelSize: 12
             }

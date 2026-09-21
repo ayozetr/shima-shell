@@ -147,6 +147,7 @@ PanelWindow {
 
                 onTextChanged: {
                     LauncherState.query = text;
+                    Search.query = text;
                     // Typing searches everything: looking for something
                     // inside Favourites and being told it isn't there
                     // would be true and useless.
@@ -300,7 +301,9 @@ PanelWindow {
             anchors.left: cats.right
             anchors.leftMargin: 10
             anchors.right: parent.right
-            anchors.rightMargin: 8
+            // Same as the search field above, so the rows line up
+            // with it instead of running past its edge.
+            anchors.rightMargin: 14
             anchors.top: searchBox.bottom
             anchors.topMargin: 12
             anchors.bottom: sessionBar.top
@@ -354,19 +357,222 @@ PanelWindow {
             }
         }
 
+        // ── Search results: applications, then everything else ───
+        Flickable {
+            id: searchView
+            anchors.left: cats.right
+            anchors.leftMargin: 10
+            anchors.right: parent.right
+            // Same as the search field above, so the rows line up
+            // with it instead of running past its edge.
+            anchors.rightMargin: 14
+            anchors.top: searchBox.bottom
+            anchors.topMargin: 12
+            anchors.bottom: sessionBar.top
+            anchors.bottomMargin: 6
+            clip: true
+            visible: LauncherState.query !== ""
+                     && (Search.answer !== "" || Search.searching
+                         || Search.files.length > 0 || Search.command !== "")
+            contentHeight: searchColumn.height
+            boundsBehavior: Flickable.StopAtBounds
+
+            Column {
+                id: searchColumn
+                width: searchView.width
+                spacing: 4
+
+                // First, and drawn like the answer to a sum: if what you
+                // typed is something that can be run, that is almost
+                // certainly what you meant, and it would be lost among
+                // the files otherwise.
+                Rectangle {
+                    width: parent.width
+                    height: visible ? 40 : 0
+                    visible: Search.command !== ""
+                    radius: 10
+                    color: cmdArea.containsMouse ? "#18ffffff" : "#0dffffff"
+                    Behavior on color { ColorAnimation { duration: 120 } }
+
+                    ControlGlyph {
+                        id: cmdIcon
+                        anchors.left: parent.left
+                        anchors.leftMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 13; height: 13
+                        kind: "back"
+                        rotation: 180
+                        fill: Theme.textSecondary
+                    }
+
+                    Text {
+                        anchors.left: cmdIcon.right
+                        anchors.leftMargin: 10
+                        anchors.right: hint.left
+                        anchors.rightMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: LauncherState.query
+                        color: Theme.textPrimary
+                        font.pixelSize: 13
+                        font.family: "monospace"
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        id: hint
+                        anchors.right: parent.right
+                        anchors.rightMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: I18n.t.runCommand
+                        color: Theme.textTertiary
+                        font.pixelSize: 10
+                    }
+
+                    MouseArea {
+                        id: cmdArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: { Search.runCommand(); LauncherState.hide(); }
+                    }
+                }
+
+                // The answer to a sum, which is what you wanted the
+                // moment you typed one. Clicking it copies it.
+                Rectangle {
+                    width: parent.width
+                    height: visible ? 46 : 0
+                    visible: Search.answer !== ""
+                    radius: 10
+                    color: answerArea.containsMouse ? "#18ffffff" : "#0dffffff"
+                    Behavior on color { ColorAnimation { duration: 120 } }
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "=  " + Search.answer
+                        color: Theme.textPrimary
+                        font.pixelSize: 17
+                    }
+
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: I18n.t.copyResult
+                        color: Theme.textTertiary
+                        font.pixelSize: 10
+                    }
+
+                    MouseArea {
+                        id: answerArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: { Search.copyAnswer(); LauncherState.hide(); }
+                    }
+                }
+
+                Text {
+                    text: I18n.t.recentApps
+                    visible: win.apps.length > 0
+                    color: Theme.textTertiary
+                    font.pixelSize: 10
+                    font.letterSpacing: 0.6
+                    topPadding: 6
+                    leftPadding: 6
+                }
+
+                Grid {
+                    width: searchColumn.width
+                    columns: Math.max(1, Math.floor(width / 118))
+                    Repeater {
+                        model: win.apps
+                        AppTile {
+                            required property var modelData
+                            entry: modelData
+                            width: 112
+                            height: 86
+                            launcherWindow: win
+                            onLaunched: LauncherState.hide()
+                        }
+                    }
+                }
+
+                // The files take a moment longer than the applications,
+                // since they come off the disk. The section claims its
+                // place as soon as the search starts and fills in when
+                // the answer arrives, instead of appearing all at once
+                // and shoving everything above it.
+                Text {
+                    text: I18n.t.recentFiles
+                    visible: Search.searching || Search.files.length > 0
+                    color: Theme.textTertiary
+                    font.pixelSize: 10
+                    font.letterSpacing: 0.6
+                    topPadding: 6
+                    leftPadding: 6
+                }
+
+                Item {
+                    width: searchColumn.width
+                    visible: Search.searching || Search.files.length > 0
+                    height: Search.files.length > 0 ? fileGrid.height : 86
+                    Behavior on height {
+                        NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+                    }
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 6
+                        anchors.top: parent.top
+                        anchors.topMargin: 10
+                        text: I18n.t.searching
+                        color: Theme.textTertiary
+                        font.pixelSize: 11
+                        opacity: Search.files.length === 0 ? 1 : 0
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                    }
+
+                    Grid {
+                        id: fileGrid
+                        width: parent.width
+                        columns: Math.max(1, Math.floor(width / 118))
+                        opacity: Search.files.length > 0 ? 1 : 0
+                        Behavior on opacity { NumberAnimation { duration: 200 } }
+
+                        Repeater {
+                            model: Search.files
+                            AppTile {
+                                required property var modelData
+                                entry: modelData
+                                width: 112
+                                height: 86
+                                launcherWindow: win
+                                onLaunched: LauncherState.hide()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // ── Application grid ─────────────────────────────────────
         GridView {
             id: grid
             anchors.left: cats.right
             anchors.leftMargin: 10
             anchors.right: parent.right
-            anchors.rightMargin: 8
+            // Same as the search field above, so the rows line up
+            // with it instead of running past its edge.
+            anchors.rightMargin: 14
             anchors.top: searchBox.bottom
             anchors.topMargin: 12
             anchors.bottom: sessionBar.top
             anchors.bottomMargin: 6
             clip: true
-            visible: !recentView.visible
+            visible: !recentView.visible && !searchView.visible
 
             cellWidth: 118
             cellHeight: 92
@@ -395,6 +601,7 @@ PanelWindow {
         Text {
             anchors.centerIn: grid
             visible: win.apps.length === 0 && !recentView.visible
+                     && !searchView.visible
             text: I18n.t.noMatches
             color: Theme.textTertiary
             font.pixelSize: 13

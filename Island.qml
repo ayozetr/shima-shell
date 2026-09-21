@@ -194,6 +194,7 @@ PanelWindow {
         SysInfo.active = (win.mode === 2 && win.expanded);
         Brightness.active = (win.mode === 1 && win.expanded);
         NightLight.active = (win.mode === 1 && win.expanded);
+        Power.active = (win.mode === 1 && win.expanded);
         // Having the list on screen is reading it. This can't live in
         // the mode itself: its neighbour is preloaded, so arriving at
         // the calendar would clear the unread mark without you ever

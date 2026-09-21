@@ -139,7 +139,7 @@ Item {
                 onTriggered: Focus.toggle()
             }
             PomoButton {
-                label: Focus.phase === "idle" ? "Reiniciar" : "Saltar"
+                label: Focus.phase === "idle" ? I18n.t.reset : I18n.t.skip
                 onTriggered: Focus.phase === "idle" ? Focus.reset() : Focus.skip()
             }
         }

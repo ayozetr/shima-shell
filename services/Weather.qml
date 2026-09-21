@@ -67,17 +67,17 @@ Singleton {
 
     readonly property string conditionText: {
         const c = root.code;
-        if (c === 0)                 return "Despejado";
-        if (c === 1)                 return "Poco nuboso";
-        if (c === 2)                 return "Parcialmente nublado";
-        if (c === 3)                 return "Nublado";
-        if (c === 45 || c === 48)    return "Niebla";
-        if (c >= 51 && c <= 57)      return "Llovizna";
-        if (c >= 61 && c <= 67)      return "Lluvia";
-        if (c >= 71 && c <= 77)      return "Nieve";
-        if (c >= 80 && c <= 82)      return "Chubascos";
-        if (c === 85 || c === 86)    return "Nevadas";
-        if (c >= 95)                 return "Tormenta";
+        if (c === 0)                 return I18n.t.wxClear;
+        if (c === 1)                 return I18n.t.wxMostlyClear;
+        if (c === 2)                 return I18n.t.wxPartlyCloudy;
+        if (c === 3)                 return I18n.t.wxCloudy;
+        if (c === 45 || c === 48)    return I18n.t.wxFog;
+        if (c >= 51 && c <= 57)      return I18n.t.wxDrizzle;
+        if (c >= 61 && c <= 67)      return I18n.t.wxRain;
+        if (c >= 71 && c <= 77)      return I18n.t.wxSnow;
+        if (c >= 80 && c <= 82)      return I18n.t.wxShowers;
+        if (c === 85 || c === 86)    return I18n.t.wxSnowShowers;
+        if (c >= 95)                 return I18n.t.wxThunderstorm;
         return "";
     }
 
