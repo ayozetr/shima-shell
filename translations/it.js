@@ -128,6 +128,8 @@ var strings = {
 
     launcherButton: "Pulsante delle applicazioni",
     launcherButtonHint: "Apre il menu di avvio dal dock",
+    launcherLift: "Altezza del menu",
+    launcherLiftHint: "Lo allontana dal dock",
     shortcut: "Scorciatoia da tastiera",
     shortcutHint: "Apre le applicazioni e mostra il dock",
     shortcutKey: "Tasto",

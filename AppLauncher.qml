@@ -18,6 +18,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "shima-launcher"
+
     // It needs the keyboard so you can type the moment it opens.
     WlrLayershell.keyboardFocus: win.visible
         ? WlrKeyboardFocus.Exclusive
@@ -29,6 +30,23 @@ PanelWindow {
              && Config.onScreen(Config.data.dockScreens, win.screenName)
 
     BackgroundEffect.blurRegion: Region { item: panel; radius: 18 }
+
+    // The window still covers the screen, so the panel stays where it
+    // was and a click anywhere closes it — but the dock's strip is cut
+    // out of what takes the mouse, or it would swallow every click
+    // meant for the dock underneath. Shrinking the window instead
+    // moves the panel up with it.
+    mask: Region {
+        width: win.width
+        height: win.height
+
+        Region {
+            intersection: Intersection.Subtract
+            width: win.width
+            height: DockState.reserved
+            y: DockState.position === "bottom" ? win.height - DockState.reserved : 0
+        }
+    }
 
     readonly property var apps: (Apps.revision, LauncherState.open)
         ? Apps.listApps(LauncherState.category, LauncherState.query)
@@ -69,9 +87,11 @@ PanelWindow {
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        // Just above the dock, whatever size it happens to be.
+        // Just above the dock, whatever size it happens to be, plus
+        // however much higher you asked for.
         anchors.bottomMargin: Theme.dockIconSize + Theme.dockDotLane
                               + Theme.dockPadding * 2 + 26
+                              + (Config.data.launcherLift ?? 0)
         width: 660
         height: 480
         radius: 18
@@ -142,7 +162,7 @@ PanelWindow {
             }
                 Keys.onReturnPressed: {
                     if (win.apps.length > 0) {
-                        win.apps[0].execute();
+                        Apps.start(win.apps[0]);
                         LauncherState.hide();
                     }
                 }

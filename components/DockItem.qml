@@ -177,7 +177,12 @@ Item {
                 }
                 return;
             }
-            if (e.button === Qt.LeftButton) Apps.launch(root.appId);
+            if (e.button === Qt.LeftButton) {
+                // Launching from the dock puts the launcher away, the
+                // same as launching from inside it does.
+                LauncherState.hide();
+                Apps.launch(root.appId);
+            }
         }
 
         onCanceled: { if (root.dock) root.dock.commitDrag(); moved = false; }

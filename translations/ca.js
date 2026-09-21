@@ -128,6 +128,8 @@ var strings = {
 
     launcherButton: "Botó d'aplicacions",
     launcherButtonHint: "Obre el menú d'inici des del dock",
+    launcherLift: "Alçada del menú",
+    launcherLiftHint: "El separa més del dock",
     shortcut: "Drecera de teclat",
     shortcutHint: "Obre les aplicacions i desplega el dock",
     shortcutKey: "Tecla",

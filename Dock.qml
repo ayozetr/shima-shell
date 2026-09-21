@@ -84,7 +84,19 @@ PanelWindow {
 
     readonly property bool autoHide: Config.data.dockAutoHide ?? false
     // It won't hide while a menu is open or you're dragging.
-    readonly property bool revealed: !autoHide || hovering || popupOpen || row.dragIndex >= 0
+    // The launcher opens from the dock, so a hidden dock comes out with
+    // it: opening the applications by keyboard and being answered by a
+    // panel hanging off nothing reads as broken.
+    // Published so the launcher can leave this strip alone.
+    onHeightChanged: win.publishReserved()
+    Component.onCompleted: win.publishReserved()
+    function publishReserved() {
+        DockState.position = Config.data.dockPosition ?? "bottom";
+        DockState.reserved = pill.height + (win.floating ? win.edgeMargin * 2 : 0) + 4;
+    }
+
+    readonly property bool revealed: !autoHide || hovering || popupOpen
+                                     || row.dragIndex >= 0 || LauncherState.open
 
     readonly property bool atTop: Config.data.dockPosition === "top"
     readonly property bool floating: Config.data.dockFloating ?? false

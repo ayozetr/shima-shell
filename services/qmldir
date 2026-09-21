@@ -13,3 +13,4 @@ singleton Session 1.0 Session.qml
 singleton Brightness 1.0 Brightness.qml
 singleton NightLight 1.0 NightLight.qml
 singleton Notifications 1.0 Notifications.qml
+singleton DockState 1.0 DockState.qml

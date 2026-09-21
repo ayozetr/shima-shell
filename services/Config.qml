@@ -46,6 +46,9 @@ Singleton {
             property bool   showAppNames:     true   // the name floating over an icon
             property bool   showTray:         true   // the system tray icons
 
+            // How much higher than the dock the launcher sits.
+            property int    launcherLift:    0
+
             // ── Global shortcut ────────────────────────────────
             property bool   shortcutEnabled: true
             // A Qt key code with its modifiers, as the settings page
