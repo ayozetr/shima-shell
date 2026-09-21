@@ -26,6 +26,8 @@ Singleton {
         "org.kde.konsole"
     ]
     property var runningIds: ({})
+    // How many sweeps in a row have failed to see each application.
+    property var misses: ({})
     readonly property string pinnedPath: Quickshell.statePath("pinned.json")
 
     // Favourites are not the dock. Pinning puts an app on the bar,
@@ -49,6 +51,7 @@ Singleton {
     Component.onCompleted: {
         DesktopEntries.applications.values.length;
         root.readMenu();
+        root.syncDockItems();
     }
 
     // On a hot reload, applicationsChanged already fired before we
@@ -149,10 +152,16 @@ Singleton {
         }
 
         order.sort((a, b) => a.localeCompare(b, I18n.language));
+
+        // The launcher rereads this every time it opens, and saying
+        // "something changed" when nothing did makes every icon in the
+        // dock reload: they are bound to the revision counter, so the
+        // pinned ones blink out and back in.
+        const before = JSON.stringify(root.menuApps);
         root.menuApps = byCat;
         root.menuCats = order;
         root.hasMenu = true;
-        root.revision++;
+        if (before !== JSON.stringify(byCat)) root.revision++;
     }
 
     // ── Categories ─────────────────────────────────────────────
@@ -302,6 +311,7 @@ Singleton {
             if (!root.entryFor(id)) continue;
             out.push(id);
         }
+        if (out.join("\u0000") === root.frequent.join("\u0000")) return;
         root.frequent = out;
         root.revision++;
     }
@@ -355,6 +365,7 @@ Singleton {
             out.push(id);
         }
         if (out.length === 0) return;
+        if (out.join("\u0000") === root.favorites.join("\u0000")) return;
         root.favorites = out;
         favoritesFile.setText(JSON.stringify(root.favorites, null, 2));
         root.revision++;
@@ -504,7 +515,22 @@ Singleton {
     // Open apps that are not pinned. They go into the dock behind the
     // pinned ones, like any task manager does.
     property var runningExtra: []
-    readonly property var dockItems: root.pinned.concat(root.runningExtra)
+    // What the dock shows. Kept as a plain list and replaced only when
+    // it really differs: concatenating in a binding hands the Repeater
+    // a brand new array every time anything it reads changes, and a
+    // new array means every icon is destroyed and built again — which
+    // is visible, because an icon takes a frame to load and the gap
+    // shows.
+    property var dockItems: []
+
+    function syncDockItems() {
+        const next = root.pinned.concat(root.runningExtra);
+        if (next.join("\u0000") === root.dockItems.join("\u0000")) return;
+        root.dockItems = next;
+    }
+
+    onPinnedChanged: root.syncDockItems()
+    onRunningExtraChanged: root.syncDockItems()
 
     // Index from process name to .desktop id. Built once, it turns
     // every scan into a direct lookup instead of comparing each process
@@ -602,16 +628,94 @@ Singleton {
         return tail;
     }
 
+    // Starting an application, as opposed to raising one.
+    //
+    // Not entry.execute(): on Wayland a window may only take the focus
+    // from another if whoever started it hands over an activation
+    // token, and without one KWin leaves it behind whatever was in
+    // front — which over a fullscreen game means you never see it.
+    // kstart is KDE's own launcher and does that part properly.
+    property bool hasKstart: false
+
+    Process {
+        running: true
+        command: ["sh", "-c", "command -v kstart >/dev/null && echo yes || echo no"]
+        stdout: StdioCollector {
+            onStreamFinished: root.hasKstart = text.trim() === "yes"
+        }
+    }
+
+    function start(entry) {
+        if (!entry) return;
+        if (root.hasKstart && entry.id)
+            Quickshell.execDetached(["kstart", "--application", entry.id]);
+        else
+            entry.execute();
+
+        // And then bring it to the front ourselves. Handing over an
+        // activation token is not something a launcher can do from
+        // outside: the token has to be asked for by a window that
+        // already has the focus, which is why Plasma's own menu
+        // manages it and a separate process cannot. Raising through
+        // kdotool goes to KWin directly and is not subject to that.
+        if (root.hasKdotool && entry.id) {
+            root.raiseId = entry.id;
+            root.raiseUntil = Date.now() + 10000;
+            raiseTimer.restart();
+        }
+    }
+
+    // ── Raising what was just started ──────────────────────────
+    property string raiseId: ""
+    property real raiseUntil: 0
+
+    Timer {
+        id: raiseTimer
+        interval: 400
+        repeat: true
+        onTriggered: {
+            if (root.raiseId === "" || Date.now() > root.raiseUntil) {
+                root.raiseId = "";
+                stop();
+                return;
+            }
+            if (raiseProbe.running) return;
+            const lookups = root.windowLookup(root.raiseId);
+            if (!lookups) { root.raiseId = ""; stop(); return; }
+            raiseProbe.command = ["sh", "-c",
+                'wins=""; ' + lookups + '; '
+                + '[ -z "$wins" ] && exit 0; '
+                + 'kdotool windowactivate $(printf "%s\n" "$wins" | head -1) '
+                + '  >/dev/null 2>&1 && echo raised'];
+            raiseProbe.running = true;
+        }
+    }
+
+    Process {
+        id: raiseProbe
+        stdout: StdioCollector {
+            onStreamFinished: {
+                // The first window to show up is the one that was
+                // asked for; after that, stop watching, or a window
+                // opened later would be yanked to the front too.
+                if (text.trim() === "raised") {
+                    root.raiseId = "";
+                    raiseTimer.stop();
+                }
+            }
+        }
+    }
+
     function launch(id) {
         const entry = root.entryFor(id);
         if (!entry) return;
 
         // Without kdotool there is no way to raise someone else's
         // window on Wayland, so all that's left is launching the app.
-        if (!root.hasKdotool) { entry.execute(); return; }
+        if (!root.hasKdotool) { root.start(entry); return; }
 
         const lookups = root.windowLookup(id);
-        if (!lookups) { entry.execute(); return; }
+        if (!lookups) { root.start(entry); return; }
 
         // One window: raise it, or minimise it if it already has focus,
         // like any task manager. Several: step to the next one, so
@@ -721,7 +825,7 @@ Singleton {
     // Launch another instance regardless of what is already open.
     function launchNew(id) {
         const entry = root.entryFor(id);
-        if (entry) entry.execute();
+        if (entry) root.start(entry);
     }
 
     Process { id: windowProc }
@@ -733,7 +837,7 @@ Singleton {
         onExited: (code) => {
             if (code === 0) return;
             const entry = root.entryFor(activate.pendingId);
-            if (entry) entry.execute();
+            if (entry) root.start(entry);
         }
     }
 
@@ -803,7 +907,7 @@ Singleton {
                 if [ -f "$cache.sig" ] && [ "$sig" = "$(cat "$cache.sig")" ] \
                    && [ -f "$cache.classes" ]; then
                     cat "$cache.classes"
-                else
+                elif [ -n "$ids" ]; then
                     printf '%s' "$sig" > "$cache.sig"
                     printf '%s\n' "$ids" | while read -r w; do
                         [ -n "$w" ] && kdotool getwindowclassname "$w" 2>/dev/null
@@ -814,7 +918,19 @@ Singleton {
             : ["sh", "-c", "ps -eo comm= | sort -u"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const procs = new Set(text.split("\n").map(s => s.trim().toLowerCase()).filter(s => s));
+                const names = text.split("\n").map(s => s.trim().toLowerCase()).filter(s => s);
+
+                // Nothing at all means the query failed, not that every
+                // window in the session closed between one poll and the
+                // next. kdotool goes through KWin's scripting API, and
+                // it can come back empty while KWin is busy — opening
+                // the launcher fires several queries at once. Acting on
+                // it empties the dock of everything that is merely open
+                // and fills it again a moment later, which is seen as
+                // icons missing and then jumping into place.
+                if (names.length === 0) return;
+
+                const procs = new Set(names);
 
                 // What's alive, through the index instead of walking
                 // every entry for each process.
@@ -856,6 +972,28 @@ Singleton {
                         out[id] = true;
                     }
                     extra.sort();
+
+                    // Anything still counted as running keeps its
+                    // place, even if this sweep did not see it.
+                    for (const id of root.runningExtra) {
+                        if (extra.indexOf(id) === -1 && out[id] === true)
+                            extra.push(id);
+                    }
+                    extra.sort();
+                }
+
+                // An application is added the moment it is seen and
+                // only dropped after two sweeps in a row have missed
+                // it. Asking KWin for the window list goes through its
+                // scripting API, which turns slow and uneven while a
+                // fullscreen game is up: a single sweep that misses
+                // takes the icon out and the next one puts it back,
+                // and everything beside it slides over twice.
+                for (const id of Object.keys(out)) {
+                    if (out[id]) { root.misses[id] = 0; continue; }
+                    if (root.runningIds[id] !== true) continue;
+                    root.misses[id] = (root.misses[id] || 0) + 1;
+                    if (root.misses[id] < 2) out[id] = true;
                 }
 
                 root.runningIds = out;

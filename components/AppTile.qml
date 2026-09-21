@@ -160,7 +160,7 @@ Item {
                 root.launcherWindow.openMenu(root.entry.id, root.entry.name, p.x, p.y);
                 return;
             }
-            root.entry.execute();
+            Apps.start(root.entry);
             root.launched();
         }
     }
