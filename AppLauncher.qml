@@ -202,46 +202,87 @@ PanelWindow {
             Repeater {
                 model: Apps.categories
 
-                Rectangle {
+                Item {
                     required property var modelData
                     readonly property int count:
                         (Apps.revision, Apps.categoryCounts()[modelData.id] || 0)
+                    readonly property bool current: LauncherState.category === modelData.id
+
+                    // Favourites, frequent and places are always there
+                    // and are not a slice of the catalogue, so they
+                    // carry a mark instead of a count, and a rule below
+                    // the last of them sets the three apart.
+                    readonly property string mark: ({
+                        favorites: "star", frequent: "clock", places: "bookmark"
+                    })[modelData.id] || ""
+                    readonly property bool lastFixed: modelData.id === "places"
 
                     visible: count > 0
                     width: parent.width
-                    height: visible ? 28 : 0
-                    radius: 8
-                    color: LauncherState.category === modelData.id
-                        ? Theme.accentSoft
-                        : (cm.containsMouse ? "#14ffffff" : "transparent")
-                    Behavior on color { ColorAnimation { duration: 120 } }
+                    // The rule lives in the row's extra height, outside
+                    // the highlight, which stays the size of a row.
+                    height: visible ? (lastFixed ? 37 : 28) : 0
 
-                    Text {
+                    Rectangle {
+                        id: pill
                         anchors.left: parent.left
-                        anchors.leftMargin: 10
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: modelData.label
-                        color: LauncherState.category === modelData.id
-                            ? Theme.textPrimary
-                            : Theme.textSecondary
-                        font.pixelSize: 12
-                    }
-
-                    Text {
                         anchors.right: parent.right
-                        anchors.rightMargin: 10
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: parent.count
-                        color: Theme.textTertiary
-                        font.pixelSize: 10
+                        anchors.top: parent.top
+                        height: 28
+                        radius: 8
+                        color: parent.current
+                            ? Theme.accentSoft
+                            : (cm.containsMouse ? "#14ffffff" : "transparent")
+                        Behavior on color { ColorAnimation { duration: 120 } }
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: modelData.label
+                            color: current ? Theme.textPrimary : Theme.textSecondary
+                            font.pixelSize: 12
+                        }
+
+                        Text {
+                            anchors.right: parent.right
+                            anchors.rightMargin: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: count
+                            color: Theme.textTertiary
+                            font.pixelSize: 10
+                            visible: mark === ""
+                        }
+
+                        CategoryGlyph {
+                            anchors.right: parent.right
+                            anchors.rightMargin: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 11; height: 11
+                            visible: mark !== ""
+                            kind: mark === "" ? "star" : mark
+                            fill: current ? Theme.accent : Theme.textTertiary
+                        }
+
+                        MouseArea {
+                            id: cm
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: LauncherState.category = modelData.id
+                        }
                     }
 
-                    MouseArea {
-                        id: cm
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: LauncherState.category = modelData.id
+                    Rectangle {
+                        visible: lastFixed
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        anchors.leftMargin: 2
+                        anchors.rightMargin: 2
+                        anchors.bottomMargin: 4
+                        height: 1
+                        color: "#18ffffff"
                     }
                 }
             }

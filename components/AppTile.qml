@@ -155,7 +155,9 @@ Item {
         onClicked: (e) => {
             if (!root.entry || ma.moved) return;
             if (e.button === Qt.RightButton) {
-                if (!root.launcherWindow) return;
+                // Places have no .desktop behind them, so none of what
+                // that menu offers applies to them.
+                if (!root.launcherWindow || root.entry.isPlace) return;
                 const p = root.mapToItem(null, e.x, e.y);
                 root.launcherWindow.openMenu(root.entry.id, root.entry.name, p.x, p.y);
                 return;

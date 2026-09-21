@@ -174,6 +174,7 @@ Singleton {
         const out = [
             { id: "favorites", label: I18n.t.catFavorites, match: [] },
             { id: "frequent", label: I18n.t.catFrequent, match: [] },
+            { id: "places", label: I18n.t.catPlaces, match: [] },
             { id: "all", label: I18n.t.catAll, match: [] }
         ];
         // KDE has already translated these, so they are its words and
@@ -187,6 +188,7 @@ Singleton {
     readonly property var ownCategories: [
         { id: "favorites", label: I18n.t.catFavorites, match: [] },
         { id: "frequent", label: I18n.t.catFrequent, match: [] },
+        { id: "places",  label: I18n.t.catPlaces,   match: [] },
         { id: "all",     label: I18n.t.catAll,      match: [] },
         { id: "net",     label: I18n.t.catNet,   match: ["Network", "WebBrowser", "Email"] },
         { id: "media",   label: I18n.t.catMedia, match: ["AudioVideo", "Audio", "Video", "Player"] },
@@ -204,8 +206,8 @@ Singleton {
         for (const c of root.ownCategories) {
             // These three are not read off the .desktop: two are
             // catch-alls and the third is a list you keep yourself.
-            if (c.id === "all" || c.id === "other"
-                || c.id === "favorites" || c.id === "frequent") continue;
+            if (c.id === "all" || c.id === "other" || c.id === "favorites"
+                || c.id === "frequent" || c.id === "places") continue;
             for (const m of c.match)
                 if (cats.indexOf(m) !== -1) return c.id;
         }
@@ -229,6 +231,16 @@ Singleton {
     function listApps(category, query) {
         const q = (query || "").trim().toLowerCase();
         const out = [];
+
+        // Not applications at all, but the same grid draws them: a
+        // name, an icon and something to open.
+        if (category === "places") {
+            for (const place of Places.entries) {
+                if (q && place.name.toLowerCase().indexOf(q) === -1) continue;
+                out.push(place);
+            }
+            return out;
+        }
 
         // These two are ordered lists, not catalogues: favourites by
         // the order you arranged them, frequent by how much you use
@@ -310,6 +322,9 @@ Singleton {
             if (out.indexOf(id) !== -1) continue;
             if (!root.entryFor(id)) continue;
             out.push(id);
+            // A "frequently used" list long enough to scroll is just
+            // the catalogue again, in a worse order.
+            if (out.length >= 20) break;
         }
         if (out.join("\u0000") === root.frequent.join("\u0000")) return;
         root.frequent = out;
@@ -497,6 +512,8 @@ Singleton {
             counts.all = Object.keys(seen).length;
             counts.favorites = root.favorites.length;
             counts.frequent = root.frequent.length;
+        counts.places = Places.entries.length;
+            counts.places = Places.entries.length;
             return counts;
         }
         for (const e of DesktopEntries.applications.values) {
@@ -509,6 +526,7 @@ Singleton {
         // the category would hide itself for being empty.
         counts.favorites = root.favorites.length;
         counts.frequent = root.frequent.length;
+        counts.places = Places.entries.length;
         return counts;
     }
 
@@ -647,6 +665,9 @@ Singleton {
 
     function start(entry) {
         if (!entry) return;
+        // A place is a folder, not a program: it opens in whatever
+        // handles it, which here is the file manager.
+        if (entry.isPlace) { Places.open(entry); return; }
         if (root.hasKstart && entry.id)
             Quickshell.execDetached(["kstart", "--application", entry.id]);
         else
