@@ -40,6 +40,7 @@ Item {
         visible: root.openMenu === "power"
         entries: [
             { label: I18n.t.suspend, act: () => Session.suspend() },
+            { label: I18n.t.hibernate, act: () => Session.hibernate() },
             { label: I18n.t.reboot, act: () => Session.reboot() },
             { label: I18n.t.shutdown,    act: () => Session.shutdown(), danger: true }
         ]

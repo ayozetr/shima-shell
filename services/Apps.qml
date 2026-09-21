@@ -573,6 +573,27 @@ Singleton {
         favWriter.running = true;
     }
 
+    // A copy of the .desktop on the desktop, marked as yours to run.
+    // Without that flag the file managers show it as an untrusted file
+    // and ask before every launch.
+    function addToDesktop(id) {
+        Quickshell.execDetached(["sh", "-c",
+            "desk=$(xdg-user-dir DESKTOP 2>/dev/null); "
+            + "[ -n \"$desk\" ] || desk=\"$HOME/Desktop\"; "
+            + "[ -d \"$desk\" ] || exit 0; "
+            + "IFS=:; "
+            + "for d in \"${XDG_DATA_HOME:-$HOME/.local/share}\" "
+            + "${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do "
+            + "  f=\"$d/applications/$1.desktop\"; "
+            + "  if [ -f \"$f\" ]; then "
+            + "    cp -f \"$f\" \"$desk/\" && chmod +x \"$desk/$1.desktop\"; "
+            + "    gio set \"$desk/$1.desktop\" metadata::trusted true 2>/dev/null; "
+            + "    exit 0; "
+            + "  fi; "
+            + "done",
+            "shima", id]);
+    }
+
     // Editing an entry opens KDE's properties dialog for its .desktop,
     // which is where the name, icon, command, arguments and categories
     // all live, and which writes the file itself.

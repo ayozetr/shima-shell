@@ -42,6 +42,8 @@ var strings = {
     catOther: "Other",
 
     doNotDisturb: "Do not disturb",
+    hibernate: "Hibernate",
+    addToDesktop: "Add to desktop",
     suspend: "Suspend",
     reboot: "Restart",
     shutdown: "Shut down",

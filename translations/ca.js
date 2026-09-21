@@ -46,6 +46,8 @@ var strings = {
 
     // ── Session ──
     doNotDisturb: "No molesteu",
+    hibernate: "Hiberna",
+    addToDesktop: "Afegeix a l'escriptori",
     suspend: "Suspèn",
     reboot: "Reinicia",
     shutdown: "Atura",

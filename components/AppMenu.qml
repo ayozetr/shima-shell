@@ -58,9 +58,12 @@ Rectangle {
                    kind: "pin", danger: root.pinned,
                    sep: root.context === "dock" });
 
-        if (root.context === "launcher")
+        if (root.context === "launcher") {
+            out.push({ label: I18n.t.addToDesktop, icon: "user-desktop",
+                       kind: "desktop", danger: false, sep: true });
             out.push({ label: I18n.t.editApp, icon: "document-edit",
-                       kind: "edit", danger: false, sep: true });
+                       kind: "edit", danger: false, sep: false });
+        }
         return out;
     }
 
@@ -167,6 +170,7 @@ Rectangle {
                                     break;
                                 case "favorite": Apps.toggleFavorite(root.appId); break;
                                 case "edit":     Apps.editApp(root.appId); break;
+                                case "desktop":  Apps.addToDesktop(root.appId); break;
                             }
                             root.closeRequested();
                         }

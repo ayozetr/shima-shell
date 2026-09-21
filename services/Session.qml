@@ -31,6 +31,13 @@ Singleton {
                   "--method", "org.freedesktop.login1.Manager.Suspend", "true"]);
     }
 
+    function hibernate() {
+        root.run(["gdbus", "call", "--system",
+                  "--dest", "org.freedesktop.login1",
+                  "--object-path", "/org/freedesktop/login1",
+                  "--method", "org.freedesktop.login1.Manager.Hibernate", "true"]);
+    }
+
     // ── Session ────────────────────────────────────────────────
     function lock() {
         root.run(["gdbus", "call", "--session",
