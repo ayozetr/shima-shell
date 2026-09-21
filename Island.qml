@@ -54,8 +54,42 @@ PanelWindow {
 
     Region {
         id: shellRegion
-        item: shell
-        radius: Theme.islandRadius
+        item: reach
+    }
+
+    // Where the island reaches, at the size it is going to be — not
+    // the size it is. Two things depend on it and both were wrong
+    // while it moved:
+    //
+    //  * expanding drops it a few pixels from the edge, and with the
+    //    pointer at the very top that took it out from under the
+    //    cursor: it collapsed, returned to the edge, was under the
+    //    cursor again, and flickered between the two;
+    //  * the height grows over four hundred milliseconds, so reaching
+    //    for a button near the bottom left the hover behind and shut
+    //    the island before the button was there to press.
+    //
+    // Following the target instead of the animation settles both. The
+    // mask uses it too: in Wayland the compositor only sends pointer
+    // events where the mask says, so a zone that is not in it is a
+    // zone the handler never hears about.
+    Item {
+        id: reach
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: 0
+        width: (win.expanded || win.peeking) ? Theme.islandExpandedWidth
+                                             : Theme.islandCollapsedWidth
+        height: {
+            if (win.expanded)
+                return Math.max(win.topMargin, Theme.islandExpandedMargin)
+                       + win.expandedHeight;
+            if (win.peeking) return win.topMargin + win.peekHeight;
+            return win.topMargin + Theme.islandCollapsedHeight;
+        }
+
+        HoverHandler {
+            onHoveredChanged: win.overReach = hovered
+        }
     }
 
     Region {
@@ -91,7 +125,29 @@ PanelWindow {
     readonly property bool revealed: !autoHide || hovering || expanded || peeking
 
     property bool hovering: false
-    property bool expanded: false
+
+    // Two detectors, because one cannot do it. The one inside the
+    // island is an ancestor of its controls, so it still hears the
+    // pointer while it is over the play button or the volume bar — a
+    // MouseArea keeps the event to itself, and a detector that is
+    // merely a sibling never learns the pointer is there. The one
+    // outside covers the strip the island leaves when it drops away
+    // from the edge on expanding, which is what made it flicker with
+    // the pointer at the very top of the screen.
+    property bool overIsland: false
+    property bool overReach: false
+
+    readonly property bool expanded: !win.peeking && (win.overIsland || win.overReach)
+    readonly property bool pointerNear: win.overIsland || win.overReach
+
+    onPointerNearChanged: {
+        if (win.peeking) {
+            if (win.pointerNear) peekTimer.stop();
+            else peekTimer.restart();
+        }
+        if (win.pointerNear) { hideTimer.stop(); win.hovering = true; }
+        else if (win.autoHide) hideTimer.restart();
+    }
 
     // ── A notification passing through ─────────────────────────
     //
@@ -183,19 +239,7 @@ PanelWindow {
         Behavior on border.width   { NumberAnimation { duration: Theme.fadeDuration } }
 
         HoverHandler {
-            onHoveredChanged: {
-                // While a notification is up, the pointer reads it
-                // instead of expanding the island: the countdown stops
-                // and picks up again when the pointer leaves.
-                if (win.peeking) {
-                    if (hovered) peekTimer.stop();
-                    else peekTimer.restart();
-                } else {
-                    win.expanded = hovered;
-                }
-                if (hovered) { hideTimer.stop(); win.hovering = true; }
-                else if (win.autoHide) hideTimer.restart();
-            }
+            onHoveredChanged: win.overIsland = hovered
         }
 
         // The wheel moves between modes, clamped at both ends. It goes
