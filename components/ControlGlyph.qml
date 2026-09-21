@@ -1,11 +1,12 @@
 import QtQuick
 import "../services"
 
-// Control centre icons, drawn by hand like the player ones so they
+// Small interface icons, drawn by hand like the player ones so they
 // don't depend on any theme.
 Canvas {
     id: root
     property string kind: "wifi"   // wifi · bt · mute · output · brightness · night · back
+                                   // · bell · bellOff · trash
     property color fill: Theme.textPrimary
 
     onKindChanged: requestPaint()
@@ -106,6 +107,59 @@ Canvas {
             ctx.beginPath();
             ctx.arc(w * 0.76, h * 0.30, w * 0.40, 0, Math.PI * 2);
             ctx.fill();
+            ctx.restore();
+        } else if (kind === "bell" || kind === "bellOff") {
+            ctx.beginPath();
+            ctx.moveTo(w * 0.18, h * 0.70);
+            ctx.lineTo(w * 0.18, h * 0.42);
+            ctx.arc(w * 0.50, h * 0.42, w * 0.32, Math.PI, 0);
+            ctx.lineTo(w * 0.82, h * 0.70);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillRect(w * 0.08, h * 0.68, w * 0.84, h * 0.10);
+            ctx.beginPath();
+            ctx.arc(w * 0.50, h * 0.86, w * 0.11, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (kind === "bellOff") {
+                // The stroke is cut out of the bell first, so it reads
+                // as crossing over it rather than sitting on top.
+                ctx.save();
+                ctx.globalCompositeOperation = "destination-out";
+                ctx.lineWidth = Math.max(2.4, w * 0.22);
+                ctx.beginPath();
+                ctx.moveTo(w * 0.06, h * 0.02);
+                ctx.lineTo(w * 0.94, h * 0.98);
+                ctx.stroke();
+                ctx.restore();
+
+                ctx.lineWidth = Math.max(1.3, w * 0.11);
+                ctx.lineCap = "round";
+                ctx.beginPath();
+                ctx.moveTo(w * 0.12, h * 0.06);
+                ctx.lineTo(w * 0.88, h * 0.94);
+                ctx.stroke();
+            }
+        } else if (kind === "trash") {
+            ctx.fillRect(w * 0.38, h * 0.04, w * 0.24, h * 0.12);
+            ctx.fillRect(w * 0.08, h * 0.18, w * 0.84, h * 0.11);
+            ctx.beginPath();
+            ctx.moveTo(w * 0.19, h * 0.32);
+            ctx.lineTo(w * 0.81, h * 0.32);
+            ctx.lineTo(w * 0.72, h * 0.95);
+            ctx.lineTo(w * 0.28, h * 0.95);
+            ctx.closePath();
+            ctx.fill();
+
+            // Two grooves, cut rather than drawn, so they show on any
+            // background.
+            ctx.save();
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.lineWidth = Math.max(1.1, w * 0.09);
+            ctx.beginPath();
+            ctx.moveTo(w * 0.42, h * 0.42); ctx.lineTo(w * 0.42, h * 0.85);
+            ctx.moveTo(w * 0.58, h * 0.42); ctx.lineTo(w * 0.58, h * 0.85);
+            ctx.stroke();
             ctx.restore();
         } else if (kind === "back") {
             ctx.lineWidth = Math.max(1.4, w * 0.13);

@@ -25,22 +25,66 @@ Item {
             font.letterSpacing: 0.6
         }
 
-        Text {
+        // Both on the right: silence first, then empty. Icons rather
+        // than words, because two labels beside the heading read as a
+        // sentence.
+        Row {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            visible: Notifications.items.length > 0
-            text: I18n.t.clearAll
-            color: clearArea.containsMouse ? Theme.textPrimary : Theme.textTertiary
-            font.pixelSize: 10
-            Behavior on color { ColorAnimation { duration: Theme.hoverDuration } }
+            spacing: 12
 
-            MouseArea {
-                id: clearArea
-                anchors.fill: parent
-                anchors.margins: -6
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: Notifications.clear()
+            ControlGlyph {
+                width: 13; height: 13
+                anchors.verticalCenter: parent.verticalCenter
+                kind: Notifications.quiet ? "bellOff" : "bell"
+                fill: Notifications.quiet ? Theme.accent
+                    : (quietArea.containsMouse ? Theme.textPrimary : Theme.textTertiary)
+                Behavior on fill { ColorAnimation { duration: Theme.hoverDuration } }
+
+                MouseArea {
+                    id: quietArea
+                    anchors.fill: parent
+                    anchors.margins: -5
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Notifications.toggleQuiet()
+                }
+
+                ToolTipLabel {
+                    show: quietArea.containsMouse
+                    text: I18n.t.doNotDisturb
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.bottom
+                    anchors.topMargin: 6
+                    z: 30
+                }
+            }
+
+            ControlGlyph {
+                width: 13; height: 13
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Notifications.items.length > 0
+                kind: "trash"
+                fill: clearArea.containsMouse ? Theme.textPrimary : Theme.textTertiary
+                Behavior on fill { ColorAnimation { duration: Theme.hoverDuration } }
+
+                MouseArea {
+                    id: clearArea
+                    anchors.fill: parent
+                    anchors.margins: -5
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Notifications.clear()
+                }
+
+                ToolTipLabel {
+                    show: clearArea.containsMouse
+                    text: I18n.t.clearAll
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.bottom
+                    anchors.topMargin: 6
+                    z: 30
+                }
             }
         }
     }

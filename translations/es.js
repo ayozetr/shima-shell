@@ -45,6 +45,7 @@ var strings = {
     catOther: "Otras",
 
     // ── Session ──
+    doNotDisturb: "No molestar",
     suspend: "Suspender",
     reboot: "Reiniciar",
     shutdown: "Apagar",

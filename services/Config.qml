@@ -50,6 +50,7 @@ Singleton {
             property int    launcherLift:    0
 
             // ── Global shortcut ────────────────────────────────
+            property bool   doNotDisturb:    false
             property bool   shortcutEnabled: true
             // A Qt key code with its modifiers, as the settings page
             // captures it. Qt::Key_Meta on its own is the Meta key,

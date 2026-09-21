@@ -41,6 +41,7 @@ var strings = {
     catUtils: "Utilities",
     catOther: "Other",
 
+    doNotDisturb: "Do not disturb",
     suspend: "Suspend",
     reboot: "Restart",
     shutdown: "Shut down",

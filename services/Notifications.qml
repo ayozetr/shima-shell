@@ -16,6 +16,16 @@ Singleton {
 
     readonly property bool enabled: Config.data.notificationsEnabled ?? true
 
+    // Nothing on screen, everything in the history. Silencing that
+    // dropped them would make the island's list a worse version of
+    // itself — the point of not disturbing you is reading them later.
+    property bool quiet: Config.data.doNotDisturb ?? false
+
+    function toggleQuiet() {
+        Config.data.doNotDisturb = !root.quiet;
+        Config.save();
+    }
+
     // ── History ──────────────────────────────────────────────────
     //
     // Entries are plain objects, not the Notification objects. Those
@@ -114,7 +124,10 @@ Singleton {
         // Some notifications are not a passing remark. One that came
         // in shouting, or that offers a choice, is shown as a card
         // that waits instead of a glance that expires.
-        if (root.cardsEnabled && root.deservesCard(entry)) {
+        if (root.quiet) {
+            // Straight to the history, and the unread mark on the
+            // island is the only sign.
+        } else if (root.cardsEnabled && root.deservesCard(entry)) {
             root.cards = root.cards.concat([entry]);
         } else {
             root.peek = entry;
@@ -236,5 +249,46 @@ Singleton {
         const hours = Math.floor(mins / 60);
         if (hours < 24) return I18n.t.hoursAgo.replace("%1", hours);
         return I18n.t.daysAgo.replace("%1", Math.floor(hours / 24));
+    }
+
+    // ── Development hook ─────────────────────────────────────────
+    // Lets a fake notification be thrown at the shell from a terminal
+    // while Plasma still owns the real bus name:
+    //   qs ipc call notifications send "App" "Title" "Body"
+    function fake(app, summary, body, urgency, buttons) {
+        const acts = [];
+        for (const label of (buttons || "").split(",")) {
+            if (label.trim() !== "")
+                acts.push({ identifier: label.trim(), text: label.trim() });
+        }
+        root.receive({
+            id: 90000 + root.serial,
+            appName: app,
+            summary: summary,
+            body: body,
+            appIcon: "",
+            image: "",
+            desktopEntry: "",
+            urgency: urgency,
+            transient: false,
+            actions: acts,
+            expireTimeout: -1,
+            tracked: false
+        });
+        return "sent";
+    }
+
+    IpcHandler {
+        target: "notifications"
+
+        function send(app: string, summary: string, body: string): string {
+            return root.fake(app, summary, body, 1, "");
+        }
+
+        // qs ipc call notifications card "App" "Title" "Body" 2 "Yes,No"
+        function card(app: string, summary: string, body: string,
+                      urgency: int, buttons: string): string {
+            return root.fake(app, summary, body, urgency, buttons);
+        }
     }
 }
