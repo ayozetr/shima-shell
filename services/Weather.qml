@@ -23,12 +23,25 @@ Singleton {
     readonly property real lon: Config.data.weatherLon ?? 0
     readonly property bool fahrenheit: Config.data.weatherFahrenheit ?? false
     readonly property string model: Config.data.weatherModel ?? "ukmo_seamless"
+    readonly property string bbcId: Config.data.weatherBbcId ?? ""
+    readonly property bool useBbc: (Config.data.weatherProvider ?? "bbc") === "bbc"
+                                   && root.bbcId !== ""
+
+    // Only the temperature comes from BBC: its observation feed reports
+    // the current conditions as "Not available" often enough that the
+    // icon would keep vanishing. Open-Meteo's code also tells day from
+    // night, which is what picks the sun or the moon.
+    property real bbcTemperature: 0
+    property bool bbcReady: false
 
     // Rounds half down: at exactly 24.5, JavaScript's Math.round gives
     // 25 while BBC (and therefore Plasma's widget) shows 24. Only the
     // exact half changes; everything else rounds as usual.
+    readonly property real shownTemperature:
+        (root.useBbc && root.bbcReady) ? root.bbcTemperature : root.temperature
+
     readonly property string temperatureText:
-        root.ready ? Math.ceil(root.temperature - 0.5) + "°" : ""
+        root.ready ? Math.ceil(root.shownTemperature - 0.5) + "°" : ""
 
     // WMO code to the freedesktop icon names every theme ships.
     readonly property string iconName: {
@@ -75,7 +88,31 @@ Singleton {
         running: root.enabled && root.lat !== 0
         repeat: true
         triggeredOnStart: true
-        onTriggered: fetch.running = true
+        onTriggered: {
+            fetch.running = true;
+            if (root.useBbc) bbcFetch.running = true;
+        }
+    }
+
+    // The feed is RSS, so the reading is pulled out with a regular
+    // expression rather than parsed: one number from one line.
+    Process {
+        id: bbcFetch
+        command: ["sh", "-c",
+            "curl -sf --max-time 10 "
+            + "'https://weather-broker-cdn.api.bbci.co.uk/en/observation/rss/"
+            + root.bbcId + "' "
+            + "| grep -oE 'Temperature: -?[0-9]+' | head -1 "
+            + "| grep -oE '\\-?[0-9]+'"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const v = parseInt(text.trim(), 10);
+                if (!isNaN(v)) {
+                    root.bbcTemperature = v;
+                    root.bbcReady = true;
+                }
+            }
+        }
     }
 
     Process {
@@ -110,15 +147,22 @@ Singleton {
     Process {
         id: importer
         command: ["sh", "-c",
-            "grep -m1 '^placeDisplayName=' "
+            "grep -m1 '^placeInfo=' "
             + "\"$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc\" "
             + "2>/dev/null | cut -d= -f2-"]
         stdout: StdioCollector {
             onStreamFinished: {
-                // The widget stores it as "Candelaria, Spain, ES", so
-                // the last piece is the country code we must honour.
-                const name = text.trim();
-                if (!name) return;
+                // The widget stores it as
+                // "Candelaria, Spain, ES|2520283": a name whose last
+                // piece is the country code, and BBC's own id.
+                const raw = text.trim();
+                if (!raw) return;
+                const bar = raw.indexOf("|");
+                if (bar > 0) {
+                    Config.data.weatherBbcId = raw.slice(bar + 1).trim();
+                    Config.save();
+                }
+                const name = bar > 0 ? raw.slice(0, bar) : raw;
                 const parts = name.split(",").map(x => x.trim());
                 const country = (parts.length > 1
                     && parts[parts.length - 1].length === 2)

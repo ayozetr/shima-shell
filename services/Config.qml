@@ -44,6 +44,9 @@ Singleton {
             property bool   showRunning:      true   // open apps that are not pinned
             property bool   showLauncher:     true   // application launcher button
             property bool   showAppNames:     true   // the name floating over an icon
+            property bool   showTray:         true   // the system tray icons
+            // Folded behind a chevron, like Plasma's arrow, or always out.
+            property bool   trayCollapsible:  true
             property bool   dockAutoHide:     false
             property int    dockHideDelay:    700    // ms before hiding
 
@@ -90,6 +93,13 @@ Singleton {
             // picking anything else shows a different temperature than
             // the one you are used to seeing on the panel.
             property string weatherModel:      "ukmo_seamless"
+
+            // bbc reads the very feed Plasma's weather widget uses, so
+            // the temperature matches the panel instead of merely
+            // coming close. openmeteo is the fallback and what anyone
+            // without a BBC id gets.
+            property string weatherProvider:   "bbc"
+            property string weatherBbcId:      ""
 
             // auto, es, en
             property string language:          "auto"
