@@ -1,5 +1,6 @@
 singleton Theme 1.0 Theme.qml
 singleton Config 1.0 Config.qml
+singleton I18n 1.0 I18n.qml
 singleton SettingsWindow 1.0 SettingsWindow.qml
 singleton LauncherState 1.0 LauncherState.qml
 singleton Cava 1.0 Cava.qml

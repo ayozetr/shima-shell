@@ -120,7 +120,7 @@ PanelWindow {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: search.text === ""
-                    text: "Buscar aplicaciones…"
+                    text: I18n.t.searchApps
                     color: Theme.textTertiary
                     font.pixelSize: 14
                 }
@@ -214,7 +214,7 @@ PanelWindow {
         Text {
             anchors.centerIn: grid
             visible: win.apps.length === 0
-            text: "Nada que se parezca a eso"
+            text: I18n.t.noMatches
             color: Theme.textTertiary
             font.pixelSize: 13
         }

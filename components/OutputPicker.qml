@@ -54,7 +54,7 @@ Column {
 
     Text {
         visible: Audio.outputs.length === 0
-        text: "No hay salidas de audio"
+        text: I18n.t.noOutputs
         color: Theme.textTertiary
         font.pixelSize: 11
     }

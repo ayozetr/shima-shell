@@ -85,16 +85,16 @@ Singleton {
     // so we keep the first of the main ones that shows up, in this
     // order.
     readonly property var categories: [
-        { id: "all",     label: "Todas",      match: [] },
-        { id: "net",     label: "Internet",   match: ["Network", "WebBrowser", "Email"] },
-        { id: "media",   label: "Multimedia", match: ["AudioVideo", "Audio", "Video", "Player"] },
-        { id: "games",   label: "Juegos",     match: ["Game"] },
-        { id: "gfx",     label: "Gráficos",   match: ["Graphics", "Photography"] },
-        { id: "office",  label: "Oficina",    match: ["Office", "TextEditor", "Spreadsheet"] },
-        { id: "dev",     label: "Desarrollo", match: ["Development", "IDE"] },
-        { id: "system",  label: "Sistema",    match: ["System", "Settings", "Security"] },
-        { id: "utils",   label: "Utilidades", match: ["Utility", "Accessories", "Archiving"] },
-        { id: "other",   label: "Otras",      match: [] }
+        { id: "all",     label: I18n.t.catAll,      match: [] },
+        { id: "net",     label: I18n.t.catNet,   match: ["Network", "WebBrowser", "Email"] },
+        { id: "media",   label: I18n.t.catMedia, match: ["AudioVideo", "Audio", "Video", "Player"] },
+        { id: "games",   label: I18n.t.catGames,     match: ["Game"] },
+        { id: "gfx",     label: I18n.t.catGfx,   match: ["Graphics", "Photography"] },
+        { id: "office",  label: I18n.t.catOffice,    match: ["Office", "TextEditor", "Spreadsheet"] },
+        { id: "dev",     label: I18n.t.catDev, match: ["Development", "IDE"] },
+        { id: "system",  label: I18n.t.catSystem,    match: ["System", "Settings", "Security"] },
+        { id: "utils",   label: I18n.t.catUtils, match: ["Utility", "Accessories", "Archiving"] },
+        { id: "other",   label: I18n.t.catOther,      match: [] }
     ]
 
     function categoryOf(entry) {

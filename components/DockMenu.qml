@@ -24,7 +24,7 @@ Rectangle {
     readonly property bool running: (Apps.revision, Apps.isRunning(root.appId))
 
     readonly property var items: {
-        const out = [{ label: "Abrir", icon: "", kind: "open", danger: false, sep: false }];
+        const out = [{ label: I18n.t.open, icon: "", kind: "open", danger: false, sep: false }];
 
         // Whatever the application declares in its .desktop.
         for (const a of root.actions)
@@ -35,13 +35,13 @@ Rectangle {
         // second instance, which is the action almost all of them would
         // have declared anyway.
         if (root.actions.length === 0)
-            out.push({ label: "Nueva ventana", icon: "window-new", kind: "new",
+            out.push({ label: I18n.t.newWindow, icon: "window-new", kind: "new",
                        danger: false, sep: false });
 
         // Closing needs a window to act on. Minimising is not here on
         // purpose: clicking the icon already does it.
         if (root.running && Apps.hasKdotool)
-            out.push({ label: "Cerrar", icon: "window-close", kind: "close",
+            out.push({ label: I18n.t.closeWindow, icon: "window-close", kind: "close",
                        danger: false, sep: true });
 
         out.push({ label: root.pinned ? "Quitar del dock" : "Anclar al dock",

@@ -91,6 +91,9 @@ Singleton {
             // the one you are used to seeing on the panel.
             property string weatherModel:      "ukmo_seamless"
 
+            // auto, es, en
+            property string language:          "auto"
+
             // ── Screens ────────────────────────────────────────
             // Connector names separated by commas ("DP-1,HDMI-A-1").
             // Empty means "on all of them", which is what someone with

@@ -65,7 +65,7 @@ Item {
         show: ma.containsMouse && !LauncherState.open
               && (Config.data.showAppNames ?? true)
               && !(root.dockWindow && root.dockWindow.popupOpen)
-        text: "Aplicaciones"
+        text: I18n.t.applications
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.top
         anchors.bottomMargin: 10

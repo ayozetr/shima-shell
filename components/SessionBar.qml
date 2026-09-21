@@ -39,9 +39,9 @@ Item {
         x: 0
         visible: root.openMenu === "power"
         entries: [
-            { label: "Suspender", act: () => Session.suspend() },
-            { label: "Reiniciar", act: () => Session.reboot() },
-            { label: "Apagar",    act: () => Session.shutdown(), danger: true }
+            { label: I18n.t.suspend, act: () => Session.suspend() },
+            { label: I18n.t.reboot, act: () => Session.reboot() },
+            { label: I18n.t.shutdown,    act: () => Session.shutdown(), danger: true }
         ]
     }
 
@@ -50,9 +50,9 @@ Item {
         x: 36
         visible: root.openMenu === "user"
         entries: [
-            { label: "Bloquear la sesión", act: () => Session.lock() },
-            { label: "Cambiar de usuario", act: () => Session.switchUser() },
-            { label: "Cerrar la sesión",   act: () => Session.logout(), danger: true }
+            { label: I18n.t.lockSession, act: () => Session.lock() },
+            { label: I18n.t.switchUser, act: () => Session.switchUser() },
+            { label: I18n.t.logout,   act: () => Session.logout(), danger: true }
         ]
     }
 
