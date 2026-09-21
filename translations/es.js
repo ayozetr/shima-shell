@@ -21,6 +21,10 @@ var strings = {
     searchPlace: "Buscar una localidad…",
 
     // ── Categories ──
+    catFavorites: "Favoritos",
+    addFavorite: "Añadir a favoritos",
+    removeFavorite: "Quitar de favoritos",
+    editApp: "Editar aplicación",
     catAll: "Todas",
     catNet: "Internet",
     catMedia: "Multimedia",

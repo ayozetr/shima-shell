@@ -7,6 +7,9 @@ import "../services"
 Item {
     id: root
     property var entry: null
+    // The window that draws the menu, since the grid clips its cells.
+    property var launcherWindow: null
+
     signal launched()
 
     Rectangle {
@@ -52,12 +55,13 @@ Item {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton
+
         onClicked: (e) => {
             if (!root.entry) return;
             if (e.button === Qt.RightButton) {
-                // Pinning to the dock is the most common thing asked
-                // for from here.
-                Apps.pin(root.entry.id);
+                if (!root.launcherWindow) return;
+                const p = root.mapToItem(null, e.x, e.y);
+                root.launcherWindow.openMenu(root.entry.id, root.entry.name, p.x, p.y);
                 return;
             }
             root.entry.execute();

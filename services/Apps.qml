@@ -28,6 +28,13 @@ Singleton {
     property var runningIds: ({})
     readonly property string pinnedPath: Quickshell.statePath("pinned.json")
 
+    // Favourites are not the dock. Pinning puts an app on the bar,
+    // where there is room for a handful; favouriting puts it first in
+    // the launcher, where there is room for the ones you reach for
+    // without wanting them on screen all day.
+    property var favorites: []
+    readonly property string favoritesPath: Quickshell.statePath("favorites.json")
+
     property bool hasKdotool: false
     // Don't scan until we know whether kdotool is around: the first
     // sweep would fall back to the process list and light up icons that
@@ -85,6 +92,7 @@ Singleton {
     // so we keep the first of the main ones that shows up, in this
     // order.
     readonly property var categories: [
+        { id: "favorites", label: I18n.t.catFavorites, match: [] },
         { id: "all",     label: I18n.t.catAll,      match: [] },
         { id: "net",     label: I18n.t.catNet,   match: ["Network", "WebBrowser", "Email"] },
         { id: "media",   label: I18n.t.catMedia, match: ["AudioVideo", "Audio", "Video", "Player"] },
@@ -100,11 +108,25 @@ Singleton {
     function categoryOf(entry) {
         const cats = entry.categories || [];
         for (const c of root.categories) {
-            if (c.id === "all" || c.id === "other") continue;
+            // These three are not read off the .desktop: two are
+            // catch-alls and the third is a list you keep yourself.
+            if (c.id === "all" || c.id === "other" || c.id === "favorites") continue;
             for (const m of c.match)
                 if (cats.indexOf(m) !== -1) return c.id;
         }
         return "other";
+    }
+
+    // Search the comment and keywords too: "browser" finds Brave even
+    // though its name doesn't contain it.
+    function matchesQuery(entry, q) {
+        if (!q) return true;
+        const hay = [entry.name, entry.genericName, entry.comment]
+            .concat(entry.keywords || [])
+            .filter(x => x)
+            .join(" ")
+            .toLowerCase();
+        return hay.indexOf(q) !== -1;
     }
 
     // Visible apps, sorted by name and filtered by category and by
@@ -113,25 +135,65 @@ Singleton {
         const q = (query || "").trim().toLowerCase();
         const out = [];
 
+        // Favourites keep the order they were added in. Sorting them
+        // alphabetically would undo the only thing that makes them a
+        // list of yours rather than another view of the same catalogue.
+        if (category === "favorites") {
+            for (const id of root.favorites) {
+                const e = root.entryFor(id);
+                if (!e || e.noDisplay) continue;
+                if (!root.matchesQuery(e, q)) continue;
+                out.push(e);
+            }
+            return out;
+        }
+
         for (const e of DesktopEntries.applications.values) {
             if (e.noDisplay) continue;
-            if (category && category !== "all" && root.categoryOf(e) !== category) continue;
-
-            if (q) {
-                // Search the comment and keywords too: "browser" finds
-                // Brave even though the name doesn't contain it.
-                const hay = [e.name, e.genericName, e.comment]
-                    .concat(e.keywords || [])
-                    .filter(x => x)
-                    .join(" ")
-                    .toLowerCase();
-                if (hay.indexOf(q) === -1) continue;
-            }
+            if (category && category !== "all"
+                && root.categoryOf(e) !== category) continue;
+            if (!root.matchesQuery(e, q)) continue;
             out.push(e);
         }
 
-        out.sort((a, b) => a.name.localeCompare(b.name, "es"));
+        out.sort((a, b) => a.name.localeCompare(b.name, I18n.language));
         return out;
+    }
+
+    function isFavorite(id) { return root.favorites.indexOf(id) !== -1; }
+
+    // Editing an entry opens KDE's properties dialog for its .desktop,
+    // which is where the name, icon, command, arguments and categories
+    // all live, and which writes the file itself.
+    //
+    // Not kmenuedit, although it takes an entry on the command line:
+    // it does not navigate to it. Tried the bare id, the English
+    // submenu name and the translated one — it lands on "Lost &
+    // Found" either way. And half of these entries are not in the
+    // menu at all: a Steam game's .desktop never reaches it, so there
+    // would be nothing to navigate to.
+    //
+    // The path is searched rather than guessed, because an entry can
+    // come from the user's directory, the system's or a flatpak
+    // export, and the id alone doesn't say which.
+    function editApp(id) {
+        // Plain strings, not a template literal: in one, ${...} is
+        // JavaScript interpolation and the shell variables vanish.
+        Quickshell.execDetached(["sh", "-c",
+            "IFS=:; "
+            + "for d in \"${XDG_DATA_HOME:-$HOME/.local/share}\" "
+            + "${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do "
+            + "  f=\"$d/applications/$1.desktop\"; "
+            + "  [ -f \"$f\" ] && exec kioclient openProperties \"$f\"; "
+            + "done; "
+            // Entries that live in a subdirectory carry it in their
+            // id, so fall back to looking for the file itself.
+            + "unset IFS; "
+            + "f=$(find \"$HOME/.local/share/applications\" "
+            + "  /usr/share/applications /usr/local/share/applications "
+            + "  -name \"$1.desktop\" 2>/dev/null | head -1); "
+            + "[ -n \"$f\" ] && exec kioclient openProperties \"$f\"",
+            "shima", id]);
     }
 
     // How many apps each category holds, so empty ones stay hidden.
@@ -143,6 +205,9 @@ Singleton {
             counts[c] = (counts[c] || 0) + 1;
             counts.all = (counts.all || 0) + 1;
         }
+        // Not read off the .desktop, so it has to be counted apart or
+        // the category would hide itself for being empty.
+        counts.favorites = root.favorites.length;
         return counts;
     }
 
@@ -548,13 +613,31 @@ Singleton {
                     root.pinned = parsed;
                     root.revision++;
                 }
-            } catch (e) { /* corrupto: nos quedamos con lo que haya */ }
+            } catch (e) { /* corrupt: keep whatever is already loaded */ }
         }
         // First run: inherit whatever is already pinned in the Plasma
         // task manager, which is what one expects to see.
         onLoadFailed: (error) => {
             if (error === FileViewError.FileNotFound) root.importFromPlasma();
         }
+    }
+
+    FileView {
+        id: favoritesFile
+        path: root.favoritesPath
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const parsed = JSON.parse(favoritesFile.text());
+                if (Array.isArray(parsed)) {
+                    root.favorites = parsed;
+                    root.revision++;
+                }
+            } catch (e) { /* corrupt: keep whatever is already loaded */ }
+        }
+        // Nothing to inherit here and nothing to do: an empty list of
+        // favourites is a perfectly good starting point.
     }
 
     // Reorder and remove, from dragging in the dock or from settings.

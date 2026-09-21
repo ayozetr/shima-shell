@@ -21,6 +21,10 @@ var strings = {
     searchPlace: "Cerca una localitat…",
 
     // ── Categories ──
+    catFavorites: "Preferits",
+    addFavorite: "Afegeix a preferits",
+    removeFavorite: "Treu de preferits",
+    editApp: "Edita l'aplicació",
     catAll: "Totes",
     catNet: "Internet",
     catMedia: "Multimèdia",

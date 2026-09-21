@@ -18,6 +18,10 @@ var strings = {
     addApp: "Add an application…",
     searchPlace: "Search for a town…",
 
+    catFavorites: "Favourites",
+    addFavorite: "Add to favourites",
+    removeFavorite: "Remove from favourites",
+    editApp: "Edit application",
     catAll: "All",
     catNet: "Internet",
     catMedia: "Multimedia",

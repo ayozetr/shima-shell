@@ -16,6 +16,9 @@ Rectangle {
     property string appName: ""
     property bool open: false
     property bool pinned: true
+    // Where it was opened from. The dock offers what you do with a
+    // window; the launcher offers what you do with an application.
+    property string context: "dock"
     signal closeRequested()
 
     readonly property var entry: (Apps.revision, Apps.entryFor(root.appId))
@@ -40,13 +43,24 @@ Rectangle {
 
         // Closing needs a window to act on. Minimising is not here on
         // purpose: clicking the icon already does it.
-        if (root.running && Apps.hasKdotool)
+        if (root.context === "dock" && root.running && Apps.hasKdotool)
             out.push({ label: I18n.t.closeWindow, icon: "window-close", kind: "close",
                        danger: false, sep: true });
 
-        out.push({ label: root.pinned ? "Quitar del dock" : "Anclar al dock",
+        const fav = Apps.isFavorite(root.appId);
+        if (root.context === "launcher")
+            out.push({ label: fav ? I18n.t.removeFavorite : I18n.t.addFavorite,
+                       icon: fav ? "starred-symbolic" : "non-starred-symbolic",
+                       kind: "favorite", danger: false, sep: true });
+
+        out.push({ label: root.pinned ? I18n.t.unpinFromDock : I18n.t.pinToDock,
                    icon: root.pinned ? "list-remove" : "pin",
-                   kind: "pin", danger: root.pinned, sep: true });
+                   kind: "pin", danger: root.pinned,
+                   sep: root.context === "dock" });
+
+        if (root.context === "launcher")
+            out.push({ label: I18n.t.editApp, icon: "document-edit",
+                       kind: "edit", danger: false, sep: true });
         return out;
     }
 
@@ -151,6 +165,8 @@ Rectangle {
                                     if (root.pinned) Apps.unpin(root.appId);
                                     else             Apps.pin(root.appId);
                                     break;
+                                case "favorite": Apps.toggleFavorite(root.appId); break;
+                                case "edit":     Apps.editApp(root.appId); break;
                             }
                             root.closeRequested();
                         }

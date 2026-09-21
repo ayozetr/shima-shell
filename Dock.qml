@@ -393,7 +393,7 @@ PanelWindow {
 
     }
 
-    DockMenu {
+    AppMenu {
         id: dockMenu
         appId: win.menuAppId
         appName: win.menuAppName

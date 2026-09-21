@@ -34,6 +34,29 @@ PanelWindow {
         ? Apps.listApps(LauncherState.category, LauncherState.query)
         : []
 
+    // ── The per-application menu ───────────────────────────────
+    //
+    // It lives here rather than in the tile: a tile sits inside a
+    // clipped grid, so a menu drawn from there would be cut off at the
+    // cell edge.
+    property string menuAppId: ""
+    property string menuAppName: ""
+    property bool menuPinned: false
+    property bool menuShown: false
+    property real menuX: 0
+    property real menuY: 0
+
+    function openMenu(id, name, x, y) {
+        win.menuAppId = id;
+        win.menuAppName = name;
+        win.menuPinned = Apps.pinned.indexOf(id) !== -1;
+        win.menuX = x;
+        win.menuY = y;
+        win.menuShown = true;
+    }
+
+    function closeMenu() { win.menuShown = false; }
+
     // A click outside the panel closes it.
     MouseArea {
         anchors.fill: parent
@@ -107,7 +130,8 @@ PanelWindow {
                 Keys.onEscapePressed: {
                 // Escape folds the submenu first, and only closes the
                 // launcher once there is nothing left unfolded.
-                if (sessionBar.openMenu !== "") sessionBar.openMenu = "";
+                if (win.menuShown) win.closeMenu();
+                else if (sessionBar.openMenu !== "") sessionBar.openMenu = "";
                 else LauncherState.hide();
             }
                 Keys.onReturnPressed: {
@@ -207,6 +231,7 @@ PanelWindow {
                 entry: modelData
                 width: grid.cellWidth - 6
                 height: grid.cellHeight - 6
+                launcherWindow: win
                 onLaunched: LauncherState.hide()
             }
         }
@@ -224,10 +249,28 @@ PanelWindow {
         // themselves, which carry a higher z.
         MouseArea {
             anchors.fill: parent
-            enabled: sessionBar.openMenu !== ""
+            enabled: sessionBar.openMenu !== "" || win.menuShown
             z: 40
             acceptedButtons: Qt.LeftButton | Qt.RightButton
-            onClicked: sessionBar.openMenu = ""
+            onClicked: {
+                sessionBar.openMenu = "";
+                win.closeMenu();
+            }
+        }
+
+        AppMenu {
+            appId: win.menuAppId
+            appName: win.menuAppName
+            pinned: win.menuPinned
+            context: "launcher"
+            open: win.menuShown
+            onCloseRequested: win.closeMenu()
+            z: 60
+
+            // Under the pointer, kept inside the panel: a menu that
+            // runs off the edge is a menu you cannot reach.
+            x: Math.max(8, Math.min(panel.width - width - 8, win.menuX - panel.x - 6))
+            y: Math.min(panel.height - height - 8, win.menuY - panel.y - 4)
         }
 
         // ── Bottom bar: power, session and settings ──────────────
