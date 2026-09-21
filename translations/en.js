@@ -88,6 +88,10 @@ var strings = {
     minutesAgo: "%1 min ago",
     hoursAgo: "%1 h ago",
     daysAgo: "%1 d ago",
+    powerSaver: "Power saver",
+    powerBalanced: "Balanced",
+    powerPerformance: "Performance",
+    keepAwake: "Keep awake",
     nightLight: "Night light",
     screens: "Screens",
 

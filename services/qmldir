@@ -16,3 +16,4 @@ singleton Notifications 1.0 Notifications.qml
 singleton DockState 1.0 DockState.qml
 singleton Places 1.0 Places.qml
 singleton Search 1.0 Search.qml
+singleton Power 1.0 Power.qml

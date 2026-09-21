@@ -85,6 +85,10 @@ var strings = {
     bluetooth: "Bluetooth",
     output: "Ausgabe",
     noOutputs: "Keine Audioausgänge",
+    powerSaver: "Energiesparen",
+    powerBalanced: "Ausgeglichen",
+    powerPerformance: "Leistung",
+    keepAwake: "Wach halten",
     nightLight: "Nachtlicht",
     screens: "Bildschirme",
 

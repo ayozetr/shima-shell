@@ -24,7 +24,8 @@ Item {
             return 54 + 12 + Math.max(1, Audio.outputs.length) * 33 + 8;
         if (root.showScreens)
             return 54 + 12 + 26 + Math.max(1, Brightness.displays.length) * 40 + 8;
-        return 120 + (Brightness.available ? 26 : 0);
+        return 120 + (Brightness.available ? 26 : 0)
+                   + (Power.available ? 36 : 0);
     }
 
     ColumnLayout {
@@ -175,6 +176,85 @@ Item {
                 text: Math.round(Brightness.ratio * 100) + "%"
                 color: Theme.textSecondary
                 font.pixelSize: 11
+            }
+        }
+
+        // ── Power: the profile, and keeping it awake ─────────────
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+            visible: !root.showOutputs && !root.showScreens && Power.available
+
+            Repeater {
+                model: Power.profiles
+
+                Rectangle {
+                    required property var modelData
+                    readonly property bool current: Power.profile === modelData
+
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 26
+                    radius: 8
+                    color: current ? Theme.accent
+                         : (pm.containsMouse ? "#20ffffff" : "#14ffffff")
+                    Behavior on color { ColorAnimation { duration: Theme.hoverDuration } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: ({
+                            "power-saver": I18n.t.powerSaver,
+                            "balanced": I18n.t.powerBalanced,
+                            "performance": I18n.t.powerPerformance
+                        })[modelData] || modelData
+                        color: current ? Theme.accentText : Theme.textSecondary
+                        font.pixelSize: 10
+                    }
+
+                    MouseArea {
+                        id: pm
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Power.setProfile(modelData)
+                    }
+                }
+            }
+
+            // Not a profile but an inhibition, so it sits apart.
+            Rectangle {
+                Layout.preferredWidth: 30
+                Layout.preferredHeight: 26
+                radius: 8
+                color: Power.keepAwake ? Theme.accent
+                     : (awake.containsMouse ? "#20ffffff" : "#14ffffff")
+                Behavior on color { ColorAnimation { duration: Theme.hoverDuration } }
+
+                ControlGlyph {
+                    anchors.centerIn: parent
+                    width: 13; height: 13
+                    kind: "awake"
+                    fill: Power.keepAwake ? Theme.accentText : Theme.textSecondary
+                }
+
+                MouseArea {
+                    id: awake
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Power.keepAwake = !Power.keepAwake
+                }
+
+                // Right-aligned, not centred: this button is the last
+                // thing in the row, and a label centred on it runs off
+                // the edge of the island.
+                ToolTipLabel {
+                    show: awake.containsMouse
+                    text: I18n.t.keepAwake
+                    anchors.right: parent.right
+                    anchors.bottom: parent.top
+                    anchors.bottomMargin: 4
+                    z: 30
+                }
             }
         }
 
