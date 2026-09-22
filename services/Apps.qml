@@ -28,14 +28,14 @@ Singleton {
     property var runningIds: ({})
     // How many sweeps in a row have failed to see each application.
     property var misses: ({})
-    readonly property string pinnedPath: Quickshell.statePath("pinned.json")
+    readonly property string pinnedPath: Paths.stateDir + "/pinned.json"
 
     // Favourites are not the dock. Pinning puts an app on the bar,
     // where there is room for a handful; favouriting puts it first in
     // the launcher, where there is room for the ones you reach for
     // without wanting them on screen all day.
     property var favorites: []
-    readonly property string favoritesPath: Quickshell.statePath("favorites.json")
+    readonly property string favoritesPath: Paths.stateDir + "/favorites.json"
 
     property bool hasKdotool: false
     // Don't scan until we know whether kdotool is around: the first
@@ -1135,7 +1135,8 @@ Singleton {
         // "dolphin --daemon" running with no window at all.
         command: root.hasKdotool
             ? ["sh", "-c", `
-                cache=/tmp/shima-windows
+                mkdir -p "$1" || exit 0
+                cache="$1/windows"
                 ids=$(kdotool search --class '.*' 2>/dev/null)
                 sig=$(printf '%s' "$ids" | cksum)
                 # Asking for each window's class costs one call per
@@ -1151,7 +1152,7 @@ Singleton {
                     done | sort -u > "$cache.classes"
                     cat "$cache.classes"
                 fi
-              `]
+              `, "shima", Paths.runtimeDir]
             : ["sh", "-c", "ps -eo comm= | sort -u"]
         stdout: StdioCollector {
             onStreamFinished: {

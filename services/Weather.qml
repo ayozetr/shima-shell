@@ -22,8 +22,22 @@ Singleton {
     readonly property real lat: Config.data.weatherLat ?? 0
     readonly property real lon: Config.data.weatherLon ?? 0
     readonly property bool fahrenheit: Config.data.weatherFahrenheit ?? false
-    readonly property string model: Config.data.weatherModel ?? "ukmo_seamless"
-    readonly property string bbcId: Config.data.weatherBbcId ?? ""
+    // These two end up in a command line, and the configuration file
+    // is not ours alone: the importer below copies them out of Plasma's
+    // applet settings, which anything that touches an applet can write
+    // — a global theme downloaded from store.kde.org included. So each
+    // is checked against what it is allowed to be, and a value that
+    // fails is not used at all rather than passed along.
+    readonly property var models: ["ukmo_seamless", "ecmwf_ifs025", "best_match"]
+    readonly property string model: {
+        const m = Config.data.weatherModel ?? "ukmo_seamless";
+        return root.models.indexOf(m) !== -1 ? m : "ukmo_seamless";
+    }
+    // A BBC location id is a plain number and nothing else.
+    readonly property string bbcId: {
+        const id = String(Config.data.weatherBbcId ?? "");
+        return /^[0-9]+$/.test(id) ? id : "";
+    }
     readonly property bool useBbc: (Config.data.weatherProvider ?? "bbc") === "bbc"
                                    && root.bbcId !== ""
 
@@ -98,12 +112,17 @@ Singleton {
     // expression rather than parsed: one number from one line.
     Process {
         id: bbcFetch
+        // The pipeline needs a shell, so the address is handed over as
+        // a positional argument instead of being pasted into the
+        // command text. The shell then never reads it as syntax, no
+        // matter what it contains.
         command: ["sh", "-c",
-            "curl -sf --max-time 10 "
-            + "'https://weather-broker-cdn.api.bbci.co.uk/en/observation/rss/"
-            + root.bbcId + "' "
+            "curl -sf --max-time 10 \"$1\" "
             + "| grep -oE 'Temperature: -?[0-9]+' | head -1 "
-            + "| grep -oE '\\-?[0-9]+'"]
+            + "| grep -oE '\\-?[0-9]+'",
+            "shima",
+            "https://weather-broker-cdn.api.bbci.co.uk/en/observation/rss/"
+            + root.bbcId]
         stdout: StdioCollector {
             onStreamFinished: {
                 const v = parseInt(text.trim(), 10);
@@ -117,13 +136,15 @@ Singleton {
 
     Process {
         id: fetch
-        command: ["sh", "-c",
-            "curl -sf --max-time 10 'https://api.open-meteo.com/v1/forecast"
+        // Run without a shell: there is nothing to pipe here, and with
+        // no shell in the way there is no quoting to get wrong.
+        command: ["curl", "-sf", "--max-time", "10",
+            "https://api.open-meteo.com/v1/forecast"
             + "?latitude=" + root.lat + "&longitude=" + root.lon
             + "&current=temperature_2m,weather_code,is_day"
             + "&models=" + root.model
             + (root.fahrenheit ? "&temperature_unit=fahrenheit" : "")
-            + "&timezone=auto'"]
+            + "&timezone=auto"]
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!text.trim()) return;
@@ -159,8 +180,14 @@ Singleton {
                 if (!raw) return;
                 const bar = raw.indexOf("|");
                 if (bar > 0) {
-                    Config.data.weatherBbcId = raw.slice(bar + 1).trim();
-                    Config.save();
+                    // Checked before it is stored, not only before it
+                    // is used: this is the one place a value from
+                    // outside gets into our own configuration file.
+                    const id = raw.slice(bar + 1).trim();
+                    if (/^[0-9]+$/.test(id)) {
+                        Config.data.weatherBbcId = id;
+                        Config.save();
+                    }
                 }
                 const name = bar > 0 ? raw.slice(0, bar) : raw;
                 const parts = name.split(",").map(x => x.trim());
@@ -183,10 +210,14 @@ Singleton {
     function lookup(query, country) {
         if (!query) return;
         geocode.wantCountry = country || "";
-        geocode.exec(["sh", "-c",
-            "curl -sf --max-time 10 'https://geocoding-api.open-meteo.com/v1/search"
+        // No shell here either. It used to be wrapped in single quotes,
+        // which a place name closes all by itself: encodeURIComponent
+        // leaves the apostrophe alone, so L'Hospitalet or Sant Joan
+        // d'Alacant broke the search with no message.
+        geocode.exec(["curl", "-sf", "--max-time", "10",
+            "https://geocoding-api.open-meteo.com/v1/search"
             + "?name=" + encodeURIComponent(query.split(",")[0].trim())
-            + "&count=10&language=es&format=json'"]);
+            + "&count=10&language=es&format=json"]);
     }
 
     Process {

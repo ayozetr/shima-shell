@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Quickshell problem
+    url: https://quickshell.org/docs/master/guide/install-setup/
+    about: >
+      If Quickshell itself will not install or start, that is upstream,
+      not Shima.
+  - name: kdotool problem
+    url: https://github.com/jinliu/kdotool
+    about: >
+      Window focus, minimising and the running dots all go through
+      kdotool.

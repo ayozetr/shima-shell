@@ -3,20 +3,34 @@
 *.jsc
 .qmlcache/
 
-# Qt / QML tooling
+# Qt and QML tooling
 .qmlls.ini
 build/
 
-# Editors
+# The Python helper
+__pycache__/
+*.pyc
+
+# Editors, and what a conflicted merge leaves behind
 *.swp
 *.swo
 *~
+*.orig
+*.rej
 .idea/
 .vscode/
+.DS_Store
 
 # Runtime leftovers
 *.log
 core
 
-# Personal
+# Building the package: makepkg works in place and drops all of this
+packaging/pkg/
+packaging/src/
+packaging/*.pkg.tar.*
+packaging/*.tar.gz
+
+# Working notes. Not part of the project and not meant to be published.
+audit.md
 context.md

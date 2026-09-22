@@ -5,42 +5,90 @@ KDE hands a global shortcut to whoever registered it with KGlobalAccel,
 over D-Bus, and Quickshell speaks its own IPC over a socket and cannot
 own a D-Bus name. So this sits between them: it registers the shortcut,
 waits for it, and runs the shell's own IPC command. It holds no state of
-its own — the configuration is Shima's, and this reads it.
+its own beyond one note of what it borrowed — the configuration is
+Shima's, and this reads it.
 
 The Meta key on its own is a shortcut like any other here, which is how
 Plasma binds its launcher to it: as Qt::Key_Meta. It does not need
 KWin's modifier-only mechanism, which would only answer by calling a
 D-Bus method and, unlike this, does not take effect until the session is
 restarted.
+
+Run with --cleanup it undoes everything it ever did to the session: the
+shortcut goes, and any key it took off another application is handed
+back. That is what uninstalling calls.
 """
 
 import ctypes
+import fcntl
 import json
 import os
 import signal
 import subprocess
 import sys
 
-import dbus
-import dbus.service
-from dbus.mainloop.glib import DBusGMainLoop
-
 import gi
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
-
-BUS_NAME = "dev.ayozetr.Shima"
-OBJ_PATH = "/Shell"
-INTERFACE = "dev.ayozetr.Shima"
 
 # What KGlobalAccel is told we are. The first two identify the action,
 # the last two are what the shortcuts settings page shows.
 ACTION = ["shima", "toggleLauncher", "Shima", "Open applications"]
 
-CONFIG = os.path.expanduser("~/.config/shima/config.json")
-
 # Qt::Key_Meta, the Windows key, which is the default.
 KEY_META = 0x01000022
+
+SERVICE = "org.kde.kglobalaccel"
+OBJECT = "/kglobalaccel"
+IFACE = "org.kde.KGlobalAccel"
+COMPONENT_IFACE = "org.kde.kglobalaccel.Component"
+
+# NoAutoloading | SetPresent. Without NoAutoloading the call loads
+# whatever is in the config file and reports that back, so it looks like
+# it worked and nothing is bound.
+SET_FLAGS = 6
+
+
+def _dir(env_name, xdg_name, fallback):
+    """One of our directories, as the launcher script works them out."""
+    own = os.environ.get(env_name)
+    if own:
+        return own
+    base = os.environ.get(xdg_name) or os.path.expanduser(fallback)
+    return os.path.join(base, "shima")
+
+
+CONFIG = os.path.join(
+    _dir("SHIMA_CONFIG_DIR", "XDG_CONFIG_HOME", "~/.config"), "config.json")
+
+# What we took off somebody else, so that it can be given back. Without
+# this, removing Shima leaves Plasma's own launcher key gone for good.
+BORROWED = os.path.join(
+    _dir("SHIMA_STATE_DIR", "XDG_STATE_HOME", "~/.local/state"),
+    "borrowed-keys.json")
+
+
+def only_one():
+    """Refuse to be the second helper.
+
+    Quickshell is started with -n and turns down a second instance, but
+    by then the launcher has already started this. Two of us would both
+    answer the shortcut, so the launcher would open and close again and
+    the key would look broken. The lock is held for as long as the
+    process lives and the kernel drops it when we die, so nothing has to
+    be cleaned up afterwards.
+    """
+    runtime = os.environ.get("SHIMA_RUNTIME_DIR") or _dir(
+        "SHIMA_CACHE_DIR", "XDG_CACHE_HOME", "~/.cache")
+    try:
+        os.makedirs(runtime, exist_ok=True)
+        handle = open(os.path.join(runtime, "shortcuts.lock"), "w")
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        sys.exit(0)
+    # Kept alive on purpose: closing it would release the lock.
+    return handle
+
 
 def die_with_parent():
     """Go when the shell goes.
@@ -63,16 +111,22 @@ def shell_path():
     env = os.environ.get("SHIMA_SHELL")
     if env:
         return env
+    # The launcher generates the entry point under the cache directory;
+    # started by hand, the one in the source tree is the next best guess.
+    cached = os.path.join(
+        _dir("SHIMA_CACHE_DIR", "XDG_CACHE_HOME", "~/.cache"), "shell.qml")
+    if os.path.exists(cached):
+        return cached
     return os.path.join(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))), "shell.qml")
 
 
-def read_config():
+def read_json(path, default):
     try:
-        with open(CONFIG) as f:
+        with open(path) as f:
             return json.load(f)
     except (OSError, ValueError):
-        return {}
+        return default
 
 
 def ipc(action):
@@ -81,49 +135,80 @@ def ipc(action):
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-class Shell(dbus.service.Object):
-    """What KWin calls when the Meta key is pressed.
+class Accel:
+    """The bits of KGlobalAccel we use, over one D-Bus stack.
 
-    Modifier-only shortcuts are the one thing KWin will not do by
-    running a command: it calls a D-Bus method, so there has to be
-    something on the bus to call.
+    Gio rather than dbus-python: we only call methods and listen for a
+    signal, which is what Gio is good at, and it saves the package a
+    whole dependency. Nothing of ours is published on the bus any more.
     """
 
-    def __init__(self, bus):
-        name = dbus.service.BusName(BUS_NAME, bus, replace_existing=True)
-        super().__init__(name, OBJ_PATH)
+    def __init__(self):
+        self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 
-    @dbus.service.method(INTERFACE)
-    def Toggle(self):
-        ipc("toggle")
+    def call(self, method, variant):
+        """Returns the reply, or None if the call failed.
 
-    @dbus.service.method(INTERFACE)
-    def Show(self):
-        ipc("show")
+        A failure here is never worth dying over: KGlobalAccel may not
+        be running at all, which only means there are no shortcuts.
+        """
+        try:
+            return self.bus.call_sync(
+                SERVICE, OBJECT, IFACE, method, variant, None,
+                Gio.DBusCallFlags.NONE, 5000, None)
+        except GLib.Error as e:
+            print("shima-shortcuts: %s failed: %s" % (method, e.message),
+                  file=sys.stderr, flush=True)
+            return None
 
-    @dbus.service.method(INTERFACE)
-    def Hide(self):
-        ipc("hide")
+    def shortcuts_by_key(self, key):
+        reply = self.call("getGlobalShortcutsByKey",
+                          GLib.Variant("(i)", (key,)))
+        return reply.unpack()[0] if reply else []
+
+    def register(self):
+        self.call("doRegister", GLib.Variant("(as)", (ACTION,)))
+
+    def unregister(self):
+        self.call("unRegister", GLib.Variant("(as)", (ACTION,)))
+
+    def set_keys(self, action_id, keys):
+        self.call("setShortcut",
+                  GLib.Variant("(asaiu)", (action_id, keys, SET_FLAGS)))
+
+    def set_foreign_keys(self, action_id, keys):
+        self.call("setForeignShortcut",
+                  GLib.Variant("(asai)", (action_id, keys)))
+
+
+def load_borrowed():
+    entries = read_json(BORROWED, [])
+    return entries if isinstance(entries, list) else []
+
+
+def save_borrowed(entries):
+    try:
+        os.makedirs(os.path.dirname(BORROWED), exist_ok=True)
+        with open(BORROWED, "w") as f:
+            json.dump(entries, f, indent=2)
+    except OSError as e:
+        print("shima-shortcuts: could not record the borrowed key:", e,
+              file=sys.stderr, flush=True)
 
 
 class Helper:
     def __init__(self):
-        DBusGMainLoop(set_as_default=True)
-        self.bus = dbus.SessionBus()
-        self.shell = Shell(self.bus)
-        self.accel = dbus.Interface(
-            self.bus.get_object("org.kde.kglobalaccel", "/kglobalaccel"),
-            "org.kde.KGlobalAccel")
+        self.accel = Accel()
 
     # ── The shortcut itself ─────────────────────────────────────
     def listen(self):
-        self.bus.add_signal_receiver(
-            self.on_pressed,
-            signal_name="globalShortcutPressed",
-            dbus_interface="org.kde.kglobalaccel.Component")
+        self.accel.bus.signal_subscribe(
+            SERVICE, COMPONENT_IFACE, "globalShortcutPressed", None, None,
+            Gio.DBusSignalFlags.NONE, self.on_pressed)
 
-    def on_pressed(self, component, action, timestamp):
-        if str(component) == ACTION[0] and str(action) == ACTION[1]:
+    def on_pressed(self, connection, sender, path, iface, signal_name, params):
+        component, action = params.unpack()[:2]
+        if component == ACTION[0] and action == ACTION[1]:
             ipc("toggle")
 
     def free_key(self, key):
@@ -132,44 +217,53 @@ class Helper:
         Plasma holds Meta for its own launcher, and a key already
         claimed is simply not given to us. Only the four-part action id
         works here; the two-part one is accepted and does nothing.
+
+        What was taken is written down first. Handing the key back is
+        the whole point of --cleanup, and by then this process has long
+        since forgotten.
         """
-        try:
-            held = self.accel.getGlobalShortcutsByKey(key)
-        except dbus.DBusException:
-            return
-        for info in held:
-            component, action = str(info[2]), str(info[0])
+        borrowed = load_borrowed()
+        known = [tuple(e.get("actionId", [])) for e in borrowed]
+        changed = False
+
+        for info in self.accel.shortcuts_by_key(key):
+            action, friendly_action = info[0], info[1]
+            component, friendly_component = info[2], info[3]
             if component == ACTION[0]:
                 continue
-            friendly_action, friendly_component = str(info[1]), str(info[3])
-            keys = [int(k) for k in info[6] if int(k) != key]
-            try:
-                self.accel.setForeignShortcut(
-                    [component, action, friendly_component, friendly_action],
-                    keys)
-                print("took %s off %s" % (key, component), file=sys.stderr)
-            except dbus.DBusException as e:
-                print("could not free the key:", e, file=sys.stderr)
+            action_id = [component, action, friendly_component, friendly_action]
+            original = [int(k) for k in info[6]]
+
+            # Only the first time: after that the stored keys would be
+            # the ones we already trimmed, not the ones they had.
+            if tuple(action_id) not in known:
+                borrowed.append({"actionId": action_id, "keys": original})
+                changed = True
+
+            self.accel.set_foreign_keys(action_id,
+                                        [k for k in original if k != key])
+            print("took %s off %s" % (key, component), file=sys.stderr)
+
+        if changed:
+            save_borrowed(borrowed)
 
     def set_shortcut(self, key):
         """key: a Qt key code with its modifiers, or 0 for none."""
         if key:
             self.free_key(key)
-        try:
-            self.accel.doRegister(ACTION)
-            # NoAutoloading | SetPresent. Without NoAutoloading the
-            # call loads whatever is in the config file and reports
-            # that back, so it looks like it worked and nothing is
-            # bound.
-            self.accel.setShortcut(ACTION, [key] if key else [], 6)
-        except dbus.DBusException as e:
-            print("could not set the shortcut:", e, file=sys.stderr, flush=True)
+        self.accel.register()
+        self.accel.set_keys(ACTION, [key] if key else [])
 
     # ── Following the configuration ─────────────────────────────
     def apply(self, *args):
-        cfg = read_config()
+        cfg = read_json(CONFIG, {})
         enabled = cfg.get("shortcutEnabled", True)
-        key = int(cfg.get("shortcutKey", KEY_META) or 0)
+        try:
+            key = int(cfg.get("shortcutKey", KEY_META) or 0)
+        except (TypeError, ValueError):
+            # A hand-edited file should not stop the shortcut working;
+            # the default is a better answer than dying here.
+            key = KEY_META
 
         self.set_shortcut(key if enabled else 0)
 
@@ -185,7 +279,36 @@ class Helper:
         GLib.MainLoop().run()
 
 
+def cleanup():
+    """Leave the session as it was found. Called when uninstalling."""
+    accel = Accel()
+    accel.set_keys(ACTION, [])
+    accel.unregister()
+
+    borrowed = load_borrowed()
+    for entry in borrowed:
+        action_id, keys = entry.get("actionId"), entry.get("keys")
+        if isinstance(action_id, list) and isinstance(keys, list):
+            accel.set_foreign_keys(action_id, [int(k) for k in keys])
+            print("gave %s back to %s" % (keys, action_id[0]))
+    try:
+        os.remove(BORROWED)
+    except OSError:
+        pass
+    print("shima: shortcut removed and borrowed keys returned")
+
+
 if __name__ == "__main__":
+    if "--cleanup" in sys.argv:
+        try:
+            cleanup()
+        except GLib.Error as e:
+            # Nothing to clean up if the session bus is not there.
+            print("shima: could not reach KGlobalAccel:", e.message,
+                  file=sys.stderr)
+        sys.exit(0)
+
+    _lock = only_one()
     die_with_parent()
     try:
         Helper().run()

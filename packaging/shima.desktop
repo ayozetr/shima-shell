@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Shima Shell
+GenericName=Desktop shell
+Comment=Dynamic island and dock for KDE Plasma
+Exec=shima
+Icon=shima
+Terminal=false
+Categories=Utility;
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=2
+X-GNOME-Autostart-enabled=true

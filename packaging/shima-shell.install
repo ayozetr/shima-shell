@@ -1,0 +1,34 @@
+## Shima registers a global shortcut with KGlobalAccel and, to get the
+## Meta key, takes it off whoever held it. Both live in the user's
+## session, which a package script cannot reach: it runs as root, with
+## no session bus. So the user has to be told, rather than it being
+## done for them.
+
+pre_remove() {
+    cat <<'MSG'
+==> Shima has a global shortcut registered in your session.
+==> Before this finishes, run as your own user:
+==>
+==>     shima --cleanup
+==>
+==> That removes the shortcut and hands back any key it borrowed from
+==> Plasma. Doing it afterwards is not possible: the program is gone.
+MSG
+}
+
+post_install() {
+    cat <<'MSG'
+==> Start it with `shima`, or add it to your session:
+==>
+==>     cp /usr/share/applications/shima.desktop ~/.config/autostart/
+==>
+==> Shima replaces the Plasma panels; you may want to remove yours.
+==> Optional programs are listed with `pacman -Qi shima`; without them
+==> the matching features quietly do nothing, and `shima` says which
+==> are missing when it starts.
+MSG
+}
+
+post_upgrade() {
+    :
+}

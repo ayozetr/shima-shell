@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 16 px version: flat sea and a thicker ring, because at that size the wave is thinner than a pixel. -->
+  <circle cx="100" cy="100" r="91.0" fill="#111111" stroke="#ffffff" stroke-width="10"/>
+  <g transform="translate(100 100) scale(0.92) translate(-100 -100) translate(10 -8)"><path d="M 104 32 L 148 110 L 60 110 Z M 60 60 L 88 110 L 32 110 Z" fill="#ffffff"/></g>
+  <path d="M 22.33 132.00 L 177.67 132.00 A 84.00 84.00 0 0 1 22.33 132.00 Z" fill="#ffffff"/>
+</svg>

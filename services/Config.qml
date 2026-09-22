@@ -10,7 +10,7 @@ Singleton {
     id: root
 
     readonly property alias data: cfg
-    readonly property string path: Quickshell.env("HOME") + "/.config/shima/config.json"
+    readonly property string path: Paths.configDir + "/config.json"
 
     FileView {
         id: file

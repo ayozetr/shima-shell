@@ -13,7 +13,7 @@ Singleton {
     property var levels: [0, 0, 0, 0, 0]   // 0.0 – 1.0
     property bool active: false
 
-    readonly property string configPath: "/tmp/shima-cava.conf"
+    readonly property string configPath: Paths.runtimeDir + "/cava.conf"
 
     // Only burn CPU while something is actually playing.
     function setActive(on) {
@@ -28,11 +28,16 @@ Singleton {
 
     Process {
         id: writeConfig
+        // The path arrives as an argument and the directory is
+        // made first, so this still works when the shell is started
+        // by hand and nobody has created it.
         command: ["sh", "-c",
-            "printf '[general]\\nframerate=60\\nbars=" + root.bars + "\\nautosens=1\\n"
+            "mkdir -p \"$(dirname \"$1\")\" && "
+            + "printf '[general]\\nframerate=60\\nbars=" + root.bars + "\\nautosens=1\\n"
             + "[input]\\nmethod=pulse\\nsource=auto\\n"
             + "[output]\\nmethod=raw\\ndata_format=ascii\\nascii_max_range=1000\\n"
-            + "channels=mono\\n[smoothing]\\nnoise_reduction=35\\n' > " + root.configPath]
+            + "channels=mono\\n[smoothing]\\nnoise_reduction=35\\n' > \"$1\"",
+            "shima", root.configPath]
         onExited: (code) => { if (code === 0) cava.running = true; }
     }
 

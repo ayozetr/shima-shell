@@ -1,42 +1,190 @@
 #!/bin/sh
 # Shima Shell launcher.
 #
-# Two things before starting:
+# Its job is to work out three things before starting Quickshell:
 #
-#  1. Sync the icon theme. Quickshell starts without KDE's platform
-#     integration, so Qt falls back to "hicolor" and only finds icons
-#     that live there. The real theme has to be given through a pragma,
-#     which is static, so we rewrite it whenever you change themes.
+#  1. Where the program lives. Run from a checkout that is this
+#     directory; installed, it is /usr/share/shima and read-only.
 #
-#  2. Start the shortcut helper. Quickshell cannot own a D-Bus name,
-#     and KDE hands out global shortcuts over D-Bus, so a small
-#     companion does that part and calls back in over the shell's own
-#     IPC. It dies with the shell.
+#  2. Where the user's own files go, following the XDG directories.
+#     Nothing of ours is written next to the program any more: it used
+#     to rewrite shell.qml in place to set the icon theme, which works
+#     in a checkout and fails to start at all once installed.
 #
-#  3. Start with -n, which refuses to open a second instance. Without
-#     that you end up with several docks stacked on top of each other
-#     fighting over the mouse, and it is hard to notice what's going on.
+#  3. Which optional programs are missing, and say so once. Without
+#     that they simply do nothing and the feature looks broken.
+#
+# Then it starts the shortcut helper — Quickshell cannot own a D-Bus
+# name and KDE hands out global shortcuts over D-Bus, so a small
+# companion does that part and calls back in over the shell's own IPC.
+# It dies with the shell. Finally it execs Quickshell with -n, which
+# refuses to open a second instance; without it you end up with docks
+# stacked on top of each other fighting over the mouse.
 
 set -e
-DIR=$(cd "$(dirname "$0")" && pwd)
-SHELL_QML="$DIR/shell.qml"
 
+VERSION=0.1.0
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+usage() {
+    cat <<USAGE
+shima $VERSION — a dynamic island and dock for KDE Plasma on Wayland
+
+  shima              start the shell
+  shima --cleanup    give back the global shortcut and any key taken
+                     from Plasma. Run this before uninstalling.
+  shima --version    print the version
+  shima --help       this
+
+Environment:
+  SHIMA_DATA_DIR     where the shell files are, if not found by itself
+  SHIMA_QUIET=1      do not report missing optional programs
+
+Anything else is passed through to Quickshell.
+USAGE
+}
+
+case ${1:-} in
+    --help|-h) usage; exit 0 ;;
+    --version|-V) echo "shima $VERSION"; exit 0 ;;
+esac
+
+# ── Where the program is ──────────────────────────────────────────
+self=$0
+if have readlink; then self=$(readlink -f "$0" 2>/dev/null || printf '%s' "$0"); fi
+here=$(cd "$(dirname "$self")" && pwd)
+
+if [ -n "${SHIMA_DATA_DIR:-}" ] && [ -f "$SHIMA_DATA_DIR/Shima.qml" ]; then
+    data=$SHIMA_DATA_DIR
+elif [ -f "$here/Shima.qml" ]; then
+    data=$here
+elif [ -f "$here/../share/shima/Shima.qml" ]; then
+    data=$(cd "$here/../share/shima" && pwd)
+elif [ -f /usr/share/shima/Shima.qml ]; then
+    data=/usr/share/shima
+else
+    echo "shima: cannot find Shima.qml; set SHIMA_DATA_DIR to where it lives" >&2
+    exit 1
+fi
+
+# The path is about to be written into a QML import, so a quote in it
+# would produce a file that does not parse. Better to say so here.
+case $data in
+    *'"'*|*'\'*)
+        echo "shima: the install path may not contain quotes or backslashes: $data" >&2
+        exit 1 ;;
+esac
+
+# Undoing what we did to the session needs the helper, which is part of
+# the program, so this waits until we know where the program is.
+if [ "${1:-}" = "--cleanup" ]; then
+    if [ -x "$data/helper/shima-shortcuts" ]; then
+        exec "$data/helper/shima-shortcuts" --cleanup
+    fi
+    echo "shima: helper not found at $data/helper/shima-shortcuts" >&2
+    exit 1
+fi
+
+# ── Where the user's files go ─────────────────────────────────────
+config=${XDG_CONFIG_HOME:-$HOME/.config}/shima
+cache=${XDG_CACHE_HOME:-$HOME/.cache}/shima
+state=${XDG_STATE_HOME:-$HOME/.local/state}/shima
+# Scratch files go where only this user can reach them. $XDG_RUNTIME_DIR
+# is created per user and nobody else is let in; a fixed name under
+# /tmp is a guess anyone sharing the machine can make first.
+if [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -d "${XDG_RUNTIME_DIR:-}" ]; then
+    runtime=$XDG_RUNTIME_DIR/shima
+else
+    runtime=$cache/run
+fi
+mkdir -p "$config" "$cache" "$state" "$runtime"
+
+# ── The entry point, generated per user ───────────────────────────
+#
+# Quickshell reads the icon theme from a pragma, which is static text,
+# so it cannot be looked up at startup. The wrapper that carries it is
+# written here rather than into the program's own source.
 theme=$(kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null || true)
-[ -n "$theme" ] || theme=breeze
+case $theme in
+    ''|*[!A-Za-z0-9_.+-]*) theme=breeze ;;
+esac
 
-current=$(sed -n 's|^//@ pragma IconTheme ||p' "$SHELL_QML")
-if [ "$current" != "$theme" ]; then
-    sed -i "s|^//@ pragma IconTheme .*|//@ pragma IconTheme $theme|" "$SHELL_QML"
-    echo "Icon theme updated to $theme"
+entry=$cache/shell.qml
+
+# The wrapper reaches the program through a link beside it rather than
+# by absolute path. Quickshell's scanner refuses an absolute import —
+# it loads either way, but an import it cannot resolve is one it does
+# not watch, and then editing a file no longer reloads the shell.
+ln -sfn "$data" "$cache/program"
+
+cat > "$entry.new" <<EOF
+// Generated by the shima launcher. Edits here are overwritten; the
+// shell itself is $data/Shima.qml.
+//@ pragma UseQApplication
+//@ pragma IconTheme $theme
+import "program"
+
+Shima {}
+EOF
+# Replaced only when it actually changed, so that starting the shell
+# does not look like an edit to anything watching the file.
+if cmp -s "$entry.new" "$entry"; then
+    rm -f "$entry.new"
+else
+    mv "$entry.new" "$entry"
 fi
 
-SHIMA_SHELL="$SHELL_QML"
-export SHIMA_SHELL
-
-# The helper asks the kernel to be killed when its parent dies, and exec
-# below keeps this process id, so it goes when the shell goes.
-if [ -x "$DIR/helper/shima-shortcuts" ]; then
-    "$DIR/helper/shima-shortcuts" &
+# ── What is missing ───────────────────────────────────────────────
+if ! have qs; then
+    echo "shima: quickshell is not installed (package: quickshell)" >&2
+    exit 1
 fi
 
-exec qs -n -p "$SHELL_QML" "$@"
+if [ -z "${SHIMA_QUIET:-}" ]; then
+    note() {
+        have "$1" || printf '  %-12s %-26s %s\n' "$1" "$2" "$3"
+    }
+    missing=$(
+        note wpctl       "wireplumber"            "volume and output switching"
+        note cava        "cava"                   "the audio visualiser"
+        note fd          "fd"                     "file search in the launcher"
+        note sqlite3     "sqlite"                 "favourites and recent apps from KDE"
+        note kreadconfig6 "kconfig"               "reading KDE's own settings"
+        note gdbus       "glib2"                  "power, night light, session actions"
+        note kioclient   "kio"                    "edit application from the menu"
+        note curl        "curl"                   "the weather"
+        note notify-send "libnotify"              "test notifications"
+    )
+    if [ -n "$missing" ]; then
+        printf 'shima: these are not installed, so the features next to them do nothing:\n%s\n' "$missing" >&2
+        printf '  (set SHIMA_QUIET=1 to stop saying this)\n' >&2
+    fi
+
+    # kdotool is not one of those: without it there is no window
+    # management at all, and clicking an open application starts a
+    # second copy instead of raising it.
+    if ! have kdotool; then
+        printf 'shima: kdotool is missing. Window focus, minimising and the\n' >&2
+        printf '       running dots on the dock will not work at all.\n' >&2
+        printf '       https://github.com/jinliu/kdotool\n' >&2
+    fi
+fi
+
+# ── Off we go ─────────────────────────────────────────────────────
+SHIMA_DATA_DIR=$data
+SHIMA_CONFIG_DIR=$config
+SHIMA_CACHE_DIR=$cache
+SHIMA_STATE_DIR=$state
+SHIMA_RUNTIME_DIR=$runtime
+SHIMA_SHELL=$entry
+export SHIMA_DATA_DIR SHIMA_CONFIG_DIR SHIMA_CACHE_DIR SHIMA_STATE_DIR \
+       SHIMA_RUNTIME_DIR SHIMA_SHELL
+
+# The helper asks the kernel to kill it when its parent dies, and the
+# exec below keeps this process id, so it goes when the shell goes.
+if [ -x "$data/helper/shima-shortcuts" ] && have python3; then
+    "$data/helper/shima-shortcuts" &
+fi
+
+exec qs -n -p "$entry" "$@"

@@ -1,0 +1,84 @@
+# Maintainer: ayozetr <ayozetr@users.noreply.github.com>
+
+pkgname=shima-shell
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Dynamic island and dock for KDE Plasma on Wayland'
+arch=('any')
+url='https://github.com/ayozetr/shima-shell'
+license=('GPL-3.0-or-later')
+
+# quickshell runs the whole thing; python and python-gobject are the
+# shortcut helper; the rest are read or called at runtime by name, so
+# they are needed even though nothing links against them.
+depends=(
+    'quickshell'
+    'python'
+    'python-gobject'
+    'kconfig'
+    'kservice'
+    'kde-cli-tools'
+    'glib2'
+    'wireplumber'
+    'sqlite'
+    'curl'
+    # Not in the official repositories, but window management depends
+    # entirely on it: focus, minimise and the running dots on the dock.
+    # KWin exposes no protocol for listing windows, so there is no
+    # fallback worth having.
+    'kdotool'
+)
+
+# Each of these switches off one feature and nothing else.
+optdepends=(
+    'cava: the audio visualiser'
+    'fd: faster file search in the launcher'
+    'libnotify: sending test notifications from the settings'
+    'power-profiles-daemon: power profile switching'
+    'kmenuedit: editing an application entry from the right-click menu'
+)
+
+install="$pkgname.install"
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "$srcdir/$pkgname-$pkgver"
+
+    local share="$pkgdir/usr/share/shima"
+
+    # The shell itself, read-only. Nothing of the user's is kept here:
+    # the launcher puts settings under XDG_CONFIG_HOME, what it
+    # remembers under XDG_STATE_HOME, and scratch files under
+    # XDG_RUNTIME_DIR.
+    install -dm755 "$share"
+    for dir in components services translations; do
+        install -dm755 "$share/$dir"
+        install -Dm644 "$dir"/* -t "$share/$dir"
+    done
+    install -Dm644 ./*.qml -t "$share"
+
+    install -Dm755 helper/shima-shortcuts -t "$share/helper"
+
+    # Found through /usr/bin/../share/shima by the launcher itself.
+    install -Dm755 shima "$pkgdir/usr/bin/shima"
+
+    install -Dm644 packaging/shima.desktop \
+        -t "$pkgdir/usr/share/applications"
+
+    # Icons, where the freedesktop specification says they go: that is
+    # how Plasma resolves the `Icon=shima` line in the .desktop file.
+    # The 16 and 22 pixel versions are drawn apart because at that size
+    # the wave is thinner than a pixel and turns into a grey smudge.
+    local icons="$pkgdir/usr/share/icons/hicolor"
+    install -Dm644 packaging/shima.svg "$icons/scalable/apps/shima.svg"
+    install -Dm644 packaging/shima-16.svg "$icons/16x16/apps/shima.svg"
+    install -Dm644 packaging/shima-22.svg "$icons/22x22/apps/shima.svg"
+    # The tray icon is monochrome on purpose: the system recolours
+    # symbolic icons to match the theme, so it must not carry a disc.
+    install -Dm644 packaging/shima-symbolic.svg \
+        "$icons/symbolic/apps/shima-symbolic.svg"
+
+    install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+    install -Dm644 README.md -t "$pkgdir/usr/share/doc/$pkgname"
+}

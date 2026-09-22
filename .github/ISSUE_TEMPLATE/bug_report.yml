@@ -1,0 +1,108 @@
+name: Bug report
+description: Something does not work
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most problems here depend on the session rather than on the
+        code, so the versions below decide almost everything. Please
+        fill them in even if they look irrelevant.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: And what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce it
+      placeholder: |
+        1. Open the launcher
+        2. Type something
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: distro
+    attributes:
+      label: Distribution
+      placeholder: CachyOS, Fedora 42, Ubuntu 25.04...
+    validations:
+      required: true
+
+  - type: input
+    id: plasma
+    attributes:
+      label: Plasma version
+      description: "`plasmashell --version`"
+      placeholder: "6.5.0"
+    validations:
+      required: true
+
+  - type: input
+    id: quickshell
+    attributes:
+      label: Quickshell version
+      description: "`qs --version`"
+      placeholder: "0.3.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kdotool
+    attributes:
+      label: Is kdotool installed?
+      description: Without it there is no window management at all.
+      options:
+        - "Yes"
+        - "No"
+        - "I do not know"
+    validations:
+      required: true
+
+  - type: input
+    id: shima
+    attributes:
+      label: Shima version
+      description: "`shima --version`, or the commit if you run it from a clone"
+    validations:
+      required: true
+
+  - type: input
+    id: monitors
+    attributes:
+      label: Monitors and scaling
+      description: >
+        How many screens, their resolution and the scale of each.
+        KWin hands Xwayland the highest scale of all of them, so a
+        second screen at a different scale changes how everything is
+        rendered — even on the screen you are looking at.
+      placeholder: "2560x1440 at 115%, plus 2560x1080 at 150%"
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: >
+        `./shima 2>&1 | tee shima.log` and paste what comes out.
+        If Quickshell crashed rather than misbehaved, there is a
+        report under `~/.cache/quickshell/crashes/`.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I am on a Wayland session (Shima does not support X11)
+          required: true
+        - label: I searched the existing issues
+          required: true

@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest something
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you would like
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: What you are trying to do
+      description: >
+        The problem behind the request, not only the solution you had
+        in mind. There is often a simpler way in once the goal is
+        clear.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part
+      options:
+        - Island
+        - Dock
+        - Launcher
+        - Notifications
+        - Settings
+        - Packaging or installing
+        - Something else
+    validations:
+      required: true

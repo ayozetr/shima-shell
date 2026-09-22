@@ -1,0 +1,94 @@
+# Contributing
+
+Bug reports, fixes and translations are all welcome. This file is short
+on purpose; if something here is unclear, open an issue and ask.
+
+## Trying your changes
+
+```bash
+git clone https://github.com/ayozetr/shima-shell
+cd shima-shell
+./shima
+```
+
+Nothing is installed and nothing is written next to the program.
+**Editing a file reloads the shell**, so there is no build step and no
+restart: save, and look at the screen.
+
+`qs -p shell.qml` also works, but the launcher script is what resolves
+paths and keeps the icon theme in step, so prefer `./shima`.
+
+## The assets
+
+Everything under `assets/` is reserved (see the README) but that does
+**not** get in the way of contributing: fork the repository, leave the
+logo where it is, and open a pull request. A fork made to send changes
+back is not a separate project.
+
+What is not allowed is publishing a modified Shima as a project of its
+own under this name and these assets.
+
+## Code
+
+Written in QML on top of Quickshell, with a Python helper for the
+global shortcut. A few things the codebase is consistent about:
+
+- **English everywhere** — code, comments, commit messages.
+- **Comments explain why, not what.** `// A gaming mouse reports around
+  800 times a second and the screen draws 165` is the kind of comment
+  this project keeps. A comment restating the line below it is not.
+- **Write down what you ruled out.** Most of the comments here exist
+  because something obvious did not work. That is worth more than the
+  description of what does.
+- **Commits that mean something** — one change per commit, no
+  generated boilerplate.
+
+## Using AI
+
+Use whatever helps you work. An assistant, a generator, whatever gets
+you there: what is being reviewed is the change, not how you arrived at
+it.
+
+What must not reach the repository is the trace of it. **No
+`Co-Authored-By` lines for a tool, no "generated with" footers, no
+mention of any assistant** in commit messages, pull requests or code
+comments.
+
+Read what you submit before you submit it, and be able to explain why
+it is written the way it is. You are the author of the contribution,
+whatever helped you write it.
+
+## Reporting a bug
+
+Most problems here depend on the session rather than on the code, so
+the version numbers matter more than usual. The issue form asks for
+them; the ones that decide almost everything are **Plasma**,
+**Quickshell** and whether **kdotool** is installed.
+
+The log is the other half:
+
+```bash
+./shima 2>&1 | tee shima.log
+```
+
+If Quickshell crashed rather than misbehaved, there is a report under
+`~/.cache/quickshell/crashes/`.
+
+## Translations
+
+One file per language in `translations/`, a plain object of strings.
+To add one:
+
+1. Copy `translations/en.js` to your language code, say `nl.js`, and
+   translate the values.
+2. In `services/I18n.qml`, import it, add it to `strings`, and add an
+   entry to `available` — **named in its own language**, the way
+   language pickers do it: `{ code: "nl", label: "Nederlands" }`.
+
+That is all: switching language is a property change, so the interface
+updates without a restart. Keep the key order of `en.js` so that the
+files stay comparable.
+
+## Licence
+
+Contributions are made under the GPL-3.0, like the rest of the code.
