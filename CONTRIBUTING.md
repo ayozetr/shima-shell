@@ -34,9 +34,11 @@ Written in QML on top of Quickshell, with a Python helper for the
 global shortcut. A few things the codebase is consistent about:
 
 - **English everywhere** — code, comments, commit messages.
-- **Comments explain why, not what.** `// A gaming mouse reports around
-  800 times a second and the screen draws 165` is the kind of comment
-  this project keeps. A comment restating the line below it is not.
+- **Comments explain why, not what.** `// Assigning node.audio.volume
+  works for ALSA devices and silently does nothing on Bluetooth ones`
+  is the kind of comment this project keeps: it says something you
+  cannot find out by reading the line below it. A comment restating
+  that line is not.
 - **Write down what you ruled out.** Most of the comments here exist
   because something obvious did not work. That is worth more than the
   description of what does.
