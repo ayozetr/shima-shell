@@ -56,6 +56,12 @@ Since there is no public API here, that means:
 - With the dock hidden, the strip that brings it back was measured
   against something that is not always the size of the window
 - The session submenus faded in and vanished instantly on the way out
+- The faintest text did not meet the contrast the accessibility
+  guidelines ask for, at sizes where it matters most
+- A switch with nothing behind it — Bluetooth with no adapter — looked
+  disabled but still took clicks
+- The island cut off the control centre instead of making room when its
+  list of outputs or screens grew past a fixed height
 
 ## [0.2.0] — 2026-09-23
 

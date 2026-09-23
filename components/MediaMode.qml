@@ -55,19 +55,19 @@ Item {
             MediaButton {
                 kind: "prev"
                 size: 22
-                enabled: root.player && root.player.canGoPrevious
+                available: root.player && root.player.canGoPrevious
                 onClicked: root.player.previous()
             }
             MediaButton {
                 kind: root.player && root.player.isPlaying ? "pause" : "play"
                 size: 26
-                enabled: root.player && root.player.canTogglePlaying
+                available: root.player && root.player.canTogglePlaying
                 onClicked: root.player.togglePlaying()
             }
             MediaButton {
                 kind: "next"
                 size: 22
-                enabled: root.player && root.player.canGoNext
+                available: root.player && root.player.canGoNext
                 onClicked: root.player.next()
             }
         }

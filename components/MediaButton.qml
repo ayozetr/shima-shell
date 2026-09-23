@@ -6,7 +6,11 @@ Item {
     id: root
     property string kind: "play"
     property int size: 22
-    property bool enabled: true
+    // Not called `enabled`, which every Item already has: a property
+    // of that name here hides the one underneath, so a button set as
+    // disabled went on taking clicks and Qt said so at every start.
+    // What it means is whether there is anything to run.
+    property bool available: true
     signal clicked()
 
     implicitWidth: size
@@ -18,7 +22,7 @@ Item {
         width: root.size
         height: root.size
         fill: Theme.textPrimary
-        opacity: root.enabled ? (mouse.containsMouse ? 1 : 0.9) : 0.3
+        opacity: root.available ? (mouse.containsMouse ? 1 : 0.9) : 0.3
         scale: mouse.pressed ? 0.86 : 1
         kind: root.kind
 
@@ -31,7 +35,7 @@ Item {
         anchors.fill: parent
         anchors.margins: -6
         hoverEnabled: true
-        cursorShape: root.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-        onClicked: if (root.enabled) root.clicked()
+        cursorShape: root.available ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onClicked: if (root.available) root.clicked()
     }
 }
