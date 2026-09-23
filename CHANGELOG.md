@@ -48,6 +48,7 @@ Since there is no public API here, that means:
   its name happened to match the start of another window's class
 - With the dock hidden, the strip that brings it back was measured
   against something that is not always the size of the window
+- The session submenus faded in and vanished instantly on the way out
 
 ## [0.2.0] — 2026-09-23
 

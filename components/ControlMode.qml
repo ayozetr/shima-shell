@@ -316,6 +316,17 @@ Item {
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
+                // Kept inside its own cell. Measured, the longest
+                // label there is today — "Lumière nocturne" — comes to
+                // 84 px against a cell of about 92, so nothing is
+                // spilling out yet; it is the next translation that
+                // would, and with nothing to stop it, it would be
+                // drawn over the switch beside it rather than cut.
+                // Four pixels of margin rather than eight, so the one
+                // that already fits keeps fitting.
+                width: tile.width - 4
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
                 text: tile.label
                 color: tile.tint
                 font.pixelSize: 10

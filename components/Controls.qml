@@ -13,10 +13,16 @@ Item {
         property string hint: ""
         default property alias content: holder.data
 
-        implicitHeight: Math.max(44, text.implicitHeight + 20)
+        // Measured from the whole column and not from the label
+        // alone. The hint underneath wraps, and with two lines it sat
+        // flush against the row below; with three it was drawn over
+        // it. There are hints that already take two lines in English
+        // and German.
+        implicitHeight: Math.max(44, labels.implicitHeight + 16)
         width: parent ? parent.width : 0
 
         Column {
+            id: labels
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width * 0.44
