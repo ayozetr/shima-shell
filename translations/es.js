@@ -101,6 +101,8 @@ var strings = {
     powerBalanced: "Equilibrado",
     powerPerformance: "Rendimiento",
     keepAwake: "Mantener despierto",
+    keepAwakeRemember: "Recordar mantener despierto",
+    keepAwakeRememberHint: "Vuelve activado tras reiniciar. Desactivado, se olvida: un equipo que no duerme por algo que activaste hace días es difícil de averiguar.",
     nightLight: "Luz nocturna",
     screens: "Pantallas",
 

@@ -42,6 +42,67 @@ Singleton {
     property var items: []
     property int serial: 0
 
+    // ── The history across a restart ─────────────────────────────
+    //
+    // It used to go with the shell, which is a poor answer to "what
+    // was that, I clicked it away": a hot reload while you work throws
+    // it away, and so does a crash.
+    //
+    // It is kept in the runtime directory and not next to the
+    // settings, which is a decision and not an accident. A
+    // notification is the subject of your mail, the message somebody
+    // sent you and the code your bank texted, and a file of those on
+    // the disk outlives everything you would expect it to. The runtime
+    // directory is memory with a path — the system empties it when the
+    // session ends — so this survives the shell restarting and does
+    // not survive you logging out.
+    readonly property string historyPath: Paths.runtimeDir + "/notifications.json"
+
+    FileView {
+        id: historyFile
+        path: root.historyPath
+        onLoaded: {
+            if (root.restored) return;
+            root.restored = true;
+            try {
+                const saved = JSON.parse(text());
+                if (!Array.isArray(saved)) return;
+                const out = [];
+                for (const e of saved) {
+                    if (!e || typeof e !== "object") continue;
+                    // Nothing that came back can be acted on: the
+                    // application that sent it is not waiting any
+                    // more. Read, so the island does not announce a
+                    // pile of unread from before.
+                    e.read = true;
+                    e.actions = [];
+                    e.actionCount = 0;
+                    e.buttons = 0;
+                    out.push(e);
+                    if (out.length >= root.historyLimit) break;
+                }
+                root.items = out;
+                for (const e of out) if (e.key > root.serial) root.serial = e.key;
+            } catch (e) { /* half-written by a shell that was killed */ }
+        }
+        onLoadFailed: root.restored = true;
+    }
+
+    property bool restored: false
+
+    // Written after things have stopped moving rather than on every
+    // notification: a burst of five would otherwise be five writes.
+    Timer {
+        id: saveHistory
+        interval: 1200
+        onTriggered: {
+            if (!root.restored) return;
+            historyFile.setText(JSON.stringify(root.items));
+        }
+    }
+
+    onItemsChanged: if (root.restored) saveHistory.restart()
+
     readonly property int historyLimit: Config.data.notificationHistory ?? 50
     readonly property int unread: {
         let n = 0;

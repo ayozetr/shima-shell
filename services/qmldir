@@ -19,3 +19,4 @@ singleton Search 1.0 Search.qml
 singleton Power 1.0 Power.qml
 singleton Paths 1.0 Paths.qml
 singleton Clipboard 1.0 Clipboard.qml
+singleton Games 1.0 Games.qml

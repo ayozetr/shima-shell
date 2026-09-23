@@ -58,7 +58,8 @@ package() {
     done
     install -Dm644 ./*.qml -t "$share"
 
-    install -Dm755 helper/shima-shortcuts -t "$share/helper"
+    install -Dm755 helper/shima-shortcuts helper/shima-games \
+        -t "$share/helper"
 
     # Found through /usr/bin/../share/shima by the launcher itself.
     install -Dm755 shima "$pkgdir/usr/bin/shima"

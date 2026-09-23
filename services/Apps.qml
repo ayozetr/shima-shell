@@ -838,6 +838,10 @@ Singleton {
         const real = DesktopEntries.byId(id);
         if (real) return real;
         if (id === root.settingsId) return root.settingsEntry();
+        // Heroic and Lutris, which are known by the name of the
+        // window and nothing else.
+        if (id && id.indexOf("game:") === 0)
+            return Games.entryFor(id.slice("game:".length));
         // A game with no shortcut created has no .desktop at all, so
         // one is made up from what Steam already knows.
         if (id && id.indexOf("steam_app_") === 0) return root.steamEntry(id);
@@ -950,6 +954,13 @@ Singleton {
         // Ours opens itself; there is no program to start.
         if (entry.isShimaSettings) { SettingsWindow.show(); return; }
 
+        // A game is only known while its window is there — the
+        // catalogue says which executable belongs to it, not how its
+        // launcher would start it. So there is nothing to do here, and
+        // clicking one that has closed does nothing rather than
+        // something wrong.
+        if (entry.isGame) return;
+
         if (root.hasKstart && entry.id)
             Quickshell.execDetached(["kstart", "--application", entry.id]);
         else
@@ -1055,6 +1066,13 @@ Singleton {
         if (id === root.settingsId)
             return 'wins=$(kdotool search --class '
                  + JSON.stringify("^" + root.settingsClass + "$")
+                 + ' 2>/dev/null)';
+
+        // A game is known by its window and by nothing else, so its
+        // window is what it is looked for by.
+        if (id && id.indexOf("game:") === 0)
+            return 'wins=$(kdotool search --class '
+                 + JSON.stringify("^" + id.slice("game:".length) + "$")
                  + ' 2>/dev/null)';
 
         const entry = root.entryFor(id);
@@ -1337,6 +1355,14 @@ Singleton {
             }
             const id = root.idForClass(p);
             if (id !== undefined) { alive[id] = true; continue; }
+
+            // A game from Heroic or Lutris runs as its own executable
+            // and has no desktop entry of its own, so the launcher's
+            // catalogue is what names it.
+            if (Games.byClass[p] !== undefined) {
+                alive["game:" + p] = true;
+                continue;
+            }
             // An installed game with no .desktop is known by its window
             // class and nothing else.
             if (p.indexOf("steam_app_") !== 0) continue;

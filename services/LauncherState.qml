@@ -23,6 +23,7 @@ Singleton {
         Apps.readMenu();
         Apps.refreshFavorites();
         Apps.readRecent();
+        Games.refresh();
         // Favourites first, which is the point of having them — unless
         // there are none yet, and an empty panel would be a poor
         // greeting.

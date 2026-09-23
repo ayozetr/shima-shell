@@ -14,6 +14,9 @@ Item {
     property bool reorderable: false
     property var gridView: null
     property int itemIndex: -1
+    // Marked with the keyboard. Drawn like the pointer being over it,
+    // because that is what it stands in for.
+    property bool marked: false
     property bool dragging: false
     property real dragX: 0
     property real dragY: 0
@@ -31,7 +34,7 @@ Item {
         anchors.fill: parent
         anchors.margins: 2
         radius: 12
-        color: ma.containsMouse ? "#1affffff" : "transparent"
+        color: (ma.containsMouse || root.marked) ? "#1affffff" : "transparent"
         Behavior on color { ColorAnimation { duration: 120 } }
 
         IconImage {

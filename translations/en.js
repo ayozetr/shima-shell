@@ -104,6 +104,8 @@ var strings = {
     powerBalanced: "Balanced",
     powerPerformance: "Performance",
     keepAwake: "Keep awake",
+    keepAwakeRemember: "Remember keep awake",
+    keepAwakeRememberHint: "Comes back switched on after a restart. Left off, it forgets — a machine that will not sleep because of something switched on days ago is hard to work out.",
     nightLight: "Night light",
     screens: "Screens",
 

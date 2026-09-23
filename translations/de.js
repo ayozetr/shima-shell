@@ -101,6 +101,8 @@ var strings = {
     powerBalanced: "Ausgeglichen",
     powerPerformance: "Leistung",
     keepAwake: "Wach halten",
+    keepAwakeRemember: "Wachhalten merken",
+    keepAwakeRememberHint: "Kommt nach einem Neustart eingeschaltet zurück. Aus vergisst es — ein Rechner, der wegen etwas vor Tagen Eingeschaltetem nicht schläft, ist schwer zu durchschauen.",
     nightLight: "Nachtlicht",
     screens: "Bildschirme",
 

@@ -104,6 +104,8 @@ var strings = {
     powerBalanced: "バランス",
     powerPerformance: "パフォーマンス",
     keepAwake: "スリープしない",
+    keepAwakeRemember: "スリープ抑止を記憶する",
+    keepAwakeRememberHint: "再起動後も有効なまま戻ります。無効なら忘れます — 数日前に入れたもののせいで眠らない機械は、原因を突き止めにくいものです。",
     nightLight: "夜間モード",
     screens: "スクリーン",
 

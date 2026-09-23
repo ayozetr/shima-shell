@@ -186,6 +186,20 @@ FloatingWindow {
             }
 
             Controls.Row_ {
+                label: I18n.t.keepAwakeRemember
+                hint: I18n.t.keepAwakeRememberHint
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.keepAwakeRemember ?? false
+                    onToggled: (v) => {
+                        win.c.keepAwakeRemember = v;
+                        if (v) win.c.keepAwakeOn = Power.keepAwake;
+                        Config.save();
+                    }
+                }
+            }
+
+            Controls.Row_ {
                 label: I18n.t.clipboardHistory
                 hint: I18n.t.clipboardHistoryHint
                 Controls.Toggle_ {

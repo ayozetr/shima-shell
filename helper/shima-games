@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""What Heroic and Lutris have installed, by the name of the window.
+
+Steam names a game's window after the game — steam_app_105600 — so one
+number is enough to know what is on screen. Heroic and Lutris do not:
+what runs is the game's own executable, under Wine or not, and its
+window is called whatever that file is called. The only place that
+knows which executable belongs to which game is the launcher's own
+catalogue, so it is read here.
+
+One line per game, tab separated:
+
+    <window class>  <name>  <icon>  <heroic|lutris>
+
+Nothing is printed for a launcher that is not installed, and a
+catalogue that cannot be read is skipped rather than fatal: this runs
+on somebody else's machine, where the format may have moved on.
+"""
+
+import glob
+import json
+import os
+import sqlite3
+import sys
+
+
+def home(*parts):
+    return os.path.join(os.path.expanduser("~"), *parts)
+
+
+def basename(path):
+    """The executable's name, which is what a window is called after."""
+    return os.path.basename(str(path).replace("\\", "/")).strip()
+
+
+def heroic():
+    """Heroic keeps one library file per store under store_cache."""
+    for path in glob.glob(home(".config", "heroic", "store_cache",
+                               "*_library.json")):
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            continue
+
+        games = data.get("games") if isinstance(data, dict) else data
+        if not isinstance(games, list):
+            continue
+
+        for game in games:
+            if not isinstance(game, dict) or not game.get("is_installed"):
+                continue
+            install = game.get("install")
+            exe = basename((install or {}).get("executable") or "")
+            title = (game.get("title") or "").strip()
+            # Without an executable there is no window to recognise,
+            # and the redistributables every GOG install brings are
+            # exactly that case.
+            if exe and title:
+                yield exe, title, "heroic", "heroic"
+
+
+def lutris():
+    """Lutris keeps its games in an SQLite database."""
+    db = home(".local", "share", "lutris", "pga.db")
+    if not os.path.exists(db):
+        return
+    try:
+        # Read only, and never create the file if it went away between
+        # the check and here.
+        con = sqlite3.connect("file:%s?mode=ro" % db, uri=True)
+        rows = con.execute(
+            "select name, slug, executable from games where installed = 1")
+    except sqlite3.Error:
+        return
+
+    for name, slug, executable in rows:
+        exe = basename(executable or "")
+        name = (name or "").strip()
+        if not exe or not name:
+            continue
+        # Lutris installs a per-game icon under hicolor, so it can be
+        # asked for by name like any other.
+        icon = "lutris_%s" % slug if slug else "lutris"
+        yield exe, name, icon, "lutris"
+
+
+def main():
+    seen = set()
+    for source in (heroic, lutris):
+        try:
+            found = list(source())
+        except Exception as e:                       # noqa: BLE001
+            print("shima-games: %s failed: %s" % (source.__name__, e),
+                  file=sys.stderr)
+            continue
+        for exe, name, icon, where in found:
+            key = exe.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            print("\t".join((key, name, icon, where)))
+
+
+if __name__ == "__main__":
+    main()

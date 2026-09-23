@@ -63,6 +63,17 @@ Since there is no public API here, that means:
 - The island cut off the control centre instead of making room when its
   list of outputs or screens grew past a fixed height
 
+- The launcher can be used without the mouse: up and down walk what is
+  on screen and return opens it.
+- The notification history survives the shell restarting or crashing.
+  It is kept in memory for the session, not on the disk, so it goes
+  when you log out.
+- Games installed through Heroic and Lutris are recognised in the dock,
+  by reading the launchers' own catalogues.
+- Keeping the machine awake can be remembered across restarts. Off by
+  default, because a machine that will not sleep because of something
+  switched on days ago is hard to work out.
+
 ### Changed
 
 - The parts with no screen in them have tests now, run with

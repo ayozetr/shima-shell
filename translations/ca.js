@@ -101,6 +101,8 @@ var strings = {
     powerBalanced: "Equilibrat",
     powerPerformance: "Rendiment",
     keepAwake: "Mantén despert",
+    keepAwakeRemember: "Recorda mantenir despert",
+    keepAwakeRememberHint: "Torna activat després de reiniciar. Desactivat, s'oblida: un equip que no dorm per una cosa que vau activar fa dies és difícil d'esbrinar.",
     nightLight: "Llum nocturna",
     screens: "Pantalles",
 

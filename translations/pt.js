@@ -101,6 +101,8 @@ var strings = {
     powerBalanced: "Equilibrado",
     powerPerformance: "Desempenho",
     keepAwake: "Manter acordado",
+    keepAwakeRemember: "Lembrar manter acordado",
+    keepAwakeRememberHint: "Volta ligado depois de reiniciar. Desligado, esquece: um computador que não dorme por causa de algo ligado há dias é difícil de descobrir.",
     nightLight: "Luz noturna",
     screens: "Telas",
 

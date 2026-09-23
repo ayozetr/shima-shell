@@ -101,6 +101,8 @@ var strings = {
     powerBalanced: "Équilibré",
     powerPerformance: "Performance",
     keepAwake: "Garder éveillé",
+    keepAwakeRemember: "Se souvenir de « garder éveillé »",
+    keepAwakeRememberHint: "Revient activé après un redémarrage. Désactivé, il oublie : une machine qui ne dort pas à cause de quelque chose activé il y a des jours est difficile à diagnostiquer.",
     nightLight: "Lumière nocturne",
     screens: "Écrans",
 

@@ -86,9 +86,58 @@ PanelWindow {
 
     Connections {
         target: LauncherState
-        function onOpenChanged() { win.refreshApps(); }
-        function onCategoryChanged() { win.refreshApps(); }
-        function onQueryChanged() { win.refreshApps(); }
+        function onOpenChanged() { win.refreshApps(); win.selected = -1; }
+        function onCategoryChanged() { win.refreshApps(); win.selected = -1; }
+        function onQueryChanged() { win.refreshApps(); win.selected = -1; }
+    }
+
+    // ── Moving without the mouse ─────────────────────────────────
+    //
+    // It opens on a key and it used to take a hand off the keyboard to
+    // finish. Up and down move through whichever view is showing, and
+    // return opens what is marked.
+    //
+    // Up and down and not the four arrows: left and right belong to
+    // the text you are typing, and a launcher that eats them to move
+    // sideways in a grid is a launcher you cannot correct a typo in.
+    // In a grid, one step is the next cell along and then the row
+    // below, which is the order the eye reads them in anyway.
+    property int selected: -1
+
+
+    readonly property int navCount: {
+        if (clipView.visible) return win.clips.length;
+        // The search view holds two sections, the applications and
+        // then the files, and they are walked as one list.
+        if (searchView.visible) return win.apps.length + Search.files.length;
+        if (grid.visible) return win.apps.length;
+        return 0;
+    }
+
+    function navMove(by) {
+        if (win.navCount === 0) return;
+        const from = win.selected < 0 ? (by > 0 ? -1 : win.navCount) : win.selected;
+        win.selected = Math.max(0, Math.min(win.navCount - 1, from + by));
+        if (grid.visible)
+            grid.positionViewAtIndex(win.selected, GridView.Contain);
+    }
+
+    // What return does. False means nothing was marked, and the caller
+    // falls back to what it did before: open the first result.
+    function navActivate() {
+        if (win.selected < 0 || win.selected >= win.navCount) return false;
+
+        if (clipView.visible) Clipboard.copy(win.clips[win.selected]);
+        else if (searchView.visible) {
+            const i = win.selected;
+            Apps.start(i < win.apps.length
+                ? win.apps[i] : Search.files[i - win.apps.length]);
+        }
+        else if (grid.visible) Apps.start(win.apps[win.selected]);
+        else return false;
+
+        LauncherState.hide();
+        return true;
     }
 
     Component.onCompleted: win.refreshApps()
@@ -212,7 +261,11 @@ PanelWindow {
                 else if (sessionBar.openMenu !== "") sessionBar.openMenu = "";
                 else LauncherState.hide();
             }
+                Keys.onDownPressed: win.navMove(1)
+                Keys.onUpPressed: win.navMove(-1)
+
                 Keys.onReturnPressed: {
+                    if (win.navActivate()) return;
                     if (LauncherState.category === "clipboard") {
                         if (win.clips.length > 0) {
                             Clipboard.copy(win.clips[0]);
@@ -430,12 +483,15 @@ PanelWindow {
                     Rectangle {
                         id: clipRow
                         required property var modelData
+                        required property int index
                         readonly property bool isImage: modelData.kind === "image"
 
                         width: clipColumn.width
                         height: isImage ? 52 : 34
                         radius: 8
-                        color: clipArea.containsMouse ? "#1fffffff" : "transparent"
+                        readonly property bool marked: win.selected === index
+                        color: (clipArea.containsMouse || marked)
+                            ? "#1fffffff" : "transparent"
 
                         // Pictures show themselves. A thumbnail says
                         // which one it is and a filename would not,
@@ -683,7 +739,9 @@ PanelWindow {
                         model: win.apps
                         AppTile {
                             required property var modelData
+                            required property int index
                             entry: modelData
+                            marked: win.selected === index
                             width: 112
                             height: 86
                             launcherWindow: win
@@ -738,7 +796,11 @@ PanelWindow {
                             model: Search.files
                             AppTile {
                                 required property var modelData
+                                required property int index
                                 entry: modelData
+                                // After the applications above, since
+                                // the two sections are walked as one.
+                                marked: win.selected === win.apps.length + index
                                 width: 112
                                 height: 86
                                 launcherWindow: win
@@ -772,6 +834,7 @@ PanelWindow {
                 launcherWindow: win
                 itemIndex: index
                 gridView: grid
+                marked: win.selected === index
                 // Only the favourites are a list of yours to arrange;
                 // everywhere else the order is not ours to change.
                 reorderable: LauncherState.category === "favorites"
