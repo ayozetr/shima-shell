@@ -44,17 +44,14 @@ Singleton {
     function start() {
         if (root.phase === "idle") root.beginPhase("focus");
         root.running = true;
-        if (root.phase === "focus") root.inhibit();
     }
 
     function pause() {
         root.running = false;
-        root.release();
     }
 
     function reset() {
         root.running = false;
-        root.release();
         root.phase = "idle";
         root.completed = 0;
         root.remaining = root.focusSeconds;
@@ -75,7 +72,6 @@ Singleton {
 
     function finishFocus() {
         root.completed++;
-        root.release();
         const long = root.roundsBeforeLong > 0
                      && root.completed % root.roundsBeforeLong === 0;
         root.beginPhase(long ? "longBreak" : "break");
@@ -93,7 +89,6 @@ Singleton {
 
             if (!(Config.data.focusChain ?? true)) {
                 root.running = false;
-                root.release();
                 root.phase = "idle";
                 root.remaining = root.focusSeconds;
                 return;
@@ -103,7 +98,6 @@ Singleton {
                 root.finishFocus();
             } else {
                 root.beginPhase("focus");
-                root.inhibit();
             }
         }
     }
@@ -118,46 +112,23 @@ Singleton {
         notifier.exec(["notify-send", "-a", "Shima", "-i", "clock", title, body]);
     }
 
-    // ── Silencing notifications while focusing ─────────────────
+    // ── Silencing notifications while focusing ─────────────
     //
-    // An inhibition with a cookie, not a change to your Do Not Disturb
-    // setting: it is temporary and disappears with the session.
-    property int cookie: 0
-
-    Process {
-        id: inhibitProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                // gdbus answers "(uint32 7,)"
-                const m = text.match(/(\d+)/);
-                if (m) root.cookie = parseInt(m[1], 10);
-            }
-        }
-    }
-
-    Process { id: uninhibitProc }
-
-    function inhibit() {
-        if (!(Config.data.focusInhibit ?? true) || root.cookie !== 0) return;
-        inhibitProc.exec(["gdbus", "call", "--session",
-            "--dest", "org.freedesktop.Notifications",
-            "--object-path", "/org/freedesktop/Notifications",
-            "--method", "org.freedesktop.Notifications.Inhibit",
-            "shima", I18n.t.focus, "{}"]);
-    }
-
-    function release() {
-        if (root.cookie === 0) return;
-        uninhibitProc.exec(["gdbus", "call", "--session",
-            "--dest", "org.freedesktop.Notifications",
-            "--object-path", "/org/freedesktop/Notifications",
-            "--method", "org.freedesktop.Notifications.UnInhibit",
-            String(root.cookie)]);
-        root.cookie = 0;
-    }
+    // Whether notifications should be held back right now, and nothing
+    // more than that: whoever shows them reads it.
+    //
+    // It used to be asked of the notification server over D-Bus, with
+    // Inhibit. That is KDE's own extension and not part of the
+    // specification, and on a session where Shima is the server there
+    // is nobody to ask — Quickshell's server does not implement it, so
+    // the call failed, the error went to a channel nothing reads, the
+    // cookie stayed at zero and the switch has never done anything at
+    // all. Shima shows the notifications; Shima holds them back.
+    readonly property bool hushing:
+        root.running && root.phase === "focus"
+        && (Config.data.focusInhibit ?? true)
 
     // A duration change while idle should be reflected straight away.
     onFocusSecondsChanged: if (root.phase === "idle") root.remaining = root.focusSeconds;
 
-    Component.onDestruction: root.release()
 }

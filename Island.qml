@@ -42,11 +42,21 @@ PanelWindow {
         return win.modes[win.mode].height;
     }
 
-    // The window is fixed and at its largest size; what animates is
-    // the rectangle inside. Resizing a layer-shell surface every frame
-    // stutters, so we don't.
+    // The window sits at the largest size anything needs; what
+    // animates is the rectangle inside. Resizing a layer-shell surface
+    // every frame stutters, so we don't — but 320 was not the largest
+    // anything needs, it was the largest mode as written down, and a
+    // mode that asks for more than its written height got it and was
+    // then cut off by the window around it. Seven audio outputs or six
+    // monitors is all it takes, and the rows past the edge are neither
+    // visible nor clickable.
+    //
+    // So the floor stays where it was — the geometry of every ordinary
+    // day is unchanged — and it gives way when a mode asks for more.
+    // That happens when a list is unfolded, not once a frame.
     implicitWidth: Theme.islandExpandedWidth + 40
-    implicitHeight: 320 + Theme.islandExpandedMargin + 24
+    implicitHeight: Math.max(320, win.expandedHeight + 92)
+                    + Theme.islandExpandedMargin + 24
 
     // Only the visible rectangle takes the mouse. Without this, the
     // transparent window would swallow the clicks around it.
@@ -251,6 +261,14 @@ PanelWindow {
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             onWheel: (e) => {
+                // Reaching for the island while a notification is
+                // sitting in it is unambiguous: the wheel is not
+                // something anybody turns by accident. Holding the
+                // notification open because the pointer is over it is
+                // right when the pointer came to read it and wrong
+                // when it came for the volume, and the wheel says
+                // which.
+                if (win.peeking) { Notifications.dismissPeek(); return; }
                 if (!win.expanded) return;
                 const dy = e.angleDelta.y !== 0 ? e.angleDelta.y : e.angleDelta.x;
                 if (dy === 0) return;

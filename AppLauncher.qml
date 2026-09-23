@@ -86,12 +86,71 @@ PanelWindow {
 
     Connections {
         target: LauncherState
-        function onOpenChanged() { win.refreshApps(); }
-        function onCategoryChanged() { win.refreshApps(); }
-        function onQueryChanged() { win.refreshApps(); }
+        function onOpenChanged() { win.refreshApps(); win.selected = -1; }
+        function onCategoryChanged() { win.refreshApps(); win.selected = -1; }
+        function onQueryChanged() { win.refreshApps(); win.selected = -1; }
+    }
+
+    // ── Moving without the mouse ─────────────────────────────────
+    //
+    // It opens on a key and it used to take a hand off the keyboard to
+    // finish. Up and down move through whichever view is showing, and
+    // return opens what is marked.
+    //
+    // Up and down and not the four arrows: left and right belong to
+    // the text you are typing, and a launcher that eats them to move
+    // sideways in a grid is a launcher you cannot correct a typo in.
+    // In a grid, one step is the next cell along and then the row
+    // below, which is the order the eye reads them in anyway.
+    property int selected: -1
+
+
+    readonly property int navCount: {
+        if (clipView.visible) return win.clips.length;
+        // The search view holds two sections, the applications and
+        // then the files, and they are walked as one list.
+        if (searchView.visible) return win.apps.length + Search.files.length;
+        if (grid.visible) return win.apps.length;
+        return 0;
+    }
+
+    function navMove(by) {
+        if (win.navCount === 0) return;
+        const from = win.selected < 0 ? (by > 0 ? -1 : win.navCount) : win.selected;
+        win.selected = Math.max(0, Math.min(win.navCount - 1, from + by));
+        if (grid.visible)
+            grid.positionViewAtIndex(win.selected, GridView.Contain);
+    }
+
+    // What return does. False means nothing was marked, and the caller
+    // falls back to what it did before: open the first result.
+    function navActivate() {
+        if (win.selected < 0 || win.selected >= win.navCount) return false;
+
+        if (clipView.visible) Clipboard.copy(win.clips[win.selected]);
+        else if (searchView.visible) {
+            const i = win.selected;
+            Apps.start(i < win.apps.length
+                ? win.apps[i] : Search.files[i - win.apps.length]);
+        }
+        else if (grid.visible) Apps.start(win.apps[win.selected]);
+        else return false;
+
+        LauncherState.hide();
+        return true;
     }
 
     Component.onCompleted: win.refreshApps()
+
+    // The search box filters the clipboard too, so what is on screen
+    // is worked out here rather than in the view.
+    readonly property var clips: {
+        const q = LauncherState.query.trim();
+        const out = [];
+        for (const e of Clipboard.entries)
+            if (Clipboard.matches(e, q)) out.push(e);
+        return out;
+    }
 
     // ── The per-application menu ───────────────────────────────
     //
@@ -202,7 +261,18 @@ PanelWindow {
                 else if (sessionBar.openMenu !== "") sessionBar.openMenu = "";
                 else LauncherState.hide();
             }
+                Keys.onDownPressed: win.navMove(1)
+                Keys.onUpPressed: win.navMove(-1)
+
                 Keys.onReturnPressed: {
+                    if (win.navActivate()) return;
+                    if (LauncherState.category === "clipboard") {
+                        if (win.clips.length > 0) {
+                            Clipboard.copy(win.clips[0]);
+                            LauncherState.hide();
+                        }
+                        return;
+                    }
                     if (win.apps.length > 0) {
                         Apps.start(win.apps[0]);
                         LauncherState.hide();
@@ -250,16 +320,21 @@ PanelWindow {
                         Apps.categoryCounts[modelData.id] || 0
                     readonly property bool current: LauncherState.category === modelData.id
 
-                    // Favourites, frequent and places are always there
-                    // and are not a slice of the catalogue, so they
-                    // carry a mark instead of a count, and a rule below
-                    // the last of them sets the three apart.
+                    // Favourites, frequent, places and the clipboard
+                    // are not a slice of the catalogue, so they carry a
+                    // mark instead of a count, and a rule below the
+                    // last of them sets the four apart.
                     readonly property string mark: ({
-                        favorites: "star", recent: "clock", places: "bookmark"
+                        favorites: "star", recent: "clock", places: "bookmark",
+                        clipboard: "clipboard"
                     })[modelData.id] || ""
-                    readonly property bool lastFixed: modelData.id === "places"
+                    readonly property bool lastFixed: modelData.id === "clipboard"
 
-                    visible: count > 0
+                    // Empty ones stay out of the way, except the
+                    // clipboard: what it has to say when it is empty —
+                    // that the tool is missing, or that it is switched
+                    // off — can only be read by opening it.
+                    visible: count > 0 || modelData.id === "clipboard"
                     width: parent.width
                     // The rule lives in the row's extra height, outside
                     // the highlight, which stays the size of a row.
@@ -337,20 +412,161 @@ PanelWindow {
         // badly in one grid, so each gets its own heading. A GridView
         // cannot do sections — only a ListView can — so this is a
         // column of two plain grids.
-        Flickable {
-            id: recentView
+        // The room every view is drawn in: what is left between the
+        // sidebar, the search field and the bar along the bottom. The
+        // four of them each spelled out the same eight anchors, and a
+        // fifth would have spelled them a fifth time.
+        Item {
+            id: stage
             anchors.left: cats.right
             anchors.leftMargin: 10
             anchors.right: parent.right
-            // Same as the search field above, so the rows line up
-            // with it instead of running past its edge.
+            // Same as the search field above, so the rows line up with
+            // it instead of running past its edge.
             anchors.rightMargin: 14
             anchors.top: searchBox.bottom
             anchors.topMargin: 12
             anchors.bottom: sessionBar.top
             anchors.bottomMargin: 6
+        }
+
+        // ── The clipboard ────────────────────────────────────────
+        //
+        // Shima puts Plasma's panels away, and Plasma's clipboard
+        // history lives inside one of them, so it went with them. This
+        // is what is in its place: the search box above filters it,
+        // and it stays under the same category whether or not anything
+        // has been typed, because searching your clipboard is the
+        // whole point of having a list of it.
+        Flickable {
+            id: clipView
+            anchors.fill: stage
+            clip: true
+            visible: LauncherState.category === "clipboard"
+            contentHeight: clipColumn.height
+            boundsBehavior: Flickable.StopAtBounds
+
+            Column {
+                id: clipColumn
+                width: clipView.width
+                spacing: 3
+
+                // Only when there is a list to empty, and never as the
+                // first thing under the pointer.
+                Item {
+                    width: parent.width
+                    height: 24
+                    visible: Clipboard.entries.length > 0
+
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 6
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: I18n.t.clipboardClear
+                        color: clearArea.containsMouse ? "#f87171" : Theme.textTertiary
+                        font.pixelSize: 11
+
+                        MouseArea {
+                            id: clearArea
+                            anchors.fill: parent
+                            anchors.margins: -6
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Clipboard.forget()
+                        }
+                    }
+                }
+
+                Repeater {
+                    model: win.clips
+
+                    Rectangle {
+                        id: clipRow
+                        required property var modelData
+                        required property int index
+                        readonly property bool isImage: modelData.kind === "image"
+
+                        width: clipColumn.width
+                        height: isImage ? 52 : 34
+                        radius: 8
+                        readonly property bool marked: win.selected === index
+                        color: (clipArea.containsMouse || marked)
+                            ? "#1fffffff" : "transparent"
+
+                        // Pictures show themselves. A thumbnail says
+                        // which one it is and a filename would not,
+                        // since nothing here has one.
+                        Image {
+                            id: thumb
+                            anchors.left: parent.left
+                            anchors.leftMargin: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: clipRow.isImage
+                            height: 36
+                            width: 60
+                            fillMode: Image.PreserveAspectFit
+                            horizontalAlignment: Image.AlignLeft
+                            asynchronous: true
+                            cache: false
+                            source: clipRow.isImage
+                                ? "file://" + clipRow.modelData.path : ""
+                        }
+
+                        Text {
+                            anchors.left: clipRow.isImage ? thumb.right : parent.left
+                            anchors.leftMargin: 10
+                            anchors.right: parent.right
+                            anchors.rightMargin: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: clipRow.isImage
+                                ? (thumb.sourceSize.width > 0
+                                    ? thumb.sourceSize.width + " × "
+                                      + thumb.sourceSize.height
+                                    : I18n.t.clipboardImage)
+                                : Clipboard.preview(clipRow.modelData)
+                            color: clipRow.isImage ? Theme.textTertiary
+                                                   : Theme.textPrimary
+                            font.pixelSize: 12
+                            elide: Text.ElideRight
+                        }
+
+                        MouseArea {
+                            id: clipArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Clipboard.copy(clipRow.modelData);
+                                LauncherState.hide();
+                            }
+                        }
+                    }
+                }
+
+                // Three things can be true here and they are not the
+                // same: the tool is missing, it is switched off, or
+                // nothing has been copied yet.
+                Text {
+                    width: parent.width
+                    topPadding: 10
+                    leftPadding: 6
+                    visible: win.clips.length === 0
+                    wrapMode: Text.WordWrap
+                    text: !Clipboard.available ? I18n.t.clipboardNoTool
+                        : !Clipboard.wanted ? I18n.t.clipboardOff
+                        : I18n.t.clipboardEmpty
+                    color: Theme.textTertiary
+                    font.pixelSize: 12
+                }
+            }
+        }
+
+        Flickable {
+            id: recentView
+            anchors.fill: stage
             clip: true
             visible: LauncherState.category === "recent" && LauncherState.query === ""
+                     && !clipView.visible
             contentHeight: recentColumn.height
             boundsBehavior: Flickable.StopAtBounds
 
@@ -401,18 +617,9 @@ PanelWindow {
         // ── Search results: applications, then everything else ───
         Flickable {
             id: searchView
-            anchors.left: cats.right
-            anchors.leftMargin: 10
-            anchors.right: parent.right
-            // Same as the search field above, so the rows line up
-            // with it instead of running past its edge.
-            anchors.rightMargin: 14
-            anchors.top: searchBox.bottom
-            anchors.topMargin: 12
-            anchors.bottom: sessionBar.top
-            anchors.bottomMargin: 6
+            anchors.fill: stage
             clip: true
-            visible: LauncherState.query !== ""
+            visible: LauncherState.query !== "" && !clipView.visible
                      && (Search.answer !== "" || Search.searching
                          || Search.files.length > 0 || Search.command !== "")
             contentHeight: searchColumn.height
@@ -532,7 +739,9 @@ PanelWindow {
                         model: win.apps
                         AppTile {
                             required property var modelData
+                            required property int index
                             entry: modelData
+                            marked: win.selected === index
                             width: 112
                             height: 86
                             launcherWindow: win
@@ -587,7 +796,11 @@ PanelWindow {
                             model: Search.files
                             AppTile {
                                 required property var modelData
+                                required property int index
                                 entry: modelData
+                                // After the applications above, since
+                                // the two sections are walked as one.
+                                marked: win.selected === win.apps.length + index
                                 width: 112
                                 height: 86
                                 launcherWindow: win
@@ -602,18 +815,9 @@ PanelWindow {
         // ── Application grid ─────────────────────────────────────
         GridView {
             id: grid
-            anchors.left: cats.right
-            anchors.leftMargin: 10
-            anchors.right: parent.right
-            // Same as the search field above, so the rows line up
-            // with it instead of running past its edge.
-            anchors.rightMargin: 14
-            anchors.top: searchBox.bottom
-            anchors.topMargin: 12
-            anchors.bottom: sessionBar.top
-            anchors.bottomMargin: 6
+            anchors.fill: stage
             clip: true
-            visible: !recentView.visible && !searchView.visible
+            visible: !recentView.visible && !searchView.visible && !clipView.visible
 
             cellWidth: 118
             cellHeight: 92
@@ -630,6 +834,7 @@ PanelWindow {
                 launcherWindow: win
                 itemIndex: index
                 gridView: grid
+                marked: win.selected === index
                 // Only the favourites are a list of yours to arrange;
                 // everywhere else the order is not ours to change.
                 reorderable: LauncherState.category === "favorites"
@@ -641,7 +846,7 @@ PanelWindow {
 
         Text {
             anchors.centerIn: grid
-            visible: win.apps.length === 0 && !recentView.visible
+            visible: win.apps.length === 0 && !recentView.visible && !clipView.visible
                      && !searchView.visible
             text: I18n.t.noMatches
             color: Theme.textTertiary
@@ -708,3 +913,4 @@ PanelWindow {
         }
     }
 }
+

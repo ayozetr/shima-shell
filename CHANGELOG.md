@@ -14,6 +14,84 @@ Since there is no public API here, that means:
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-23
+
+### Added
+
+- The settings window now appears in the dock while it is open, with
+  Shima's own icon, and clicking it brings it to the front.
+- It also wears that icon in its own titlebar, and wherever else the
+  system lists windows, instead of Quickshell's.
+- A clipboard history, in the launcher under its own category and on
+  Meta+V. It keeps the last fifty things you copied — text, files and
+  pictures, with a thumbnail for each picture — and puts each back as
+  what it was, so a file pastes as a file. Nothing outlives the
+  session and nothing reaches the disk, and anything the program that
+  copied it marked as a password is not kept at all. Needs
+  wl-clipboard, and says so if it is missing.
+- The launcher can be used without the mouse: up and down walk what is
+  on screen and return opens it.
+- The notification history survives the shell restarting or crashing.
+  It is kept in memory for the session, not on the disk, so it goes
+  when you log out.
+- Games installed through Heroic and Lutris are recognised in the dock,
+  by reading the launchers' own catalogues.
+- Keeping the machine awake can be remembered across restarts. Off by
+  default, because a machine that will not sleep because of something
+  switched on days ago is hard to work out.
+
+### Fixed
+
+- Closing the settings window with its own button left Shima believing
+  it was still open, and it could not be opened again until the shell
+  was restarted
+- Right-clicking the dock with the settings window already open closed
+  it instead of bringing it to the front, which was no use at all when
+  the reason for clicking was that it had ended up behind something
+- Silencing notifications during a focus session has never worked. It
+  asked the notification server to inhibit itself, which is not
+  something Shima's own server does, so notifications kept arriving
+- Letting go of the brightness slider could leave the screen at the
+  value before last, and moving the volume while changing output could
+  write one device's level into the other
+- The visualiser could be left running at sixty frames a second with
+  nothing playing
+- A notification arriving in the island blocked the controls, and
+  moving the pointer there to get at them held it open. The wheel now
+  puts it away, and a right click dismisses it without opening whatever
+  sent it
+- A battery at 1 % could be shown as 100 %
+- Middle-clicking an icon with no windows to list opened an empty
+  popup that went on swallowing clicks meant for the desktop
+- An application could light up in the dock without being open, when
+  its name happened to match the start of another window's class
+- With the dock hidden, the strip that brings it back was measured
+  against something that is not always the size of the window
+- The session submenus faded in and vanished instantly on the way out
+- The faintest text did not meet the contrast the accessibility
+  guidelines ask for, at sizes where it matters most
+- A switch with nothing behind it — Bluetooth with no adapter — looked
+  disabled but still took clicks
+- The island cut off the control centre instead of making room when its
+  list of outputs or screens grew past a fixed height
+- Quickshell sometimes dies in the first seconds of starting and does
+  not try again, which on a desktop with no panels left is logging in
+  to nothing. It is started again now, twice, for an early death only
+
+### Changed
+
+- The parts with no screen in them have tests now, run with
+  `node tests/run.js` and nothing installed.
+
+### Known issues
+
+- Games from Heroic and Lutris are recognised by reading the launchers'
+  catalogues, which has not been tried against a real installed game.
+  If the format is not what was expected, nothing is recognised rather
+  than anything breaking.
+- The launcher's category names follow the language of your session,
+  not the one set in Shima: they come from KDE's menu.
+
 ## [0.2.0] — 2026-09-23
 
 ### Added
@@ -124,6 +202,7 @@ First release. Installable and packaged; expect rough edges.
 - The launcher's category names follow the language of your session,
   not the one set in Shima: they come from KDE's menu.
 
-[Unreleased]: https://github.com/ayozetr/shima-shell/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ayozetr/shima-shell/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.1.0

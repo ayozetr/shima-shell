@@ -42,7 +42,7 @@ Item {
                 settingsModule: "kcm_networkmanagement"
                 glyph: "wifi"
                 on: Networking.wifiEnabled
-                enabled: Networking.wifiHardwareEnabled
+                available: Networking.wifiHardwareEnabled
                 onTriggered: Networking.wifiEnabled = !Networking.wifiEnabled
             }
             Tile {
@@ -51,7 +51,7 @@ Item {
                 settingsModule: "kcm_bluetooth"
                 glyph: "bt"
                 on: root.adapter ? root.adapter.enabled : false
-                enabled: root.adapter !== null
+                available: root.adapter !== null
                 onTriggered: if (root.adapter) root.adapter.enabled = !root.adapter.enabled
             }
             // Muting lives on the speaker icon next to the slider, so
@@ -62,7 +62,7 @@ Item {
                 settingsModule: "kcm_pulseaudio"
                 glyph: "output"
                 on: root.showOutputs
-                enabled: Audio.ready
+                available: Audio.ready
                 onTriggered: {
                     root.showOutputs = !root.showOutputs;
                     root.showScreens = false;
@@ -79,7 +79,7 @@ Item {
                 glyph: "night"
                 on: NightLight.tinting
                 waiting: NightLight.enabled && !NightLight.tinting
-                enabled: NightLight.available
+                available: NightLight.available
                 onTriggered: NightLight.toggle()
             }
         }
@@ -286,7 +286,14 @@ Item {
         // Switched on but not doing anything yet: drawn as an outline,
         // between off and lit.
         property bool waiting: false
-        property bool enabled: true
+        // Not called `enabled`, which every Item already has: one of
+        // that name here hides the one underneath, and Qt says so at
+        // every start. Using the real one would not do either, since a
+        // switch that is greyed out still takes the right click that
+        // opens its settings page — which is the point of the note
+        // further down. What this means is whether there is anything
+        // there to switch.
+        property bool available: true
         signal triggered()
 
         readonly property color tint: tile.on ? Theme.accentText
@@ -298,7 +305,7 @@ Item {
         border.width: 1
         border.color: tile.on ? "transparent"
             : (tile.waiting ? Theme.accent : "#1affffff")
-        opacity: tile.enabled ? 1 : 0.35
+        opacity: tile.available ? 1 : 0.35
 
         Behavior on color { ColorAnimation { duration: Theme.hoverDuration } }
         Behavior on border.color { ColorAnimation { duration: Theme.hoverDuration } }
@@ -316,6 +323,17 @@ Item {
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
+                // Kept inside its own cell. Measured, the longest
+                // label there is today — "Lumière nocturne" — comes to
+                // 84 px against a cell of about 92, so nothing is
+                // spilling out yet; it is the next translation that
+                // would, and with nothing to stop it, it would be
+                // drawn over the switch beside it rather than cut.
+                // Four pixels of margin rather than eight, so the one
+                // that already fits keeps fitting.
+                width: tile.width - 4
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
                 text: tile.label
                 color: tile.tint
                 font.pixelSize: 10
@@ -325,7 +343,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.LeftButton | Qt.RightButton
-            cursorShape: tile.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            cursorShape: tile.available ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: (e) => {
                 if (e.button === Qt.RightButton) {
                     // Worth offering even on a switch that is greyed
@@ -333,10 +351,11 @@ Item {
                     // want to go and look at the settings.
                     if (tile.settingsModule !== "")
                         Quickshell.execDetached(["systemsettings", tile.settingsModule]);
-                } else if (tile.enabled) {
+                } else if (tile.available) {
                     tile.triggered();
                 }
             }
         }
     }
 }
+

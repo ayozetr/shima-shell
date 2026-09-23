@@ -191,6 +191,7 @@ Singleton {
             { id: "favorites", label: I18n.t.catFavorites, match: [] },
             { id: "recent", label: I18n.t.catRecent, match: [] },
             { id: "places", label: I18n.t.catPlaces, match: [] },
+            { id: "clipboard", label: I18n.t.catClipboard, match: [] },
             { id: "all", label: I18n.t.catAll, match: [] }
         ];
         // KDE has already translated these, so they are its words and
@@ -205,6 +206,7 @@ Singleton {
         { id: "favorites", label: I18n.t.catFavorites, match: [] },
         { id: "recent", label: I18n.t.catRecent, match: [] },
         { id: "places",  label: I18n.t.catPlaces,   match: [] },
+        { id: "clipboard", label: I18n.t.catClipboard, match: [] },
         { id: "all",     label: I18n.t.catAll,      match: [] },
         { id: "net",     label: I18n.t.catNet,   match: ["Network", "WebBrowser", "Email"] },
         { id: "media",   label: I18n.t.catMedia, match: ["AudioVideo", "Audio", "Video", "Player"] },
@@ -223,7 +225,8 @@ Singleton {
             // These three are not read off the .desktop: two are
             // catch-alls and the third is a list you keep yourself.
             if (c.id === "all" || c.id === "other" || c.id === "favorites"
-                || c.id === "recent" || c.id === "places") continue;
+                || c.id === "recent" || c.id === "places"
+                || c.id === "clipboard") continue;
             for (const m of c.match)
                 if (cats.indexOf(m) !== -1) return c.id;
         }
@@ -664,6 +667,7 @@ Singleton {
             counts.favorites = root.favorites.length;
             counts.recent = root.recent.length;
             counts.places = Places.entries.length;
+            counts.clipboard = Clipboard.entries.length;
             return counts;
         }
         for (const e of DesktopEntries.applications.values) {
@@ -677,6 +681,7 @@ Singleton {
         counts.favorites = root.favorites.length;
         counts.recent = root.recent.length;
         counts.places = Places.entries.length;
+        counts.clipboard = Clipboard.entries.length;
         return counts;
     }
 
@@ -759,10 +764,10 @@ Singleton {
         // them from all claiming the Steam process, but it also threw
         // away the one thing that identifies them, so it is read back
         // from the URL — which points at one game and one only.
-        if (entry.execString) {
-            const url = entry.execString.match(/steam:\/\/(?:rungameid|run)\/(\d+)/);
-            if (url) out.push("steam_app_" + url[1]);
-        }
+        const game = entry.execString
+            ? entry.execString.match(/steam:\/\/(?:rungameid|run)\/(\d+)/)
+            : null;
+        if (game) out.push("steam_app_" + game[1]);
 
         // A game that runs under Proton names its window after the
         // Steam id, which the line above covers. One built for Linux
@@ -770,7 +775,13 @@ Singleton {
         // is "Terraria.bin.x86_64" — and that is not in the .desktop
         // at all, since the Exec goes through Steam. Its display name
         // is the only thing left to match on.
-        if (entry.name && entry.name.indexOf(" ") === -1)
+        //
+        // Only for those. Matching every application on what it calls
+        // itself is a wide net for one fish: a name is not a window
+        // class, and any program whose name happened to be the start
+        // of somebody else's class would have lit up in the dock
+        // without being open.
+        if (game && entry.name && entry.name.indexOf(" ") === -1)
             out.push(entry.name.toLowerCase());
 
         return out;
@@ -790,9 +801,47 @@ Singleton {
         return undefined;
     }
 
+    // ── Our own settings window ────────────────────────────────
+    //
+    // It is a window like any other program's: you open it, it can end
+    // up behind something else, and there has to be a way back to it.
+    // Nothing installed on the system claims its window class, and the
+    // shell's own surfaces are kept out of the dock on purpose, so the
+    // entry is made up here the way a Steam game's is.
+    //
+    // The class tells them apart: the island, the dock and the launcher
+    // are layer surfaces and keep Quickshell's own namespace, while a
+    // real window carries the app id the launcher sets — which is how
+    // it also comes to wear our icon in its titlebar instead of
+    // Quickshell's cog.
+    readonly property string settingsClass: "shima"
+    readonly property string settingsId: "shima:settings"
+
+    // Installed, the icon is in the theme where every other one is.
+    // Run from a checkout it is not installed anywhere, so the file in
+    // the tree stands in — which is also the only copy there is then.
+    readonly property bool settingsIconInTheme: Quickshell.hasThemeIcon("shima")
+
+    function settingsEntry() {
+        return {
+            id: root.settingsId,
+            name: I18n.t.settingsWindowTitle,
+            icon: root.settingsIconInTheme ? "shima" : "",
+            iconUrl: root.settingsIconInTheme
+                ? "" : Qt.resolvedUrl("../packaging/shima.svg"),
+            comment: "",
+            isShimaSettings: true
+        };
+    }
+
     function entryFor(id) {
         const real = DesktopEntries.byId(id);
         if (real) return real;
+        if (id === root.settingsId) return root.settingsEntry();
+        // Heroic and Lutris, which are known by the name of the
+        // window and nothing else.
+        if (id && id.indexOf("game:") === 0)
+            return Games.entryFor(id.slice("game:".length));
         // A game with no shortcut created has no .desktop at all, so
         // one is made up from what Steam already knows.
         if (id && id.indexOf("steam_app_") === 0) return root.steamEntry(id);
@@ -902,6 +951,16 @@ Singleton {
             Quickshell.execDetached(["steam", "steam://rungameid/" + entry.appId]);
             return;
         }
+        // Ours opens itself; there is no program to start.
+        if (entry.isShimaSettings) { SettingsWindow.show(); return; }
+
+        // A game is only known while its window is there — the
+        // catalogue says which executable belongs to it, not how its
+        // launcher would start it. So there is nothing to do here, and
+        // clicking one that has closed does nothing rather than
+        // something wrong.
+        if (entry.isGame) return;
+
         if (root.hasKstart && entry.id)
             Quickshell.execDetached(["kstart", "--application", entry.id]);
         else
@@ -999,6 +1058,23 @@ Singleton {
     // Collects every window of an app into $wins, trying each name the
     // app is known by until one of them matches.
     function windowLookup(id) {
+        // Named outright rather than worked out from the entry: the
+        // candidates of anything called org.quickshell include plain
+        // "quickshell", and that is the island, the dock and the
+        // launcher. Raising one of those, or minimising it, is not
+        // something anybody asked for.
+        if (id === root.settingsId)
+            return 'wins=$(kdotool search --class '
+                 + JSON.stringify("^" + root.settingsClass + "$")
+                 + ' 2>/dev/null)';
+
+        // A game is known by its window and by nothing else, so its
+        // window is what it is looked for by.
+        if (id && id.indexOf("game:") === 0)
+            return 'wins=$(kdotool search --class '
+                 + JSON.stringify("^" + id.slice("game:".length) + "$")
+                 + ' 2>/dev/null)';
+
         const entry = root.entryFor(id);
         if (!entry) return "";
         const names = root.candidatesFor(entry);
@@ -1273,8 +1349,20 @@ Singleton {
         // entry for each process.
         const alive = {};
         for (const p of procs) {
+            if (p === root.settingsClass) {
+                alive[root.settingsId] = true;
+                continue;
+            }
             const id = root.idForClass(p);
             if (id !== undefined) { alive[id] = true; continue; }
+
+            // A game from Heroic or Lutris runs as its own executable
+            // and has no desktop entry of its own, so the launcher's
+            // catalogue is what names it.
+            if (Games.byClass[p] !== undefined) {
+                alive["game:" + p] = true;
+                continue;
+            }
             // An installed game with no .desktop is known by its window
             // class and nothing else.
             if (p.indexOf("steam_app_") !== 0) continue;
@@ -1311,7 +1399,7 @@ Singleton {
                 if (root.pinned.indexOf(id) !== -1) continue;
                 if (root.neverShow.indexOf(id) !== -1) continue;
                 const e = root.entryFor(id);
-                if (!e || !e.icon) continue;
+                if (!e || (!e.icon && !e.iconUrl)) continue;
                 const cands = root.candidatesFor(e);
                 if (cands.some(c => covered[c])) continue;
                 for (const c of cands) covered[c] = true;

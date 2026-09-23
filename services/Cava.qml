@@ -38,7 +38,11 @@ Singleton {
             + "[output]\\nmethod=raw\\ndata_format=ascii\\nascii_max_range=1000\\n"
             + "channels=mono\\n[smoothing]\\nnoise_reduction=35\\n' > \"$1\"",
             "shima", root.configPath]
-        onExited: (code) => { if (code === 0) cava.running = true; }
+        // Only if it is still wanted. Pausing in the same moment as
+        // starting used to leave the config being written after the
+        // decision to stop, and this line turned it back on: cava then
+        // ran at sixty frames a second with nobody watching it.
+        onExited: (code) => { if (code === 0 && root.active) cava.running = true; }
     }
 
     Process {

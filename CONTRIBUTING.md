@@ -18,6 +18,23 @@ restart: save, and look at the screen.
 `qs -p shell.qml` also works, but the launcher script is what resolves
 paths and keeps the icon theme in step, so prefer `./shima`.
 
+## Tests
+
+```bash
+node tests/run.js
+```
+
+Nothing to install. It covers the parts with no screen in them — the
+calculator, the bookmarks parser, the clipboard entries, which screens
+something is pinned to, whether a language exists — by reading the
+functions straight out of the `.qml` files that ship, so a test cannot
+quietly drift from the code it is testing.
+
+Everything else is an interface and is checked by looking at it. If
+you change one of the parts above, add the case that would have caught
+what you fixed: every case in there is something that actually went
+wrong once.
+
 ## The assets
 
 Everything under `assets/` is reserved (see the README) but that does

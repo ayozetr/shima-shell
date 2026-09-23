@@ -72,9 +72,16 @@ Item {
             anchors.centerIn: parent
             width: Theme.dockIconSize * Theme.dockIconArt
             height: width
+            // A made-up entry can carry a file rather than a name in
+            // the theme: Shima's own icon only reaches the theme once
+            // Shima has been installed, and it has to draw itself in
+            // the dock either way.
+            //
             // Given an empty icon, iconPath returns the generic cog.
             // Better to draw nothing until the real one arrives.
-            source: (root.entry && root.entry.icon)
+            source: (root.entry && root.entry.iconUrl)
+                ? root.entry.iconUrl
+                : (root.entry && root.entry.icon)
                 ? Quickshell.iconPath(root.entry.icon, "application-x-executable")
                 : ""
             asynchronous: true

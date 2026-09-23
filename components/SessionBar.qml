@@ -37,7 +37,7 @@ Item {
     Popup_ {
         id: powerMenu
         x: 0
-        visible: root.openMenu === "power"
+        show: root.openMenu === "power"
         // Only what the machine can actually do. Hibernation is
         // unavailable on plenty of setups — no swap, or no resume
         // configured — and an entry that silently does nothing is
@@ -57,7 +57,7 @@ Item {
     Popup_ {
         id: userMenu
         x: 36
-        visible: root.openMenu === "user"
+        show: root.openMenu === "user"
         entries: [
             Session.canLock
                 ? { label: I18n.t.lockSession, act: () => Session.lock() } : null,
@@ -103,6 +103,12 @@ Item {
         id: pop
         property var entries: []
 
+        // Asked for through `show` and not through `visible`: binding
+        // visible to the state took the menu off screen the instant it
+        // closed, and the fade then ran on something nobody could see.
+        // It came in gently and went out like a light.
+        property bool show: false
+
         y: -height - 6
         width: 188
         height: col.height + 8
@@ -112,7 +118,11 @@ Item {
         border.color: "#2a2a2a"
         z: 50
 
-        opacity: visible ? 1 : 0
+        visible: opacity > 0
+        opacity: pop.show ? 1 : 0
+        // And nothing in it takes a click on the way out, or the last
+        // frame of the fade would still be a menu.
+        enabled: pop.show
         Behavior on opacity { NumberAnimation { duration: 120 } }
 
         Column {

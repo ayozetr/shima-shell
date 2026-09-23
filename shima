@@ -23,7 +23,7 @@
 
 set -e
 
-VERSION=0.2.0
+VERSION=0.3.0
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
@@ -181,10 +181,69 @@ SHIMA_SHELL=$entry
 export SHIMA_DATA_DIR SHIMA_CONFIG_DIR SHIMA_CACHE_DIR SHIMA_STATE_DIR \
        SHIMA_RUNTIME_DIR SHIMA_SHELL
 
-# The helper asks the kernel to kill it when its parent dies, and the
-# exec below keeps this process id, so it goes when the shell goes.
+# What our own windows say they are. Left alone, Quickshell calls them
+# org.quickshell, so the settings window wears Quickshell's cog in its
+# titlebar and in anything that lists windows. Saying shima points at
+# shima.desktop, which is ours and carries our icon.
+QS_APP_ID=shima
+export QS_APP_ID
+
+# The helper asks the kernel to kill it when its parent dies, and this
+# script is that parent for as long as the session lasts, so it goes
+# when the session does — and stays through a shell that is started
+# again below.
 if [ -x "$data/helper/shima-shortcuts" ] && have python3; then
     "$data/helper/shima-shortcuts" &
 fi
 
-exec qs -n -p "$entry" "$@"
+# Quickshell sometimes dies in the first seconds of starting. It is not
+# one fault: of the crash reports collected on the machine this was
+# written on, three are inside KDE's icon loader, one is a window being
+# destroyed and one is a D-Bus watcher, and none of them is ours. It
+# notices an early death and does not try again — which is a sensible
+# thing for a program that might be misconfigured, and the wrong thing
+# for a desktop that has put the Plasma panels away, because there logging
+# in to a crash means logging in to nothing at all.
+#
+# So it is started again, twice, and only for a death in the first
+# fifteen seconds. A shell that ran for a minute and then stopped was
+# stopped on purpose, or is broken in a way that starting it again
+# would only repeat.
+attempt=0
+while :; do
+    began=$(date +%s)
+
+    # Not exec, since there has to be something left to try again. The
+    # child is passed the signals this script is sent, so closing the
+    # session still closes the shell.
+    qs -n -p "$entry" "$@" &
+    child=$!
+    # Being asked to go is not a crash, even in the first second: the
+    # session closing is exactly that, and starting the shell again
+    # while the session is being taken down is the last thing anyone
+    # wants.
+    leaving=0
+    trap 'leaving=1; kill "$child" 2>/dev/null' HUP INT TERM
+
+    # Written so `set -e` does not take the script out from under us:
+    # a non-zero status here is the thing being handled, not an error.
+    status=0
+    wait "$child" || status=$?
+    trap - HUP INT TERM
+
+    # Asked to stop, or stopped itself: that is the end of it.
+    if [ "$status" -eq 0 ] || [ "$leaving" -eq 1 ]; then
+        exit "$status"
+    fi
+
+    ran=$(( $(date +%s) - began ))
+    attempt=$((attempt + 1))
+
+    if [ "$ran" -ge 15 ] || [ "$attempt" -ge 3 ]; then
+        echo "shima: the shell stopped (status $status, after ${ran}s)" >&2
+        exit "$status"
+    fi
+
+    echo "shima: the shell died after ${ran}s, starting it again" >&2
+    sleep 1
+done

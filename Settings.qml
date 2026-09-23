@@ -6,7 +6,23 @@ import "components"
 FloatingWindow {
     id: win
 
-    visible: SettingsWindow.open
+    // Through a Binding and not a plain one, and the two are not the
+    // same thing here. Closing the window with its own button writes
+    // visible from outside, which throws a plain binding away for
+    // good: the singleton stayed saying it was open, nothing could put
+    // it back on screen, and Settings was gone until the shell was
+    // restarted. A Binding object survives that and applies again the
+    // next time it is asked for.
+    Binding {
+        target: win
+        property: "visible"
+        value: SettingsWindow.open
+    }
+
+    // And the other direction, so closing it by hand is the same as
+    // closing it from the dock.
+    onVisibleChanged: if (!win.visible) SettingsWindow.hide()
+
     implicitWidth: 520
     implicitHeight: 640
     title: I18n.t.settingsWindowTitle
@@ -166,6 +182,70 @@ FloatingWindow {
                     from: 0; to: 400; step: 5; suffix: " px"
                     value: win.c.launcherLift ?? 0
                     onMoved: (v) => { win.c.launcherLift = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.keepAwakeRemember
+                hint: I18n.t.keepAwakeRememberHint
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.keepAwakeRemember ?? false
+                    onToggled: (v) => {
+                        win.c.keepAwakeRemember = v;
+                        if (v) win.c.keepAwakeOn = Power.keepAwake;
+                        Config.save();
+                    }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.clipboardHistory
+                hint: I18n.t.clipboardHistoryHint
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.clipboardHistory ?? true
+                    onToggled: (v) => { win.c.clipboardHistory = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.clipboardImages
+                hint: I18n.t.clipboardImagesHint
+                visible: win.c.clipboardHistory ?? true
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.clipboardImages ?? true
+                    onToggled: (v) => { win.c.clipboardImages = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.clipboardShortcut
+                visible: win.c.clipboardHistory ?? true
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.clipboardShortcutEnabled ?? true
+                    onToggled: (v) => {
+                        win.c.clipboardShortcutEnabled = v;
+                        Config.save();
+                    }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.clipboardShortcutKey
+                visible: (win.c.clipboardHistory ?? true)
+                         && (win.c.clipboardShortcutEnabled ?? true)
+                Controls.KeyCapture_ {
+                    anchors.right: parent.right
+                    value: win.c.clipboardKey ?? 268435542
+                    label: win.c.clipboardLabel ?? "Meta+V"
+                    onCaptured: (key, text) => {
+                        win.c.clipboardKey = key;
+                        win.c.clipboardLabel = text;
+                        Config.save();
+                    }
                 }
             }
 

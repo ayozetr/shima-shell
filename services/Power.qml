@@ -82,6 +82,31 @@ Singleton {
     // nothing should keep a machine awake after the shell is gone.
     property bool keepAwake: false
 
+    // Off at every start unless the setting says otherwise, and the
+    // setting is off by default. Forgetting is the safe way round: a
+    // machine that will not sleep because of something switched on
+    // three days ago gives no sign of why, and the first thing anyone
+    // does about it is reboot — which is exactly what used to clear
+    // it.
+    //
+    // Read when the settings arrive and not at construction: a
+    // singleton is built before its file is read, and asking then
+    // returns the defaults.
+    Connections {
+        target: Config
+        function onReady() {
+            if (Config.data.keepAwakeRemember ?? false)
+                root.keepAwake = Config.data.keepAwakeOn ?? false;
+        }
+    }
+
+    onKeepAwakeChanged: {
+        if (!(Config.data.keepAwakeRemember ?? false)) return;
+        if ((Config.data.keepAwakeOn ?? false) === root.keepAwake) return;
+        Config.data.keepAwakeOn = root.keepAwake;
+        Config.save();
+    }
+
     // It used to hold the inhibition with `sleep infinity`, which
     // outlives the shell: kill Quickshell with a signal it cannot
     // handle, or let the compositor take it down with it, and the

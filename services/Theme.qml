@@ -107,7 +107,18 @@ Singleton {
     readonly property color accentSoft: Qt.rgba(accent.r, accent.g, accent.b, 0.22)
     readonly property color textPrimary:   "#ffffff"
     readonly property color textSecondary: "#9a9a9a"
-    readonly property color textTertiary:  "#5c5c5c"
+    // Measured, not chosen by eye. The old #5c5c5c came to 3.1:1
+    // against the island's black, under the 4.5:1 the accessibility
+    // guidelines ask for, and it is used at nine to eleven pixels: the
+    // headings, the calendar's weekdays, the application name in a
+    // menu, the empty states. This clears 4.5:1 on the island and on
+    // the launcher, and stays a step below the secondary text.
+    //
+    // It does not clear it on a translucent dock over a bright
+    // wallpaper — nothing short of white does, since the wallpaper is
+    // most of what is behind the letters. That is what the opacity
+    // setting is for; a palette cannot answer it.
+    readonly property color textTertiary:  "#7d7d7d"
     readonly property color trackFill:     "#ffffff"
     readonly property color trackBg:       "#3a3a3a"
     // The filled part while muted: clearly dimmer than trackBg so the

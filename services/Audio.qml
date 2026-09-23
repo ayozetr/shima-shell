@@ -37,6 +37,11 @@ Singleton {
     // so everything goes through it.
     property bool hasWpctl: false
     property real queued: -1
+    // The device the queued value was meant for. It used to be read
+    // when the value went out rather than when it was asked for, so
+    // moving the slider and changing output in the same breath wrote
+    // one device's level into the other.
+    property var queuedSink: null
 
     Process {
         id: detect
@@ -76,16 +81,24 @@ Singleton {
 
         root.pending = v;
         root.queued = v;
+        root.queuedSink = root.sink;
         settle.restart();
         if (!throttle.running) root.flush();
     }
 
     function flush() {
+        // Never over one still on its way: wpctl talking to a
+        // Bluetooth device outlasts the throttle, and the value was
+        // dropped with nothing left to try again.
+        if (writer.running) { throttle.restart(); return; }
+
         const v = root.queued;
+        const node = root.queuedSink;
         root.queued = -1;
+        root.queuedSink = null;
         throttle.restart();
-        if (!root.ready) return;
-        writer.command = ["wpctl", "set-volume", String(root.sink.id), v.toFixed(3)];
+        if (v < 0 || !node || !root.ready) return;
+        writer.command = ["wpctl", "set-volume", String(node.id), v.toFixed(3)];
         writer.running = true;
     }
 

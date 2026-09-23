@@ -12,6 +12,13 @@ Singleton {
     readonly property alias data: cfg
     readonly property string path: Paths.configDir + "/config.json"
 
+    // Fired once the file has actually been read. A singleton exists
+    // before its file does, so anything that wants to start from what
+    // was saved has to wait to be told rather than look at
+    // construction and find the defaults.
+    signal ready()
+    property bool loaded: false
+
     FileView {
         id: file
         path: root.path
@@ -25,6 +32,9 @@ Singleton {
         // edited by hand.
         onLoadFailed: (error) => {
             if (error === FileViewError.FileNotFound) writeAdapter();
+            // Nothing to read is still an answer: the defaults are
+            // what there is, and whoever was waiting can get on.
+            if (!root.loaded) { root.loaded = true; root.ready(); }
         }
 
         // A file that is there but is not JSON any more — truncated by
@@ -37,6 +47,7 @@ Singleton {
         // So the text is parsed here as well, only to find out whether
         // it was readable at all.
         onLoaded: {
+            if (!root.loaded) { root.loaded = true; root.ready(); }
             try {
                 JSON.parse(file.text());
             } catch (e) {
@@ -161,6 +172,17 @@ Singleton {
             // ── Color ──────────────────────────────────────────
             property string accent:           "#a78bfa"
             property string dockTint:         "#000000"
+            // Kept across restarts only if asked. A machine that will
+            // not sleep because of something switched on days ago is a
+            // hard thing to work out from the outside.
+            property bool keepAwakeRemember:  false
+            property bool keepAwakeOn:        false
+
+            property bool clipboardHistory:   true
+            property bool clipboardImages:    true
+            property bool clipboardShortcutEnabled: true
+            property int  clipboardKey:       268435542   // Meta+V
+            property string clipboardLabel:   "Meta+V"
             property string islandTint:       "#000000"
             property string launcherTint:     "#000000"
         }

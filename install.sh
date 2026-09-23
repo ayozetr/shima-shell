@@ -337,7 +337,8 @@ do_install() {
         [ -d "$SRC/$dir" ] && cp -r "$SRC/$dir" "$SHARE/"
     done
     cp "$SRC/LICENSE" "$SRC/README.md" "$SHARE/" 2>/dev/null || true
-    chmod +x "$SHARE/helper/shima-shortcuts" 2>/dev/null || true
+    chmod +x "$SHARE/helper/shima-shortcuts" "$SHARE/helper/shima-games" \
+        2>/dev/null || true
 
     cp "$SRC/shima" "$BIN"
     chmod +x "$BIN"
