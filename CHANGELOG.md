@@ -45,6 +45,15 @@ Since there is no public API here, that means:
   one was left deaf
 - Changing a monitor's scale did not show up in the settings until
   restarting
+- A settings file that was no longer valid JSON was silently replaced
+  by the defaults, losing everything in it. A copy is kept at
+  `config.json.bak` instead
+- One odd bookmark emptied the whole Places list
+- An invalid colour in the settings turned the accent black, taking the
+  text drawn on it with it; an icon size of zero gave a dock that could
+  not be laid out
+- Setting the language to a name like `toString` left the interface
+  blank, with no way back from inside it
 
 ## [0.1.0] — 2026-09-23
 

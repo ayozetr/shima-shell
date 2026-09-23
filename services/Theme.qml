@@ -7,11 +7,35 @@ import Quickshell
 Singleton {
     id: root
 
+    // The configuration is a file people edit by hand, so what comes
+    // out of it is not to be trusted. `?? default` only catches null
+    // and undefined: `"accent": ""` sails straight through it and ends
+    // up as an invalid colour — the accent turns black, and the text
+    // meant to sit on top of it is then worked out against black.
+    function colour(value, fallback) {
+        if (typeof value !== "string") return Qt.color(fallback);
+        const v = value.trim();
+        if (v === "") return Qt.color(fallback);
+        try {
+            // Qt.color throws on a name it does not know rather than
+            // returning anything, and an exception here does not leave
+            // the default in place: it breaks the binding, and the
+            // colour ends up black. Which is how `"accent": "purpel"`
+            // turned the accent black and the text meant to sit on it
+            // was then worked out against black.
+            return Qt.color(v);
+        } catch (e) {
+            return Qt.color(fallback);
+        }
+    }
+
     // ── Island ─────────────────────────────────────────────────
+    readonly property color dockTintColour: root.colour(Config.data.dockTint, "#000000")
+    readonly property color islandTintColour: root.colour(Config.data.islandTint, "#000000")
     readonly property color islandBg: Qt.rgba(
-        Qt.color(Config.data.islandTint ?? "#000000").r,
-        Qt.color(Config.data.islandTint ?? "#000000").g,
-        Qt.color(Config.data.islandTint ?? "#000000").b,
+        root.islandTintColour.r,
+        root.islandTintColour.g,
+        root.islandTintColour.b,
         (Config.data.islandOpacity ?? 1.0))
     readonly property color islandBorder:  "#1a1a1a"
     readonly property int   islandRadius:  Config.data.islandRadius ?? 22
@@ -24,9 +48,9 @@ Singleton {
 
     // ── Dock ───────────────────────────────────────────────────
     readonly property color dockBg: Qt.rgba(
-        Qt.color(Config.data.dockTint ?? "#000000").r,
-        Qt.color(Config.data.dockTint ?? "#000000").g,
-        Qt.color(Config.data.dockTint ?? "#000000").b,
+        root.dockTintColour.r,
+        root.dockTintColour.g,
+        root.dockTintColour.b,
         (Config.data.dockOpacity ?? 0.8))
     readonly property color dockBorder: "#1affffff"
 
@@ -37,7 +61,11 @@ Singleton {
 
     // Ratios calibrated against a 36 px icon and preserved when
     // scaling: gap 0.33, padding 0.22, artwork 0.55.
-    readonly property int dockIconSize:    Config.data.dockIconSize ?? 56
+    // Clamped, not just defaulted: a zero here propagates into every
+    // spacing and radius below it and gives geometries that cannot be
+    // laid out, and the settings file is edited by hand.
+    readonly property int dockIconSize:
+        Math.max(16, Math.min(128, Config.data.dockIconSize ?? 56))
     readonly property int dockIconSpacing: Math.round(dockIconSize * 0.333)
     readonly property int dockPadding:     Math.round(dockIconSize * 0.222)
     readonly property real dockIconArt:    0.55
@@ -54,7 +82,7 @@ Singleton {
     }
 
     // ── Colour and motion ──────────────────────────────────────
-    readonly property color accent:        Qt.color(Config.data.accent ?? "#a78bfa")
+    readonly property color accent:        root.colour(Config.data.accent, "#a78bfa")
 
     // What gets painted ON TOP of the accent. With a light accent
     // (white, yellow) white text vanishes, so this is decided by

@@ -53,16 +53,26 @@ Singleton {
                     || Quickshell.env("LANG")
                     || "";
         const code = raw.split(":")[0].split(".")[0].split("_")[0].toLowerCase();
-        return root.strings[code] !== undefined ? code : "en";
+        return root.has(code) ? code : "en";
     }
 
     readonly property string language: {
         const chosen = Config.data.language ?? "auto";
-        if (chosen !== "auto" && root.strings[chosen] !== undefined) return chosen;
+        if (chosen !== "auto" && root.has(chosen)) return chosen;
         return root.systemLanguage;
     }
 
-    readonly property var t: root.strings[root.language] ?? root.strings.en
+    readonly property var t: root.has(root.language)
+        ? root.strings[root.language] : root.strings.en
+
+    // Asking `strings[code] !== undefined` says yes to every name
+    // JavaScript objects inherit — toString, constructor, valueOf. With
+    // "language": "toString" in the configuration the whole interface
+    // filled with blanks, the language picker included, and there was
+    // no way back out of it from inside.
+    function has(code) {
+        return Object.prototype.hasOwnProperty.call(root.strings, code);
+    }
 
     // Qt wants a full locale to format month names; the shell only
     // tracks the language, so each one gets a sensible region.

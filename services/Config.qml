@@ -27,6 +27,26 @@ Singleton {
             if (error === FileViewError.FileNotFound) writeAdapter();
         }
 
+        // A file that is there but is not JSON any more — truncated by
+        // a power cut mid-write, or edited into something broken —
+        // does not fail to load: it loads, and the adapter quietly
+        // keeps its defaults. The shell then came up as if new, and
+        // the first control you touched wrote over the lot — place,
+        // shortcut, screens and colours gone, without a word.
+        //
+        // So the text is parsed here as well, only to find out whether
+        // it was readable at all.
+        onLoaded: {
+            try {
+                JSON.parse(file.text());
+            } catch (e) {
+                console.warn("[shima] " + root.path + " is not valid JSON; "
+                           + "keeping a copy at " + root.path + ".bak "
+                           + "and carrying on with the defaults");
+                rescue.running = true;
+            }
+        }
+
         adapter: JsonAdapter {
             id: cfg
 
@@ -143,6 +163,13 @@ Singleton {
             property string dockTint:         "#000000"
             property string islandTint:       "#000000"
         }
+    }
+
+    // Just the copy: the defaults are already in the adapter, and
+    // whatever gets saved later will land on top of them anyway.
+    Process {
+        id: rescue
+        command: ["sh", "-c", "cp -f -- \"$1\" \"$1.bak\"", "shima", root.path]
     }
 
     function save() { file.writeAdapter(); }

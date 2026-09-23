@@ -32,8 +32,17 @@ Singleton {
 
         for (let i = 1; i < bookmarks.length; i++) {
             const chunk = bookmarks[i];
-            const url = chunk.slice(0, chunk.indexOf("\""));
-            const body = chunk.slice(0, chunk.indexOf("</bookmark>"));
+
+            const endQuote = chunk.indexOf("\"");
+            // Without a closing tag the chunk would run to the end of
+            // the document, and the bookmark would come out carrying
+            // the next ones' data. Skipping it loses one entry;
+            // trusting it corrupts the rest.
+            const endTag = chunk.indexOf("</bookmark>");
+            if (endQuote < 0 || endTag < 0) continue;
+
+            const url = chunk.slice(0, endQuote);
+            const body = chunk.slice(0, endTag);
 
             // Hidden ones are still in the file, with a flag.
             if (/<IsHidden>true<\/IsHidden>/.test(body)) continue;
@@ -80,7 +89,7 @@ Singleton {
         if (url.indexOf("timeline:") === 0) return I18n.t.placeRecent;
 
         if (url.indexOf("file://") === 0) {
-            const p = decodeURIComponent(url.slice("file://".length));
+            const p = root.decode(url.slice("file://".length));
             if (p === Quickshell.env("HOME")) return I18n.t.placeHome;
             if (system || title === "") {
                 const last = p.replace(/\/+$/, "").split("/").pop();
@@ -92,7 +101,20 @@ Singleton {
 
     function readable(url) {
         if (url.indexOf("file://") !== 0) return url;
-        return decodeURIComponent(url.slice("file://".length));
+        return root.decode(url.slice("file://".length));
+    }
+
+    // decodeURIComponent throws on a stray or malformed %, and this is
+    // called from inside the parsing loop: one odd bookmark and the
+    // exception left before anything was stored, so every other place
+    // disappeared too. An undecoded path is worse than a decoded one
+    // and better than none.
+    function decode(s) {
+        try {
+            return decodeURIComponent(s);
+        } catch (e) {
+            return s;
+        }
     }
 
     function open(entry) {
