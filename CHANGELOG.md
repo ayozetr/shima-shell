@@ -14,6 +14,8 @@ Since there is no public API here, that means:
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-09-23
+
 ### Added
 
 - Japanese, built on KDE's own Japanese terminology. A native speaker
@@ -82,6 +84,13 @@ Since there is no public API here, that means:
 - Dragging any slider in the settings re-registered the launcher
   shortcut with KDE, over and over
 
+### Known issues
+
+- Quickshell sometimes crashes within seconds of starting, roughly once
+  in four. Starting it again works.
+- The launcher's category names follow the language of your session,
+  not the one set in Shima: they come from KDE's menu.
+
 ## [0.1.0] — 2026-09-23
 
 First release. Installable and packaged; expect rough edges.
@@ -115,5 +124,6 @@ First release. Installable and packaged; expect rough edges.
 - The launcher's category names follow the language of your session,
   not the one set in Shima: they come from KDE's menu.
 
-[Unreleased]: https://github.com/ayozetr/shima-shell/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ayozetr/shima-shell/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.1.0
