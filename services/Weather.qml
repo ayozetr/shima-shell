@@ -207,14 +207,31 @@ Singleton {
     // `country` is the two-letter code to prefer when a name exists in
     // several places: there is a Candelaria in Tenerife and another in
     // the Philippines, and the search returns the Philippine one first.
+    // What was last asked for. Type "Santa Cruz", keep going to
+    // "Santander", and the slow first answer used to land on top of
+    // the second — and here that is not a list going stale, it is the
+    // wrong town written into the configuration on the next click.
+    property string searchQuery: ""
+
     function lookup(query, country) {
         if (!query) return;
+        root.searchQuery = query;
         geocode.wantCountry = country || "";
-        // No shell here either. It used to be wrapped in single quotes,
-        // which a place name closes all by itself: encodeURIComponent
-        // leaves the apostrophe alone, so L'Hospitalet or Sant Joan
-        // d'Alacant broke the search with no message.
-        geocode.exec(["curl", "-sf", "--max-time", "10",
+        // Nothing is interpolated into the script — the place name and
+        // the address go in as arguments. That mattered once: the URL
+        // used to be wrapped in single quotes, which a place name
+        // closes all by itself, and encodeURIComponent leaves the
+        // apostrophe alone, so L'Hospitalet broke the search with no
+        // message.
+        //
+        // The first line printed is the question, so the answer says
+        // what it answers. Holding the query here instead does not
+        // survive the moment: starting a search stops the one running,
+        // and whatever it had already collected comes back afterwards,
+        // by which time anything written down here has moved on.
+        geocode.exec(["sh", "-c",
+            'printf "%s\\n" "$1"; exec curl -sf --max-time 10 "$2"',
+            "shima", query,
             "https://geocoding-api.open-meteo.com/v1/search"
             + "?name=" + encodeURIComponent(query.split(",")[0].trim())
             + "&count=10&language=es&format=json"]);
@@ -225,22 +242,40 @@ Singleton {
         property string wantCountry: ""
         stdout: StdioCollector {
             onStreamFinished: {
-                if (!text.trim()) return;
+                const end = text.indexOf("\n");
+                if (end < 0) return;
+                if (text.slice(0, end) !== root.searchQuery) return;
+                const body = text.slice(end + 1);
+
+                // Cleared here rather than after a match: a name with
+                // no results at all left it set, and the next search —
+                // a manual one, with nothing asking to be picked —
+                // chose a town by itself.
+                const wanted = geocode.wantCountry;
+                geocode.wantCountry = "";
+
+                if (!body.trim()) return;
                 try {
-                    const results = JSON.parse(text).results || [];
+                    const results = JSON.parse(body).results || [];
                     root.searchResults = results;
 
                     // Only an automatic import picks on its own; a
                     // manual search waits for you to choose.
-                    if (!geocode.wantCountry || !results.length) return;
+                    if (!wanted || !results.length) return;
 
                     const match = results.find(
-                        r => r.country_code === geocode.wantCountry);
+                        r => r.country_code === wanted);
                     if (match) root.setPlace(match);
-                    geocode.wantCountry = "";
                 } catch (e) {}
             }
         }
+    }
+
+    // Backing out of the search: stop showing what was found for text
+    // that is no longer there.
+    function clearSearch() {
+        root.searchQuery = "";
+        root.searchResults = [];
     }
 
     function setPlace(result) {

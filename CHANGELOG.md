@@ -54,6 +54,15 @@ Since there is no public API here, that means:
   not be laid out
 - Setting the language to a name like `toString` left the interface
   blank, with no way back from inside it
+- Typing on while the launcher searched dropped the search for what you
+  had just typed, and left the results of the older one under it
+- Commands ran in Konsole whatever terminal the session had chosen, and
+  in any other terminal the window closed before the output could be
+  read
+- Searching for a town kept the list of the one typed before it, so the
+  wrong place could be saved with a click
+- Deleting a town's name back down to two letters sent out one more
+  search for the text just erased
 
 ## [0.1.0] — 2026-09-23
 

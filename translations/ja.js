@@ -26,6 +26,7 @@ var strings = {
     recentFiles: "ファイル",
     copyResult: "コピー",
     runCommand: "ターミナルで実行",
+    commandDone: "完了しました。Enter キーを押すと閉じます。",
     searching: "検索中…",
     // ── Weather, pomodoro and odds and ends ──
     wxClear: "快晴",
@@ -41,7 +42,6 @@ var strings = {
     wxThunderstorm: "雷雨",
     reset: "リセット",
     skip: "スキップ",
-    searchPlace: "地域を検索…",
     focusOver: "セッション終了",
     breakOver: "休憩終了",
     takeABreak: "休憩しましょう。",
@@ -101,14 +101,11 @@ var strings = {
     upload: "上り",
     battery: "バッテリ",
 
-    nothingPlaying: "再生中の項目はありません",
     focus: "集中",
     breakLabel: "休憩",
     longBreak: "長い休憩",
     start: "開始",
     pause: "一時停止",
-    reset: "リセット",
-    skip: "スキップ",
 
     secScreens: "スクリーン",
     secDock: "ドック",

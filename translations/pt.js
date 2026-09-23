@@ -29,6 +29,7 @@ var strings = {
     recentFiles: "ARQUIVOS",
     copyResult: "copiar",
     runCommand: "Executar no terminal",
+    commandDone: "Concluído. Pressione Enter para fechar.",
     searching: "Pesquisando...",
     // ── Weather, pomodoro and odds and ends ──
     wxClear: "Céu limpo",
@@ -44,7 +45,6 @@ var strings = {
     wxThunderstorm: "Tempestade",
     reset: "Reiniciar",
     skip: "Pular",
-    searchPlace: "Pesquisar uma localidade...",
     focusOver: "Sessão concluída",
     breakOver: "Pausa concluída",
     takeABreak: "Faça uma pausa.",
@@ -109,14 +109,11 @@ var strings = {
     battery: "BATERIA",
 
     // ── Island: media and focus ──
-    nothingPlaying: "Nada em reprodução",
     focus: "FOCO",
     breakLabel: "PAUSA",
     longBreak: "PAUSA LONGA",
     start: "Iniciar",
     pause: "Pausar",
-    reset: "Reiniciar",
-    skip: "Pular",
 
     // ── Settings: sections ──
     secScreens: "TELAS",
