@@ -91,6 +91,18 @@ That is all: switching language is a property change, so the interface
 updates without a restart. Keep the key order of `en.js` so that the
 files stay comparable.
 
+**Native speakers are what this needs most.** The existing translations
+were not written by natives, and a wrong register or an odd word is the
+kind of thing only somebody who speaks the language every day will
+catch. Corrections to any of them are as welcome as new languages, and
+you do not have to justify them: if it reads wrong to you, it reads
+wrong.
+
+**Japanese especially.** The project is named after 島, so it ought to
+be there, and it is — but the strings were put together from KDE's own
+Japanese catalogues rather than written by someone who speaks it. The
+terminology should be right; the tone may well not be.
+
 ## Licence
 
 Contributions are made under the GPL-3.0, like the rest of the code.

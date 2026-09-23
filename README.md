@@ -54,8 +54,8 @@ session.
 background blur, corner radius, icon shape and size, accent colour,
 per-monitor placement, per-monitor brightness, night light, power
 profile and keeping the machine awake. Language: English, Spanish,
-Catalan, French, German, Italian and Portuguese. Everything applies
-live.
+Catalan, French, German, Italian, Portuguese and Japanese. Everything
+applies live.
 
 ## Installing
 

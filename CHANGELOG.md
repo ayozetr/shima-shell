@@ -14,6 +14,22 @@ Since there is no public API here, that means:
 
 ## [Unreleased]
 
+### Added
+
+- Japanese, built on KDE's own Japanese terminology. A native speaker
+  going over it would be welcome.
+
+### Fixed
+
+- Shutting down from the island could leave the session unable to power
+  off afterwards, in Plasma's own menu as well
+- Keeping the machine awake outlived the shell if it was killed, and
+  the machine would not suspend again until reboot
+- The session menu offered what the machine cannot do — hibernation on
+  most setups — and the entry silently did nothing
+- The pomodoro labels and the calendar's month name ignored the chosen
+  language
+
 ## [0.1.0] — 2026-09-23
 
 First release. Installable and packaged; expect rough edges.

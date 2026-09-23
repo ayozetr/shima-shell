@@ -1103,7 +1103,7 @@ Singleton {
             onStreamFinished: {
                 const ids = text.split("\n").map(s => s.trim()).filter(s => s);
                 if (!ids.length) {
-                    console.log("[shima] la barra de tareas no tiene anclados que importar");
+                    console.log("[shima] the task manager has no pinned apps to import");
                     return;
                 }
                 root.pinned = ids;
