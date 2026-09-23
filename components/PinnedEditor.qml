@@ -88,6 +88,11 @@ Column {
             clip: true
             selectByMouse: true
 
+            onTextChanged: {
+                if (text.length > 0) settle.restart();
+                else { settle.stop(); root.results = []; }
+            }
+
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: search.text === "" && !search.activeFocus
@@ -99,25 +104,55 @@ Column {
     }
 
     // ── Results ──────────────────────────────────────────────────
+    //
+    // Looked for after a pause in the typing rather than on every
+    // letter. Each pass walks the whole catalogue — a name nothing
+    // matches walks all of it — and each pass handed back a new array,
+    // which threw away the rows and their icons and built them again
+    // on every keystroke.
+    property var results: []
+
+    Timer {
+        id: settle
+        interval: 180
+        onTriggered: root.lookUp()
+    }
+
+    // Pinning one of them takes it out of the list it was picked from.
+    Connections {
+        target: Apps
+        function onPinnedChanged() { root.lookUp(); }
+    }
+
+    function lookUp() {
+        const q = search.text.trim().toLowerCase();
+        if (!q) { root.results = []; return; }
+
+        const out = [];
+        for (const e of DesktopEntries.applications.values) {
+            if (e.noDisplay) continue;
+            if (Apps.pinned.indexOf(e.id) !== -1) continue;
+            if (e.name.toLowerCase().indexOf(q) === -1) continue;
+            out.push(e);
+            if (out.length >= 6) break;
+        }
+
+        if (out.length === root.results.length) {
+            let same = true;
+            for (let i = 0; i < out.length; i++)
+                if (out[i].id !== root.results[i].id) { same = false; break; }
+            if (same) return;
+        }
+        root.results = out;
+    }
+
     Column {
         width: parent.width
         spacing: 2
-        visible: search.text.length > 0
+        visible: root.results.length > 0
 
         Repeater {
-            model: {
-                const q = search.text.toLowerCase();
-                if (!q) return [];
-                const out = [];
-                for (const e of DesktopEntries.applications.values) {
-                    if (e.noDisplay) continue;
-                    if (Apps.pinned.indexOf(e.id) !== -1) continue;
-                    if (e.name.toLowerCase().indexOf(q) === -1) continue;
-                    out.push(e);
-                    if (out.length >= 6) break;
-                }
-                return out;
-            }
+            model: root.results
 
             Rectangle {
                 required property var modelData

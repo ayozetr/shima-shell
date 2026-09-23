@@ -36,7 +36,23 @@ Singleton {
         command: ["sh", "-c",
             "head -1 /proc/stat; "
             + "grep -E '^(MemTotal|MemAvailable):' /proc/meminfo; "
-            + "awk 'NR>2 {rx+=$2; tx+=$10} END {print \"NET\", rx, tx}' /proc/net/dev; "
+            // Only the interfaces that are a piece of hardware. Every
+            // one of them used to be added up, and there are more of
+            // those than it looks: loopback, a Docker bridge, the
+            // bridges of each container network, a VPN, one per
+            // virtual machine. Copying a file to yourself was counted
+            // — twice, once going and once coming — as if it had gone
+            // out over the wire, and a VPN counts its own traffic on
+            // top of the card that actually carried it. What has a
+            // device behind it in sysfs is a card; the rest is not.
+            + "rx=0; tx=0; "
+            + "for n in /sys/class/net/*; do "
+            + "  [ -e \"$n/device\" ] || continue; "
+            + "  read -r r < \"$n/statistics/rx_bytes\" 2>/dev/null || continue; "
+            + "  read -r t < \"$n/statistics/tx_bytes\" 2>/dev/null || continue; "
+            + "  rx=$((rx + r)); tx=$((tx + t)); "
+            + "done; "
+            + "printf 'NET %s %s\\n' \"$rx\" \"$tx\"; "
             // The hwmon number shifts between boots, so the sensor is
             // found by name rather than by a fixed path.
             + "for d in /sys/class/hwmon/hwmon*; do "

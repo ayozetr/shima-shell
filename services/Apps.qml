@@ -86,7 +86,7 @@ Singleton {
         function onApplicationsChanged() {
             root.revision++;
             root.buildIndex();
-            if (root.probeDone) scan.running = true;
+            if (root.probeDone) root.sweepNow();
         }
     }
 
@@ -157,11 +157,27 @@ Singleton {
         // "something changed" when nothing did makes every icon in the
         // dock reload: they are bound to the revision counter, so the
         // pinned ones blink out and back in.
-        const before = JSON.stringify(root.menuApps);
+        const changed = !root.sameMenu(root.menuApps, byCat);
         root.menuApps = byCat;
         root.menuCats = order;
         root.hasMenu = true;
-        if (before !== JSON.stringify(byCat)) root.revision++;
+        if (changed) root.revision++;
+    }
+
+    // Whether two readings of the menu say the same thing. Turning
+    // both into text was the obvious way of asking and the expensive
+    // one — the whole menu serialised twice, every time the launcher
+    // opens. Walking them answers the same question and stops at the
+    // first difference.
+    function sameMenu(a, b) {
+        const keys = Object.keys(a);
+        if (keys.length !== Object.keys(b).length) return false;
+        for (const k of keys) {
+            const x = a[k], y = b[k];
+            if (!y || x.length !== y.length) return false;
+            for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false;
+        }
+        return true;
     }
 
     // ── Categories ─────────────────────────────────────────────
@@ -629,7 +645,14 @@ Singleton {
     }
 
     // How many apps each category holds, so empty ones stay hidden.
-    function categoryCounts() {
+    //
+    // Worked out once and kept, rather than on demand: the sidebar
+    // asked for it once per category and every call built the whole
+    // map again, so reading fifteen numbers meant fifteen passes over
+    // the catalogue — and the revision it hangs on moves a dozen times
+    // while the shell is still starting.
+    readonly property var categoryCounts: {
+        root.revision;
         const counts = {};
         if (root.hasMenu) {
             const seen = {};
@@ -640,7 +663,6 @@ Singleton {
             counts.all = Object.keys(seen).length;
             counts.favorites = root.favorites.length;
             counts.recent = root.recent.length;
-        counts.places = Places.entries.length;
             counts.places = Places.entries.length;
             return counts;
         }
@@ -1109,7 +1131,7 @@ Singleton {
                 root.pinned = ids;
                 root.savePinned();
                 root.revision++;
-                scan.running = true;
+                root.sweepNow();
             }
         }
     }
@@ -1117,14 +1139,54 @@ Singleton {
     function importFromPlasma() { importer.running = true; }
 
     // ── Process detection ──────────────────────────────────────
+    //
+    // A poll, and not by choice: KWin does not offer the Wayland
+    // protocol that lets a shell be told about windows as they come
+    // and go. Checked rather than assumed — a client asking for the
+    // toplevel manager here is handed nothing at all — so what can be
+    // done is to make each sweep cost as little as possible.
+    //
+    // Most of what a sweep cost was not the question but the shell
+    // around it: a shell, a checksum and two files under the runtime
+    // directory, all to avoid asking KWin twice for the same window
+    // list. Timed, that plumbing came to more than the call it was
+    // saving. Remembering the last answer is done here now, and the
+    // usual sweep is one process.
+
+    // Sweeps in a row that found exactly the same windows.
+    property int settled: 0
+    property string windowIds: ""
+    property var windowClasses: []
+
     Timer {
-        // With kdotool the usual poll is a single 4 ms call, so we can
-        // go fast and have the dock react straight away.
-        interval: root.hasKdotool ? 400 : 2000
+        id: sweep
+        // Quick while the session is moving, slower once it has been
+        // still for a while: a desktop nobody is touching was starting
+        // two and a half processes a second, for ever.
+        interval: !root.hasKdotool ? 2000
+                                   : (root.settled >= 15 ? 1200 : 400)
         running: root.probeDone
         repeat: true
         triggeredOnStart: true
-        onTriggered: scan.running = true
+        onTriggered: root.startSweep()
+    }
+
+    // Asking for a sweep from outside the timer: the window list is
+    // wanted now, but not badly enough to start a second one over the
+    // one already out.
+
+    // Never over one already out: every other poll in the project
+    // checks this, and this is the one that runs while a fullscreen
+    // game makes KWin slow to answer.
+    function startSweep() {
+        if (!scan.running && !classer.running) scan.running = true;
+    }
+
+    // Asking for one from outside the timer. Somebody asked, so
+    // whatever this was settling into, it has not.
+    function sweepNow() {
+        root.settled = 0;
+        root.startSweep();
     }
 
     Process {
@@ -1134,30 +1196,13 @@ Singleton {
         // lights up false positives: Dolphin, for one, leaves a
         // "dolphin --daemon" running with no window at all.
         command: root.hasKdotool
-            ? ["sh", "-c", `
-                mkdir -p "$1" || exit 0
-                cache="$1/windows"
-                ids=$(kdotool search --class '.*' 2>/dev/null)
-                sig=$(printf '%s' "$ids" | cksum)
-                # Asking for each window's class costs one call per
-                # window. While the list is unchanged we reuse the
-                # previous answer, so the usual case is a single call.
-                if [ -f "$cache.sig" ] && [ "$sig" = "$(cat "$cache.sig")" ] \
-                   && [ -f "$cache.classes" ]; then
-                    cat "$cache.classes"
-                elif [ -n "$ids" ]; then
-                    printf '%s' "$sig" > "$cache.sig"
-                    printf '%s\n' "$ids" | while read -r w; do
-                        [ -n "$w" ] && kdotool getwindowclassname "$w" 2>/dev/null
-                    done | sort -u > "$cache.classes"
-                    cat "$cache.classes"
-                fi
-              `, "shima", Paths.runtimeDir]
+            ? ["kdotool", "search", "--class", ".*"]
             : ["sh", "-c", "ps -eo comm= | sort -u"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const names = text.split("\n").map(s => s.trim().toLowerCase()).filter(s => s);
+                if (!root.hasKdotool) { root.sweepDone(text); return; }
 
+                const ids = text.trim();
                 // Nothing at all means the query failed, not that every
                 // window in the session closed between one poll and the
                 // next. kdotool goes through KWin's scripting API, and
@@ -1166,86 +1211,153 @@ Singleton {
                 // it empties the dock of everything that is merely open
                 // and fills it again a moment later, which is seen as
                 // icons missing and then jumping into place.
-                if (names.length === 0) return;
+                if (ids === "") return;
 
-                const procs = new Set(names);
-
-                // What's alive, through the index instead of walking
-                // every entry for each process.
-                const alive = {};
-                for (const p of procs) {
-                    const id = root.idForClass(p);
-                    if (id !== undefined) { alive[id] = true; continue; }
-                    // An installed game with no .desktop is known by
-                    // its window class and nothing else.
-                    if (p.indexOf("steam_app_") === 0
-                        && root.steamGames[p.slice("steam_app_".length)] !== undefined)
-                        alive[p] = true;
+                if (ids === root.windowIds) {
+                    root.settled++;
+                    root.sweepDone(root.windowClasses.join("\n"));
+                    return;
                 }
 
-                // Pinned apps need their own check: their binary may
-                // not be in the index if another entry claimed it
-                // first.
-                const out = {};
-                for (const id of root.pinned) {
-                    const entry = root.entryFor(id);
-                    out[id] = alive[id] === true
-                        || (entry ? root.matchesProcess(entry, procs) : false);
-                }
-
-                const extra = [];
-                if (Config.data.showRunning ?? true) {
-                    // Don't repeat what the pinned ones already cover:
-                    // two .desktop files of the same app share a binary.
-                    const covered = {};
-                    for (const id of root.pinned) {
-                        const e = root.entryFor(id);
-                        if (e) for (const c of root.candidatesFor(e)) covered[c] = true;
-                    }
-
-                    for (const id in alive) {
-                        if (root.pinned.indexOf(id) !== -1) continue;
-                        if (root.neverShow.indexOf(id) !== -1) continue;
-                        const e = root.entryFor(id);
-                        if (!e || !e.icon) continue;
-                        const cands = root.candidatesFor(e);
-                        if (cands.some(c => covered[c])) continue;
-                        for (const c of cands) covered[c] = true;
-                        extra.push(id);
-                        out[id] = true;
-                    }
-                    extra.sort();
-
-                    // Anything still counted as running keeps its
-                    // place, even if this sweep did not see it.
-                    for (const id of root.runningExtra) {
-                        if (extra.indexOf(id) === -1 && out[id] === true)
-                            extra.push(id);
-                    }
-                    extra.sort();
-                }
-
-                // An application is added the moment it is seen and
-                // only dropped after two sweeps in a row have missed
-                // it. Asking KWin for the window list goes through its
-                // scripting API, which turns slow and uneven while a
-                // fullscreen game is up: a single sweep that misses
-                // takes the icon out and the next one puts it back,
-                // and everything beside it slides over twice.
-                for (const id of Object.keys(out)) {
-                    if (out[id]) { root.misses[id] = 0; continue; }
-                    if (root.runningIds[id] !== true) continue;
-                    root.misses[id] = (root.misses[id] || 0) + 1;
-                    if (root.misses[id] < 2) out[id] = true;
-                }
-
-                root.runningIds = out;
-                // Reassigning an identical list would fire animations
-                // every couple of seconds with nothing having changed.
-                if (extra.join("\u0000") !== root.runningExtra.join("\u0000"))
-                    root.runningExtra = extra;
+                root.windowIds = ids;
+                root.settled = 0;
+                // Each window's class is a call of its own, so this
+                // runs only when the list of windows has changed.
+                classer.command = ["sh", "-c",
+                    "printf '%s\\n' \"$1\" | while read -r w; do "
+                    + "  [ -n \"$w\" ] && kdotool getwindowclassname \"$w\" "
+                    + "    2>/dev/null; "
+                    + "done | sort -u",
+                    "shima", ids];
+                classer.running = true;
             }
         }
+    }
+
+    Process {
+        id: classer
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.windowClasses = text.split("\n")
+                    .map(s => s.trim()).filter(s => s);
+                root.sweepDone(text);
+            }
+        }
+    }
+
+    // Two maps of the same applications, to tell an answer that says
+    // something new from one that says what the last one said.
+    function sameState(a, b) {
+        const keys = Object.keys(a);
+        if (keys.length !== Object.keys(b).length) return false;
+        for (const k of keys) if (a[k] !== b[k]) return false;
+        return true;
+    }
+
+    // Games seen running with no manifest read for them. Steam's
+    // library is read once at startup, so a game installed since then
+    // was not recognised until the shell was restarted. Asked once per
+    // game, not once per sweep.
+    property var steamAsked: ({})
+
+    function sweepDone(text) {
+        const names = text.split("\n").map(s => s.trim().toLowerCase()).filter(s => s);
+
+        // Same reasoning as above: an empty answer is a question that
+        // failed, not an empty desktop.
+        if (names.length === 0) return;
+
+        const procs = new Set(names);
+
+        // What's alive, through the index instead of walking every
+        // entry for each process.
+        const alive = {};
+        for (const p of procs) {
+            const id = root.idForClass(p);
+            if (id !== undefined) { alive[id] = true; continue; }
+            // An installed game with no .desktop is known by its window
+            // class and nothing else.
+            if (p.indexOf("steam_app_") !== 0) continue;
+            const app = p.slice("steam_app_".length);
+            if (root.steamGames[app] !== undefined) { alive[p] = true; continue; }
+            // Installed after the shell started, so it is not in a list
+            // that was read once and never again.
+            if (!root.steamAsked[app]) {
+                root.steamAsked[app] = true;
+                if (!steamScan.running) steamScan.running = true;
+            }
+        }
+
+        // Pinned apps need their own check: their binary may not be in
+        // the index if another entry claimed it first.
+        const out = {};
+        for (const id of root.pinned) {
+            const entry = root.entryFor(id);
+            out[id] = alive[id] === true
+                || (entry ? root.matchesProcess(entry, procs) : false);
+        }
+
+        const extra = [];
+        if (Config.data.showRunning ?? true) {
+            // Don't repeat what the pinned ones already cover: two
+            // .desktop files of the same app share a binary.
+            const covered = {};
+            for (const id of root.pinned) {
+                const e = root.entryFor(id);
+                if (e) for (const c of root.candidatesFor(e)) covered[c] = true;
+            }
+
+            for (const id in alive) {
+                if (root.pinned.indexOf(id) !== -1) continue;
+                if (root.neverShow.indexOf(id) !== -1) continue;
+                const e = root.entryFor(id);
+                if (!e || !e.icon) continue;
+                const cands = root.candidatesFor(e);
+                if (cands.some(c => covered[c])) continue;
+                for (const c of cands) covered[c] = true;
+                extra.push(id);
+                out[id] = true;
+            }
+            extra.sort();
+
+            // Anything still counted as running keeps its place, even
+            // if this sweep did not see it.
+            for (const id of root.runningExtra) {
+                if (extra.indexOf(id) === -1 && out[id] === true)
+                    extra.push(id);
+            }
+            extra.sort();
+        }
+
+        // An application is added the moment it is seen and only
+        // dropped after two sweeps in a row have missed it. Asking KWin
+        // for the window list goes through its scripting API, which
+        // turns slow and uneven while a fullscreen game is up: a single
+        // sweep that misses takes the icon out and the next one puts it
+        // back, and everything beside it slides over twice.
+        //
+        // Counted in a map of its own each sweep rather than in the one
+        // kept from the last: that one gained a key for every
+        // application ever seen and lost none, so it only ever grew.
+        const missed = {};
+        for (const id of Object.keys(out)) {
+            if (out[id]) continue;
+            if (root.runningIds[id] !== true) continue;
+            const n = (root.misses[id] || 0) + 1;
+            missed[id] = n;
+            if (n < 2) out[id] = true;
+        }
+        root.misses = missed;
+
+        // The list beside this one was already guarded against being
+        // reassigned to the same thing; this one was not, so every icon
+        // in the dock worked out again whether it was running, two and
+        // a half times a second, with the answer unchanged.
+        if (!root.sameState(out, root.runningIds)) root.runningIds = out;
+        // Reassigning an identical list would fire animations every
+        // couple of seconds with nothing having changed.
+        if (extra.join("\u0000") !== root.runningExtra.join("\u0000"))
+            root.runningExtra = extra;
     }
 
     // Linux cuts comm at 15 characters, so we compare by prefix rather
@@ -1334,7 +1446,7 @@ Singleton {
         if (root.pinned.indexOf(id) !== -1) return;
         root.pinned = root.pinned.concat([id]);
         root.savePinned();
-        scan.running = true;
+        root.sweepNow();
     }
 
     function savePinned() {

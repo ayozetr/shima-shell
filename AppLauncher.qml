@@ -57,9 +57,41 @@ PanelWindow {
         }
     }
 
-    readonly property var apps: (Apps.revision, LauncherState.open)
-        ? Apps.listApps(LauncherState.category, LauncherState.query)
-        : []
+    // What the grid shows. A binding here handed it a brand new array
+    // every time anything it reads moved, and a new array means the
+    // grid throws away every tile and builds it again — an icon takes
+    // a frame to load, so the whole grid blinks. Same trap the dock's
+    // list already documents, and the same answer: work out the list,
+    // and only put it in when it differs.
+    property var apps: []
+
+    function refreshApps() {
+        const next = LauncherState.open
+            ? Apps.listApps(LauncherState.category, LauncherState.query)
+            : [];
+        if (next.length === win.apps.length) {
+            let same = true;
+            for (let i = 0; i < next.length; i++) {
+                if (next[i].id !== win.apps[i].id) { same = false; break; }
+            }
+            if (same) return;
+        }
+        win.apps = next;
+    }
+
+    Connections {
+        target: Apps
+        function onRevisionChanged() { win.refreshApps(); }
+    }
+
+    Connections {
+        target: LauncherState
+        function onOpenChanged() { win.refreshApps(); }
+        function onCategoryChanged() { win.refreshApps(); }
+        function onQueryChanged() { win.refreshApps(); }
+    }
+
+    Component.onCompleted: win.refreshApps()
 
     // ── The per-application menu ───────────────────────────────
     //
@@ -215,7 +247,7 @@ PanelWindow {
                 Item {
                     required property var modelData
                     readonly property int count:
-                        (Apps.revision, Apps.categoryCounts()[modelData.id] || 0)
+                        Apps.categoryCounts[modelData.id] || 0
                     readonly property bool current: LauncherState.category === modelData.id
 
                     // Favourites, frequent and places are always there

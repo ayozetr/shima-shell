@@ -67,6 +67,20 @@ Since there is no public API here, that means:
 - With a session menu open, clicking the button beside it only folded
   the first one away: opening the other took a second click
 - Menu height was listed twice in the settings
+- A desktop nobody was touching kept Shima starting two and a half
+  processes a second. Idle now costs about a seventh of what it did
+- The dock's tray slid and faded itself back in whenever any of its
+  icons asked for attention
+- The launcher's grid threw away every tile and built it again several
+  times a second, and once more for every letter typed into the box
+  that adds an app to the dock
+- The network figure added up every interface on the machine —
+  loopback, container bridges, virtual machines, the VPN — so copying a
+  file to yourself showed up as traffic, twice
+- A game installed while Shima was running was not recognised until it
+  was restarted
+- Dragging any slider in the settings re-registered the launcher
+  shortcut with KDE, over and over
 
 ## [0.1.0] — 2026-09-23
 

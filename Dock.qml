@@ -1,4 +1,5 @@
 import QtQuick
+import QtQml
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Services.SystemTray
@@ -270,11 +271,46 @@ PanelWindow {
             // behind its own divider: they are indicators, not launchers.
             readonly property bool hasTray: (Config.data.showTray ?? true)
                                             && trayModel.length > 0
-            readonly property var trayModel: {
+            // Worked out and kept, not bound. As a binding it handed
+            // the repeater a new array whenever any icon changed
+            // status — Telegram marking a message — and a new array
+            // destroys and rebuilds every delegate, so their entry
+            // animations ran again and the whole tray slid and faded
+            // in by itself, with nothing having come or gone.
+            property var trayModel: []
+
+            function refreshTray() {
                 const out = [];
                 for (const i of SystemTray.items.values)
                     if (i.status !== SystemTrayItem.Passive) out.push(i);
-                return out;
+                if (out.length === row.trayModel.length) {
+                    let same = true;
+                    for (let k = 0; k < out.length; k++)
+                        if (out[k] !== row.trayModel[k]) { same = false; break; }
+                    if (same) return;
+                }
+                row.trayModel = out;
+            }
+
+            Component.onCompleted: row.refreshTray()
+
+            // Two different things to watch. The list says when an
+            // icon comes or goes; it says nothing when one already in
+            // it goes quiet or starts asking for attention, which is
+            // what decides whether it belongs here, so each icon's own
+            // status is watched as well.
+            Connections {
+                target: SystemTray.items
+                function onValuesChanged() { row.refreshTray(); }
+            }
+
+            Instantiator {
+                model: SystemTray.items
+                delegate: QtObject {
+                    required property var modelData
+                    readonly property int st: modelData.status
+                    onStChanged: row.refreshTray()
+                }
             }
             readonly property int trayStep: Math.round(Theme.dockIconSize * 0.62)
                                             + Math.round(Theme.dockIconSpacing * 0.55)
