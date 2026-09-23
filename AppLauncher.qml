@@ -359,6 +359,24 @@ PanelWindow {
         // badly in one grid, so each gets its own heading. A GridView
         // cannot do sections — only a ListView can — so this is a
         // column of two plain grids.
+        // The room every view is drawn in: what is left between the
+        // sidebar, the search field and the bar along the bottom. The
+        // four of them each spelled out the same eight anchors, and a
+        // fifth would have spelled them a fifth time.
+        Item {
+            id: stage
+            anchors.left: cats.right
+            anchors.leftMargin: 10
+            anchors.right: parent.right
+            // Same as the search field above, so the rows line up with
+            // it instead of running past its edge.
+            anchors.rightMargin: 14
+            anchors.top: searchBox.bottom
+            anchors.topMargin: 12
+            anchors.bottom: sessionBar.top
+            anchors.bottomMargin: 6
+        }
+
         // ── The clipboard ────────────────────────────────────────
         //
         // Shima puts Plasma's panels away, and Plasma's clipboard
@@ -369,14 +387,7 @@ PanelWindow {
         // whole point of having a list of it.
         Flickable {
             id: clipView
-            anchors.left: cats.right
-            anchors.leftMargin: 10
-            anchors.right: parent.right
-            anchors.rightMargin: 14
-            anchors.top: searchBox.bottom
-            anchors.topMargin: 12
-            anchors.bottom: sessionBar.top
-            anchors.bottomMargin: 6
+            anchors.fill: stage
             clip: true
             visible: LauncherState.category === "clipboard"
             contentHeight: clipColumn.height
@@ -496,16 +507,7 @@ PanelWindow {
 
         Flickable {
             id: recentView
-            anchors.left: cats.right
-            anchors.leftMargin: 10
-            anchors.right: parent.right
-            // Same as the search field above, so the rows line up
-            // with it instead of running past its edge.
-            anchors.rightMargin: 14
-            anchors.top: searchBox.bottom
-            anchors.topMargin: 12
-            anchors.bottom: sessionBar.top
-            anchors.bottomMargin: 6
+            anchors.fill: stage
             clip: true
             visible: LauncherState.category === "recent" && LauncherState.query === ""
                      && !clipView.visible
@@ -559,16 +561,7 @@ PanelWindow {
         // ── Search results: applications, then everything else ───
         Flickable {
             id: searchView
-            anchors.left: cats.right
-            anchors.leftMargin: 10
-            anchors.right: parent.right
-            // Same as the search field above, so the rows line up
-            // with it instead of running past its edge.
-            anchors.rightMargin: 14
-            anchors.top: searchBox.bottom
-            anchors.topMargin: 12
-            anchors.bottom: sessionBar.top
-            anchors.bottomMargin: 6
+            anchors.fill: stage
             clip: true
             visible: LauncherState.query !== "" && !clipView.visible
                      && (Search.answer !== "" || Search.searching
@@ -760,16 +753,7 @@ PanelWindow {
         // ── Application grid ─────────────────────────────────────
         GridView {
             id: grid
-            anchors.left: cats.right
-            anchors.leftMargin: 10
-            anchors.right: parent.right
-            // Same as the search field above, so the rows line up
-            // with it instead of running past its edge.
-            anchors.rightMargin: 14
-            anchors.top: searchBox.bottom
-            anchors.topMargin: 12
-            anchors.bottom: sessionBar.top
-            anchors.bottomMargin: 6
+            anchors.fill: stage
             clip: true
             visible: !recentView.visible && !searchView.visible && !clipView.visible
 

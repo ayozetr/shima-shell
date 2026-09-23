@@ -63,6 +63,11 @@ Since there is no public API here, that means:
 - The island cut off the control centre instead of making room when its
   list of outputs or screens grew past a fixed height
 
+### Changed
+
+- The parts with no screen in them have tests now, run with
+  `node tests/run.js` and nothing installed.
+
 ## [0.2.0] — 2026-09-23
 
 ### Added
