@@ -79,6 +79,7 @@ Rectangle {
                 width: 16; height: 16
 
                 Canvas {
+                    id: shutGlyph
                     anchors.fill: parent
                     onPaint: {
                         const ctx = getContext("2d");
@@ -94,9 +95,13 @@ Rectangle {
                         ctx.lineTo(width * 0.28, height * 0.72);
                         ctx.stroke();
                     }
+                    // Named rather than `parent`: Connections is not a
+                    // visual element, so `parent` there is null and the
+                    // call threw on every hover. The cross was painted
+                    // once, dim, and never repainted again.
                     Connections {
                         target: shutArea
-                        function onContainsMouseChanged() { parent.requestPaint(); }
+                        function onContainsMouseChanged() { shutGlyph.requestPaint(); }
                     }
                 }
 
@@ -128,7 +133,7 @@ Rectangle {
             // A card has room for markup the island does not, so links
             // and emphasis survive; images in the body do not, and
             // would stretch the card to whatever the sender felt like.
-            text: root.entry ? root.entry.body.replace(/<img[^>]*>/g, "") : ""
+            text: root.entry ? root.entry.bodyRich : ""
             color: Theme.textSecondary
             font.pixelSize: 11
             textFormat: Text.StyledText
@@ -136,7 +141,14 @@ Rectangle {
             maximumLineCount: 6
             elide: Text.ElideRight
             visible: text !== ""
-            onLinkActivated: (link) => Qt.openUrlExternally(link)
+            // The body is written by whoever sent the notification,
+            // which is any process on the machine, and a link in it is
+            // one click away from whatever handler its scheme is bound
+            // to. Only the two that a notification has any business
+            // carrying get opened.
+            onLinkActivated: (link) => {
+                if (/^https?:\/\//i.test(link)) Qt.openUrlExternally(link);
+            }
         }
 
         Row {

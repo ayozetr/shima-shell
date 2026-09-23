@@ -59,6 +59,17 @@ Singleton {
             property string shortcutLabel:   "Meta"
             // Folded behind a chevron, like Plasma's arrow, or always out.
             property bool   trayCollapsible:  true
+
+            // ── Notifications ──────────────────────────────────
+            // These were read with a `?? default` everywhere and
+            // declared nowhere, so the whole settings page worked
+            // until the shell restarted and then quietly forgot. The
+            // defaults here are the ones those reads were using.
+            property bool   notificationsEnabled:    true
+            property int    notificationPeekSeconds: 5
+            property bool   notificationCards:       true
+            property int    notificationCardSeconds: 12
+            property int    notificationHistory:     50
             property bool   dockAutoHide:     false
             property int    dockHideDelay:    700    // ms before hiding
 

@@ -71,7 +71,7 @@ Item {
             width: parent.width
             // Bodies arrive with markup that the island has no room to
             // render, so it is stripped rather than shown raw.
-            text: root.entry ? root.entry.body.replace(/<[^>]*>/g, "").trim() : ""
+            text: root.entry ? root.entry.bodyText : ""
             color: Theme.textSecondary
             font.pixelSize: 11
             elide: Text.ElideRight

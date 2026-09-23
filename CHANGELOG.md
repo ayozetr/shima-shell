@@ -29,6 +29,12 @@ Since there is no public API here, that means:
   most setups — and the entry silently did nothing
 - The pomodoro labels and the calendar's month name ignored the chosen
   language
+- Every setting under Notifications was forgotten on restart
+- The cross that dismisses a notification never lit up, and moved away
+  from under the pointer as you reached for it
+- Links in a notification body opened whatever scheme they carried
+- Notifications were never let go of, growing without limit on a
+  desktop left running
 
 ## [0.1.0] — 2026-09-23
 
