@@ -5,7 +5,7 @@ import "../services"
 // Drawn by hand like the rest so they don't depend on an icon theme.
 Canvas {
     id: root
-    property string kind: "star"   // star · clock · bookmark
+    property string kind: "star"   // star · clock · bookmark · clipboard
     property color fill: Theme.textTertiary
 
     onKindChanged: requestPaint()
@@ -43,6 +43,27 @@ Canvas {
             ctx.moveTo(w / 2, h / 2);
             ctx.lineTo(w * 0.72, h * 0.58);
             ctx.stroke();
+        } else if (kind === "clipboard") {
+            // Two sheets, one in front of the other. The one in front
+            // is cut out of the one behind rather than drawn on top of
+            // it: at eleven pixels an outline is a smudge and a gap
+            // between two solids keeps its shape all the way down.
+            //
+            // Cut and not painted over, because what is behind this is
+            // the launcher and the launcher has a colour of its own.
+            ctx.beginPath();
+            ctx.rect(w * 0.04, h * 0.02, w * 0.54, h * 0.66);
+            ctx.fill();
+
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.beginPath();
+            ctx.rect(w * 0.30, h * 0.26, w * 0.70, h * 0.76);
+            ctx.fill();
+            ctx.globalCompositeOperation = "source-over";
+
+            ctx.beginPath();
+            ctx.rect(w * 0.38, h * 0.32, w * 0.54, h * 0.66);
+            ctx.fill();
         } else if (kind === "bookmark") {
             // Eleven pixels only keep a silhouette, so it has to be
             // one nothing else has: a compass became a smudge and a

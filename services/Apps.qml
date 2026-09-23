@@ -191,6 +191,7 @@ Singleton {
             { id: "favorites", label: I18n.t.catFavorites, match: [] },
             { id: "recent", label: I18n.t.catRecent, match: [] },
             { id: "places", label: I18n.t.catPlaces, match: [] },
+            { id: "clipboard", label: I18n.t.catClipboard, match: [] },
             { id: "all", label: I18n.t.catAll, match: [] }
         ];
         // KDE has already translated these, so they are its words and
@@ -205,6 +206,7 @@ Singleton {
         { id: "favorites", label: I18n.t.catFavorites, match: [] },
         { id: "recent", label: I18n.t.catRecent, match: [] },
         { id: "places",  label: I18n.t.catPlaces,   match: [] },
+        { id: "clipboard", label: I18n.t.catClipboard, match: [] },
         { id: "all",     label: I18n.t.catAll,      match: [] },
         { id: "net",     label: I18n.t.catNet,   match: ["Network", "WebBrowser", "Email"] },
         { id: "media",   label: I18n.t.catMedia, match: ["AudioVideo", "Audio", "Video", "Player"] },
@@ -223,7 +225,8 @@ Singleton {
             // These three are not read off the .desktop: two are
             // catch-alls and the third is a list you keep yourself.
             if (c.id === "all" || c.id === "other" || c.id === "favorites"
-                || c.id === "recent" || c.id === "places") continue;
+                || c.id === "recent" || c.id === "places"
+                || c.id === "clipboard") continue;
             for (const m of c.match)
                 if (cats.indexOf(m) !== -1) return c.id;
         }
@@ -664,6 +667,7 @@ Singleton {
             counts.favorites = root.favorites.length;
             counts.recent = root.recent.length;
             counts.places = Places.entries.length;
+            counts.clipboard = Clipboard.entries.length;
             return counts;
         }
         for (const e of DesktopEntries.applications.values) {
@@ -677,6 +681,7 @@ Singleton {
         counts.favorites = root.favorites.length;
         counts.recent = root.recent.length;
         counts.places = Places.entries.length;
+        counts.clipboard = Clipboard.entries.length;
         return counts;
     }
 

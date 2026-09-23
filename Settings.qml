@@ -186,6 +186,56 @@ FloatingWindow {
             }
 
             Controls.Row_ {
+                label: I18n.t.clipboardHistory
+                hint: I18n.t.clipboardHistoryHint
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.clipboardHistory ?? true
+                    onToggled: (v) => { win.c.clipboardHistory = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.clipboardImages
+                hint: I18n.t.clipboardImagesHint
+                visible: win.c.clipboardHistory ?? true
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.clipboardImages ?? true
+                    onToggled: (v) => { win.c.clipboardImages = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.clipboardShortcut
+                visible: win.c.clipboardHistory ?? true
+                Controls.Toggle_ {
+                    anchors.right: parent.right
+                    checked: win.c.clipboardShortcutEnabled ?? true
+                    onToggled: (v) => {
+                        win.c.clipboardShortcutEnabled = v;
+                        Config.save();
+                    }
+                }
+            }
+
+            Controls.Row_ {
+                label: I18n.t.clipboardShortcutKey
+                visible: (win.c.clipboardHistory ?? true)
+                         && (win.c.clipboardShortcutEnabled ?? true)
+                Controls.KeyCapture_ {
+                    anchors.right: parent.right
+                    value: win.c.clipboardKey ?? 268435542
+                    label: win.c.clipboardLabel ?? "Meta+V"
+                    onCaptured: (key, text) => {
+                        win.c.clipboardKey = key;
+                        win.c.clipboardLabel = text;
+                        Config.save();
+                    }
+                }
+            }
+
+            Controls.Row_ {
                 label: I18n.t.launcherTint
                 visible: win.c.showLauncher ?? true
                 Controls.Swatches_ {

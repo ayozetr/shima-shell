@@ -20,6 +20,13 @@ Since there is no public API here, that means:
   Shima's own icon, and clicking it brings it to the front.
 - It also wears that icon in its own titlebar, and wherever else the
   system lists windows, instead of Quickshell's.
+- A clipboard history, in the launcher under its own category and on
+  Meta+V. It keeps the last fifty things you copied — text, files and
+  pictures, with a thumbnail for each picture — and puts each back as
+  what it was, so a file pastes as a file. Nothing outlives the
+  session and nothing reaches the disk, and anything the program that
+  copied it marked as a password is not kept at all. Needs
+  wl-clipboard, and says so if it is missing.
 
 ### Fixed
 

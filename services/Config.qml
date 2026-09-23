@@ -161,6 +161,11 @@ Singleton {
             // ── Color ──────────────────────────────────────────
             property string accent:           "#a78bfa"
             property string dockTint:         "#000000"
+            property bool clipboardHistory:   true
+            property bool clipboardImages:    true
+            property bool clipboardShortcutEnabled: true
+            property int  clipboardKey:       268435542   // Meta+V
+            property string clipboardLabel:   "Meta+V"
             property string islandTint:       "#000000"
             property string launcherTint:     "#000000"
         }

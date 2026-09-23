@@ -34,9 +34,14 @@ from gi.repository import Gio, GLib
 # What KGlobalAccel is told we are. The first two identify the action,
 # the last two are what the shortcuts settings page shows.
 ACTION = ["shima", "toggleLauncher", "Shima", "Open applications"]
+ACTION_CLIPBOARD = ["shima", "showClipboard", "Shima", "Show the clipboard"]
 
 # Qt::Key_Meta, the Windows key, which is the default.
 KEY_META = 0x01000022
+
+# Meta+V, which is where Plasma keeps its own clipboard and so where
+# hands already go. Qt::MetaModifier | Qt::Key_V.
+KEY_META_V = 0x10000000 | 0x56
 
 SERVICE = "org.kde.kglobalaccel"
 OBJECT = "/kglobalaccel"
@@ -166,11 +171,11 @@ class Accel:
                           GLib.Variant("(i)", (key,)))
         return reply.unpack()[0] if reply else []
 
-    def register(self):
-        self.call("doRegister", GLib.Variant("(as)", (ACTION,)))
+    def register(self, action):
+        self.call("doRegister", GLib.Variant("(as)", (action,)))
 
-    def unregister(self):
-        self.call("unRegister", GLib.Variant("(as)", (ACTION,)))
+    def unregister(self, action):
+        self.call("unRegister", GLib.Variant("(as)", (action,)))
 
     def set_keys(self, action_id, keys):
         self.call("setShortcut",
@@ -199,12 +204,13 @@ def save_borrowed(entries):
 class Helper:
     def __init__(self):
         self.accel = Accel()
-        # What was last handed to KGlobalAccel. The file is watched, not
-        # the setting, and every control in Settings writes the whole
-        # file: dragging the opacity slider sent a burst of registrations
-        # for a shortcut nobody had touched. A single write also arrives
-        # as several events of its own.
-        self.applied = None
+        # What was last handed to KGlobalAccel, one per shortcut. The
+        # file is watched, not the setting, and every control in
+        # Settings writes the whole file: dragging the opacity slider
+        # sent a burst of registrations for a shortcut nobody had
+        # touched. A single write also arrives as several events of its
+        # own.
+        self.applied = {}
 
     # ── The shortcut itself ─────────────────────────────────────
     def listen(self):
@@ -214,8 +220,12 @@ class Helper:
 
     def on_pressed(self, connection, sender, path, iface, signal_name, params):
         component, action = params.unpack()[:2]
-        if component == ACTION[0] and action == ACTION[1]:
+        if component != ACTION[0]:
+            return
+        if action == ACTION[1]:
             ipc("toggle")
+        elif action == ACTION_CLIPBOARD[1]:
+            ipc("clipboard")
 
     def free_key(self, key):
         """Take the key off whoever else has it.
@@ -253,29 +263,37 @@ class Helper:
         if changed:
             save_borrowed(borrowed)
 
-    def set_shortcut(self, key):
+    def set_shortcut(self, action, key):
         """key: a Qt key code with its modifiers, or 0 for none."""
         if key:
             self.free_key(key)
-        self.accel.register()
-        self.accel.set_keys(ACTION, [key] if key else [])
+        self.accel.register(action)
+        self.accel.set_keys(action, [key] if key else [])
 
     # ── Following the configuration ─────────────────────────────
-    def apply(self, *args):
-        cfg = read_json(CONFIG, {})
-        enabled = cfg.get("shortcutEnabled", True)
+    def wanted_key(self, cfg, enabled_name, key_name, default):
+        if not cfg.get(enabled_name, True):
+            return 0
         try:
-            key = int(cfg.get("shortcutKey", KEY_META) or 0)
+            return int(cfg.get(key_name, default) or 0)
         except (TypeError, ValueError):
             # A hand-edited file should not stop the shortcut working;
             # the default is a better answer than dying here.
-            key = KEY_META
+            return default
 
-        wanted = key if enabled else 0
-        if wanted == self.applied:
-            return
-        self.applied = wanted
-        self.set_shortcut(wanted)
+    def apply(self, *args):
+        cfg = read_json(CONFIG, {})
+        wanted = {
+            "launcher": (ACTION, self.wanted_key(
+                cfg, "shortcutEnabled", "shortcutKey", KEY_META)),
+            "clipboard": (ACTION_CLIPBOARD, self.wanted_key(
+                cfg, "clipboardShortcutEnabled", "clipboardKey", KEY_META_V)),
+        }
+        for name, (action, key) in wanted.items():
+            if self.applied.get(name) == key:
+                continue
+            self.applied[name] = key
+            self.set_shortcut(action, key)
 
     def watch_config(self):
         self.monitor = Gio.File.new_for_path(CONFIG).monitor_file(
@@ -292,8 +310,9 @@ class Helper:
 def cleanup():
     """Leave the session as it was found. Called when uninstalling."""
     accel = Accel()
-    accel.set_keys(ACTION, [])
-    accel.unregister()
+    for action in (ACTION, ACTION_CLIPBOARD):
+        accel.set_keys(action, [])
+        accel.unregister(action)
 
     borrowed = load_borrowed()
     for entry in borrowed:
