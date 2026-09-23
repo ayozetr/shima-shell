@@ -104,7 +104,7 @@ PanelWindow {
         width: 660
         height: 480
         radius: 18
-        color: Qt.rgba(0, 0, 0, 0.88)
+        color: Theme.launcherBg
         border.width: 1
         border.color: "#22ffffff"
 
@@ -617,8 +617,13 @@ PanelWindow {
         }
 
         // A click anywhere in the panel folds the session submenus
-        // back. It sits above the grid but below the submenus
-        // themselves, which carry a higher z.
+        // back — anywhere except the bar itself, which is given a
+        // higher z below so its own clicks reach it. The submenus
+        // carry a z of their own too, but that one counts only among
+        // their siblings inside the bar: from out here the whole bar
+        // is one item, and while this sat above it, the click that
+        // should have swapped one submenu for the other was spent
+        // closing the first.
         MouseArea {
             anchors.fill: parent
             enabled: sessionBar.openMenu !== "" || win.menuShown
@@ -648,6 +653,7 @@ PanelWindow {
         // ── Bottom bar: power, session and settings ──────────────
         SessionBar {
             id: sessionBar
+            z: 45
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom

@@ -201,6 +201,7 @@ var strings = {
     detachedHint: "Deixa um vão em cima em vez de nascer da borda",
     topGap: "Vão superior",
     islandTint: "Tom da ilha",
+    launcherTint: "Tom do menu",
 
     duration: "Duração",
     durationHint: "Quanto dura uma sessão de foco",

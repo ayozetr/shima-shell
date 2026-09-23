@@ -46,6 +46,15 @@ Singleton {
     readonly property int islandExpandedHeight:  140
     readonly property int islandExpandedMargin:  8
 
+    // ── Launcher ───────────────────────────────────────────────
+    readonly property color launcherTintColour:
+        root.colour(Config.data.launcherTint, "#000000")
+    readonly property color launcherBg: Qt.rgba(
+        root.launcherTintColour.r,
+        root.launcherTintColour.g,
+        root.launcherTintColour.b,
+        0.88)
+
     // ── Dock ───────────────────────────────────────────────────
     readonly property color dockBg: Qt.rgba(
         root.dockTintColour.r,

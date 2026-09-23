@@ -189,6 +189,7 @@ var strings = {
     detachedHint: "Leaves a gap above instead of growing out of the edge",
     topGap: "Top gap",
     islandTint: "Island tint",
+    launcherTint: "Menu tint",
 
     duration: "Duration",
     durationHint: "How long a focus session lasts",

@@ -170,23 +170,23 @@ FloatingWindow {
             }
 
             Controls.Row_ {
+                label: I18n.t.launcherTint
+                visible: win.c.showLauncher ?? true
+                Controls.Swatches_ {
+                    anchors.right: parent.right
+                    colors: ["#000000", "#12121a", "#1a1410", "#101a14", "#181818"]
+                    value: win.c.launcherTint ?? "#000000"
+                    onPicked: (v) => { win.c.launcherTint = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
                 label: I18n.t.shortcut
                 hint: I18n.t.shortcutHint
                 Controls.Toggle_ {
                     anchors.right: parent.right
                     checked: win.c.shortcutEnabled ?? true
                     onToggled: (v) => { win.c.shortcutEnabled = v; Config.save(); }
-                }
-            }
-
-            Controls.Row_ {
-                label: I18n.t.launcherLift
-                hint: I18n.t.launcherLiftHint
-                visible: win.c.showLauncher ?? true
-                Controls.Slider_ {
-                    from: 0; to: 400; step: 5; suffix: " px"
-                    value: win.c.launcherLift ?? 0
-                    onMoved: (v) => { win.c.launcherLift = v; Config.save(); }
                 }
             }
 

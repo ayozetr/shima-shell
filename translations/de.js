@@ -201,6 +201,7 @@ var strings = {
     detachedHint: "Lässt oben Platz, statt aus dem Rand zu wachsen",
     topGap: "Abstand nach oben",
     islandTint: "Farbton der Insel",
+    launcherTint: "Farbton des Menüs",
 
     duration: "Dauer",
     durationHint: "Wie lange eine Fokussitzung dauert",

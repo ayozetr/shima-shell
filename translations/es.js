@@ -201,6 +201,7 @@ var strings = {
     detachedHint: "Deja un hueco arriba en vez de nacer del borde",
     topGap: "Hueco superior",
     islandTint: "Tono de la isla",
+    launcherTint: "Tono del menú",
 
     duration: "Duración",
     durationHint: "Cuánto dura una sesión de enfoque",

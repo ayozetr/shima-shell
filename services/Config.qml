@@ -162,6 +162,7 @@ Singleton {
             property string accent:           "#a78bfa"
             property string dockTint:         "#000000"
             property string islandTint:       "#000000"
+            property string launcherTint:     "#000000"
         }
     }
 

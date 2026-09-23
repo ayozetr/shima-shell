@@ -189,6 +189,7 @@ var strings = {
     detachedHint: "端から伸ばさず、上に間隔を空けます",
     topGap: "上の間隔",
     islandTint: "アイランドの色合い",
+    launcherTint: "メニューの色合い",
 
     duration: "長さ",
     durationHint: "集中セッションの長さ",

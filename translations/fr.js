@@ -201,6 +201,7 @@ var strings = {
     detachedHint: "Laisse un espace au-dessus au lieu de naître du bord",
     topGap: "Espace supérieur",
     islandTint: "Teinte de l'îlot",
+    launcherTint: "Teinte du menu",
 
     duration: "Durée",
     durationHint: "Durée d'une séance de concentration",

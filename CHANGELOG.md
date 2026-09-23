@@ -18,6 +18,7 @@ Since there is no public API here, that means:
 
 - Japanese, built on KDE's own Japanese terminology. A native speaker
   going over it would be welcome.
+- A tint for the launcher, alongside the island's and the dock's.
 
 ### Fixed
 
@@ -63,6 +64,9 @@ Since there is no public API here, that means:
   wrong place could be saved with a click
 - Deleting a town's name back down to two letters sent out one more
   search for the text just erased
+- With a session menu open, clicking the button beside it only folded
+  the first one away: opening the other took a second click
+- Menu height was listed twice in the settings
 
 ## [0.1.0] — 2026-09-23
 

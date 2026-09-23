@@ -201,6 +201,7 @@ var strings = {
     detachedHint: "Deixa un espai a dalt en lloc de néixer de la vora",
     topGap: "Espai superior",
     islandTint: "To de l'illa",
+    launcherTint: "To del menú",
 
     duration: "Durada",
     durationHint: "Quant dura una sessió de concentració",
