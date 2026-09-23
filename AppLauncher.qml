@@ -19,10 +19,19 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "shima-launcher"
 
-    // It needs the keyboard so you can type the moment it opens.
-    WlrLayershell.keyboardFocus: win.visible
-        ? WlrKeyboardFocus.Exclusive
-        : WlrKeyboardFocus.None
+    // It needs the keyboard so you can type the moment it opens — but
+    // only one of them does. See LauncherState.focusScreen.
+    WlrLayershell.keyboardFocus:
+        (win.visible && LauncherState.focusScreen === win.screenName)
+            ? WlrKeyboardFocus.Exclusive
+            : WlrKeyboardFocus.None
+
+    onVisibleChanged: {
+        if (win.visible && LauncherState.focusScreen === "")
+            LauncherState.focusScreen = win.screenName;
+        else if (!win.visible && LauncherState.focusScreen === win.screenName)
+            LauncherState.focusScreen = "";
+    }
     color: "transparent"
 
     property string screenName: ""

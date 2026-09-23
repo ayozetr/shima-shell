@@ -35,6 +35,16 @@ Since there is no public API here, that means:
 - Links in a notification body opened whatever scheme they carried
 - Notifications were never let go of, growing without limit on a
   desktop left running
+- Pinning the island and dock to a screen that is then unplugged left
+  nothing on screen at all, and no way back to the settings
+- With the dock at the top, an icon's menu was drawn off the edge and
+  the window went on swallowing clicks
+- The room the dock reserves ignored its position and icon size, so
+  moving it to the top made it unclickable while the launcher was open
+- With two screens, both launcher windows asked for the keyboard and
+  one was left deaf
+- Changing a monitor's scale did not show up in the settings until
+  restarting
 
 ## [0.1.0] — 2026-09-23
 

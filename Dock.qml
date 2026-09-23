@@ -88,11 +88,29 @@ PanelWindow {
     // it: opening the applications by keyboard and being answered by a
     // panel hanging off nothing reads as broken.
     // Published so the launcher can leave this strip alone.
-    onHeightChanged: win.publishReserved()
-    Component.onCompleted: win.publishReserved()
-    function publishReserved() {
-        DockState.position = Config.data.dockPosition ?? "bottom";
-        DockState.reserved = pill.height + (win.floating ? win.edgeMargin * 2 : 0) + 4;
+    //
+    // As bindings, not as a function called on startup and on height
+    // changes: what it reports also depends on the dock's position, on
+    // whether it floats and on the icon size, and none of those change
+    // the window's height. Move the dock to the top with the old code
+    // and the launcher went on cutting the strip out of the bottom,
+    // which left the dock itself unable to be clicked while it was
+    // open.
+    //
+    // `when` matters too: one of these exists per screen, and the ones
+    // that are not shown have no business saying how much room the
+    // dock takes.
+    Binding {
+        target: DockState
+        property: "position"
+        value: Config.data.dockPosition ?? "bottom"
+        when: win.visible
+    }
+    Binding {
+        target: DockState
+        property: "reserved"
+        value: pill.height + (win.floating ? win.edgeMargin * 2 : 0) + 4
+        when: win.visible
     }
 
     readonly property bool revealed: !autoHide || hovering || popupOpen
@@ -418,7 +436,12 @@ PanelWindow {
         // own position is added here, when it is already laid out.
         x: Math.max(6, Math.min(win.width - width - 6,
                                 pill.x + row.x + win.menuX - width / 2))
-        y: pill.y - height - 10
+        // Above the pill, or below it when the dock is at the top:
+        // unconditional, this fell off the top edge — nothing
+        // visible, but the menu counted as open and the window
+        // went on swallowing clicks meant for the desktop.
+        y: win.atTop ? (pill.y + pill.height + 10)
+                     : (pill.y - height - 10)
     }
 
     Timer {
@@ -436,6 +459,11 @@ PanelWindow {
 
         x: Math.max(6, Math.min(win.width - width - 6,
                                 pill.x + row.x + win.listX - width / 2))
-        y: pill.y - height - 10
+        // Above the pill, or below it when the dock is at the top:
+        // unconditional, this fell off the top edge — nothing
+        // visible, but the menu counted as open and the window
+        // went on swallowing clicks meant for the desktop.
+        y: win.atTop ? (pill.y + pill.height + 10)
+                     : (pill.y - height - 10)
     }
 }

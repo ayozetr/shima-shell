@@ -153,9 +153,23 @@ Singleton {
     }
 
     // Empty means "all of them", not "none".
+    //
+    // And so does a list naming only screens that are not there. Pin
+    // the island and the dock to DP-1, unplug it or let the connector
+    // come back under another name, and every window Shima has —
+    // island, dock, cards and launcher — disappears at once. Both ways
+    // into the settings live inside those windows, so the only way back
+    // would be editing the JSON by hand. Falling back to every screen
+    // is wrong in a small way; vanishing is wrong in a way you cannot
+    // undo.
     function onScreen(text, name) {
         const list = root.screenList(text);
-        return list.length === 0 || list.indexOf(name) !== -1;
+        if (list.length === 0) return true;
+        let present = false;
+        for (const s of Quickshell.screens) {
+            if (list.indexOf(s.name) !== -1) { present = true; break; }
+        }
+        return present ? list.indexOf(name) !== -1 : true;
     }
 
     // Check or uncheck a screen. If unchecking would leave the list

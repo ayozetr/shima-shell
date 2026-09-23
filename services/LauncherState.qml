@@ -9,6 +9,13 @@ Singleton {
     property string category: "all"
     property string query: ""
 
+    // One launcher window exists per screen, and only one surface can
+    // hold exclusive keyboard focus: if two ask, one of them is left
+    // deaf — you type and nothing happens. The first one to come up
+    // claims it and the rest stay quiet. Cleared on close so the next
+    // opening is decided again.
+    property string focusScreen: ""
+
     function toggle() { root.open ? root.hide() : root.show(); }
     // Rereading KDE's menu on open is what makes an entry you edited
     // there show up here without restarting anything.
@@ -23,7 +30,7 @@ Singleton {
         root.query = "";
         root.open = true;
     }
-    function hide()   { root.open = false; }
+    function hide()   { root.open = false; root.focusScreen = ""; }
 
     // What the global shortcut calls. It is a plain toggle so the same
     // key closes what it opened.
