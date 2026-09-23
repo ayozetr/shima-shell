@@ -83,11 +83,15 @@ Item {
 
     MouseArea {
         anchors.fill: parent
-        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
         cursorShape: Qt.PointingHandCursor
+        // Right as well as middle, because the middle button is not a
+        // button on every mouse and the only other way out of a
+        // notification you did not want was the left one, which opens
+        // whatever sent it.
         onClicked: (e) => {
-            if (e.button === Qt.MiddleButton) root.dismissed();
-            else root.activated();
+            if (e.button === Qt.LeftButton) root.activated();
+            else root.dismissed();
         }
     }
 }

@@ -188,6 +188,13 @@ Singleton {
     }
 
     function flush() {
+        // Never over one still on its way. Talking to a monitor takes
+        // far longer than the 70 ms between moves, and the value being
+        // sent here was thrown away whether or not it arrived, with
+        // nothing left to try again: let go of the slider at 80 % and
+        // the screen stayed at 60.
+        if (writer.running) { throttle.restart(); return; }
+
         const pending = root.queued;
         root.queued = ({});
         root.lastWrite = Date.now();

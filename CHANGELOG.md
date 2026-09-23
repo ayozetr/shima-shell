@@ -29,6 +29,25 @@ Since there is no public API here, that means:
 - Right-clicking the dock with the settings window already open closed
   it instead of bringing it to the front, which was no use at all when
   the reason for clicking was that it had ended up behind something
+- Silencing notifications during a focus session has never worked. It
+  asked the notification server to inhibit itself, which is not
+  something Shima's own server does, so notifications kept arriving
+- Letting go of the brightness slider could leave the screen at the
+  value before last, and moving the volume while changing output could
+  write one device's level into the other
+- The visualiser could be left running at sixty frames a second with
+  nothing playing
+- A notification arriving in the island blocked the controls, and
+  moving the pointer there to get at them held it open. The wheel now
+  puts it away, and a right click dismisses it without opening whatever
+  sent it
+- A battery at 1 % could be shown as 100 %
+- Middle-clicking an icon with no windows to list opened an empty
+  popup that went on swallowing clicks meant for the desktop
+- An application could light up in the dock without being open, when
+  its name happened to match the start of another window's class
+- With the dock hidden, the strip that brings it back was measured
+  against something that is not always the size of the window
 
 ## [0.2.0] — 2026-09-23
 

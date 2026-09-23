@@ -36,8 +36,8 @@ Item {
             ControlGlyph {
                 width: 13; height: 13
                 anchors.verticalCenter: parent.verticalCenter
-                kind: Notifications.quiet ? "bellOff" : "bell"
-                fill: Notifications.quiet ? Theme.accent
+                kind: Notifications.holding ? "bellOff" : "bell"
+                fill: Notifications.holding ? Theme.accent
                     : (quietArea.containsMouse ? Theme.textPrimary : Theme.textTertiary)
                 Behavior on fill { ColorAnimation { duration: Theme.hoverDuration } }
 

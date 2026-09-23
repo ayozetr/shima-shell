@@ -759,10 +759,10 @@ Singleton {
         // them from all claiming the Steam process, but it also threw
         // away the one thing that identifies them, so it is read back
         // from the URL — which points at one game and one only.
-        if (entry.execString) {
-            const url = entry.execString.match(/steam:\/\/(?:rungameid|run)\/(\d+)/);
-            if (url) out.push("steam_app_" + url[1]);
-        }
+        const game = entry.execString
+            ? entry.execString.match(/steam:\/\/(?:rungameid|run)\/(\d+)/)
+            : null;
+        if (game) out.push("steam_app_" + game[1]);
 
         // A game that runs under Proton names its window after the
         // Steam id, which the line above covers. One built for Linux
@@ -770,7 +770,13 @@ Singleton {
         // is "Terraria.bin.x86_64" — and that is not in the .desktop
         // at all, since the Exec goes through Steam. Its display name
         // is the only thing left to match on.
-        if (entry.name && entry.name.indexOf(" ") === -1)
+        //
+        // Only for those. Matching every application on what it calls
+        // itself is a wide net for one fish: a name is not a window
+        // class, and any program whose name happened to be the start
+        // of somebody else's class would have lit up in the dock
+        // without being open.
+        if (game && entry.name && entry.name.indexOf(" ") === -1)
             out.push(entry.name.toLowerCase());
 
         return out;

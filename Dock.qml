@@ -20,7 +20,7 @@ PanelWindow {
     // Any popup is open: used for the input mask and for the click
     // that dismisses them. Each popup has its own condition, or opening
     // one would open the other along with it.
-    readonly property bool popupOpen: menuShown || listShown
+    readonly property bool popupOpen: menuShown || listOpen
     property bool menuShown: false
     readonly property bool menuOpen: menuShown
 
@@ -59,7 +59,15 @@ PanelWindow {
     property string listAppName: ""
     property real   listX: 0
     property bool listShown: false
+
+    // Asked for is not the same as open. The list of windows arrives
+    // after the click that asks for it, and without kdotool — or when
+    // the query comes back with nothing — it never arrives: what
+    // opened was a heading with nothing under it, over a window that
+    // then went on swallowing clicks meant for the desktop.
     readonly property bool listOpen: listShown
+        && Apps.windowsAppId === win.listAppId
+        && Apps.windows.length > 0
 
     function openWindowList(id, name, xInWindow) {
         if (listShown && listAppId === id) { closeWindowList(); return; }
@@ -150,9 +158,13 @@ PanelWindow {
 
     Item {
         id: edgeStrip
-        width: parent.width
+        // Measured against the window, for the same reason the pill
+        // below is: contentItem is not always the same size as the
+        // window, and a strip that sits three pixels away from the
+        // edge is a hidden dock that never comes back.
+        width: win.width
         height: 3
-        y: win.atTop ? 0 : parent.height - height
+        y: win.atTop ? 0 : win.height - height
 
         HoverHandler {
             onHoveredChanged: if (hovered) win.hovering = true

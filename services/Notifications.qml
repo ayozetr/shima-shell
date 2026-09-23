@@ -21,6 +21,12 @@ Singleton {
     // itself — the point of not disturbing you is reading them later.
     property bool quiet: Config.data.doNotDisturb ?? false
 
+    // Do not disturb, plus a focus session that asked for quiet. The
+    // switch for that used to ask the notification server to inhibit
+    // itself over D-Bus, which on a session where Shima is the server
+    // means asking nobody: it is read here instead.
+    readonly property bool holding: root.quiet || Focus.hushing
+
     function toggleQuiet() {
         Config.data.doNotDisturb = !root.quiet;
         Config.save();
@@ -137,7 +143,10 @@ Singleton {
         // Some notifications are not a passing remark. One that came
         // in shouting, or that offers a choice, is shown as a card
         // that waits instead of a glance that expires.
-        if (root.quiet) {
+        // The alarm that says the session is over is the session's
+        // own, and the one thing a focus session must not silence.
+        const mine = entry.appName === "Shima";
+        if (root.quiet || (Focus.hushing && !mine)) {
             // Straight to the history, and the unread mark on the
             // island is the only sign.
         } else if (root.cardsEnabled && root.deservesCard(entry)) {

@@ -11,6 +11,21 @@ Item {
     readonly property var battery: UPower.displayDevice
     readonly property bool hasBattery: battery && battery.isLaptopBattery
 
+    // Quickshell documents percentage as energy over capacity, so a
+    // ratio and not a number out of a hundred. Working out which one
+    // it was by looking at the value got it right everywhere except
+    // the one place where being right matters: at exactly 1 there is
+    // no telling 1 % from 100 %, and it read the last of the battery
+    // as a full one. The two numbers it is made of say it outright, so
+    // they are used when the device reports them.
+    readonly property int batteryPercent: {
+        if (!root.hasBattery) return 0;
+        const d = root.battery;
+        if (d.energyCapacity > 0)
+            return Math.round(d.energy / d.energyCapacity * 100);
+        return Math.round(d.percentage * 100);
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 10
@@ -70,11 +85,7 @@ Item {
                 label: I18n.t.battery
                 // Depending on the version, percentage comes as 0-1 or
                 // as 0-100.
-                text: root.hasBattery
-                    ? Math.round(root.battery.percentage <= 1
-                        ? root.battery.percentage * 100
-                        : root.battery.percentage) + "%"
-                    : ""
+                text: root.hasBattery ? root.batteryPercent + "%" : ""
             }
             Item { Layout.fillWidth: true; Layout.preferredWidth: 1 }
         }

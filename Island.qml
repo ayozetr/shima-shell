@@ -251,6 +251,14 @@ PanelWindow {
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             onWheel: (e) => {
+                // Reaching for the island while a notification is
+                // sitting in it is unambiguous: the wheel is not
+                // something anybody turns by accident. Holding the
+                // notification open because the pointer is over it is
+                // right when the pointer came to read it and wrong
+                // when it came for the volume, and the wheel says
+                // which.
+                if (win.peeking) { Notifications.dismissPeek(); return; }
                 if (!win.expanded) return;
                 const dy = e.angleDelta.y !== 0 ? e.angleDelta.y : e.angleDelta.x;
                 if (dy === 0) return;
