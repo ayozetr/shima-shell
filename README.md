@@ -96,6 +96,14 @@ paru -R shima-shell         # or
 ./install.sh --uninstall    # this one runs --cleanup for you
 ```
 
+## Also worth having
+
+Not needed, and nothing here depends on them. Just good projects.
+
+- **[Darkly](https://github.com/Bali10050/Darkly)** — Qt style and window decoration
+- **[KDE Rounded Corners](https://github.com/matinlotfali/KDE-Rounded-Corners)** — rounded corners on every window
+- **[Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme)** — icon theme, the one Shima draws from
+
 ## Origin
 
 Shima Shell is an independent project, unaffiliated with the Bloom
