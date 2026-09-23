@@ -7,6 +7,7 @@ import "../translations/it.js" as It
 import "../translations/de.js" as De
 import "../translations/ca.js" as Ca
 import "../translations/pt.js" as Pt
+import "../translations/ja.js" as Ja
 
 // Interface strings, one file per language under translations/.
 //
@@ -24,7 +25,8 @@ Singleton {
         it: It.strings,
         de: De.strings,
         ca: Ca.strings,
-        pt: Pt.strings
+        pt: Pt.strings,
+        ja: Ja.strings
     })
 
     // Each language is named in itself, the way language pickers do it:
@@ -37,7 +39,8 @@ Singleton {
         { code: "fr",   label: "Français" },
         { code: "it",   label: "Italiano" },
         { code: "de",   label: "Deutsch" },
-        { code: "pt",   label: "Português (Brasil)" }
+        { code: "pt",   label: "Português (Brasil)" },
+        { code: "ja",   label: "日本語" }
     ]
 
     // "auto" follows the session. LANGUAGE wins over LANG when both are
@@ -50,21 +53,32 @@ Singleton {
                     || Quickshell.env("LANG")
                     || "";
         const code = raw.split(":")[0].split(".")[0].split("_")[0].toLowerCase();
-        return root.strings[code] !== undefined ? code : "en";
+        return root.has(code) ? code : "en";
     }
 
     readonly property string language: {
         const chosen = Config.data.language ?? "auto";
-        if (chosen !== "auto" && root.strings[chosen] !== undefined) return chosen;
+        if (chosen !== "auto" && root.has(chosen)) return chosen;
         return root.systemLanguage;
     }
 
-    readonly property var t: root.strings[root.language] ?? root.strings.en
+    readonly property var t: root.has(root.language)
+        ? root.strings[root.language] : root.strings.en
+
+    // Asking `strings[code] !== undefined` says yes to every name
+    // JavaScript objects inherit — toString, constructor, valueOf. With
+    // "language": "toString" in the configuration the whole interface
+    // filled with blanks, the language picker included, and there was
+    // no way back out of it from inside.
+    function has(code) {
+        return Object.prototype.hasOwnProperty.call(root.strings, code);
+    }
 
     // Qt wants a full locale to format month names; the shell only
     // tracks the language, so each one gets a sensible region.
     readonly property string qtLocale: ({
         es: "es_ES", ca: "ca_ES", en: "en_GB",
-        fr: "fr_FR", it: "it_IT", de: "de_DE", pt: "pt_BR"
+        fr: "fr_FR", it: "it_IT", de: "de_DE", pt: "pt_BR",
+        ja: "ja_JP"
     })[root.language] ?? "en_GB"
 }

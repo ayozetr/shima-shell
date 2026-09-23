@@ -26,6 +26,7 @@ var strings = {
     recentFiles: "FILES",
     copyResult: "copy",
     runCommand: "Run in terminal",
+    commandDone: "Finished. Press Enter to close.",
     searching: "Searching…",
     // ── Weather, pomodoro and odds and ends ──
     wxClear: "Clear",
@@ -41,7 +42,6 @@ var strings = {
     wxThunderstorm: "Thunderstorm",
     reset: "Reset",
     skip: "Skip",
-    searchPlace: "Search for a place…",
     focusOver: "Session over",
     breakOver: "Break over",
     takeABreak: "Take a break.",
@@ -101,14 +101,11 @@ var strings = {
     upload: "UP",
     battery: "BATTERY",
 
-    nothingPlaying: "Nothing playing",
     focus: "FOCUS",
     breakLabel: "BREAK",
     longBreak: "LONG BREAK",
     start: "Start",
     pause: "Pause",
-    reset: "Reset",
-    skip: "Skip",
 
     secScreens: "SCREENS",
     secDock: "DOCK",
@@ -192,6 +189,7 @@ var strings = {
     detachedHint: "Leaves a gap above instead of growing out of the edge",
     topGap: "Top gap",
     islandTint: "Island tint",
+    launcherTint: "Menu tint",
 
     duration: "Duration",
     durationHint: "How long a focus session lasts",

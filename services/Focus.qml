@@ -26,10 +26,9 @@ Singleton {
 
     readonly property string phaseLabel: {
         switch (root.phase) {
-            case "focus":     return "ENFOQUE";
-            case "break":     return "DESCANSO";
-            case "longBreak": return "DESCANSO LARGO";
-            default:          return "ENFOQUE";
+            case "break":     return I18n.t.breakLabel;
+            case "longBreak": return I18n.t.longBreak;
+            default:          return I18n.t.focus;
         }
     }
 

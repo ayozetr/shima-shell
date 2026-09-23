@@ -52,7 +52,13 @@ Column {
             clip: true
             selectByMouse: true
 
-            onTextChanged: if (text.length >= 3) debounce.restart()
+            // Deleting back down to two letters used to leave the
+            // timer running, and a moment later a search went out for
+            // the text that had just been erased.
+            onTextChanged: {
+                if (text.length >= 3) debounce.restart();
+                else { debounce.stop(); Weather.clearSearch(); }
+            }
             Keys.onReturnPressed: Weather.lookup(text)
 
             Text {
@@ -107,6 +113,7 @@ Column {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         Weather.setPlace(modelData);
+                        Weather.clearSearch();
                         search.text = "";
                         search.focus = false;
                     }

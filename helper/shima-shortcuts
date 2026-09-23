@@ -199,6 +199,12 @@ def save_borrowed(entries):
 class Helper:
     def __init__(self):
         self.accel = Accel()
+        # What was last handed to KGlobalAccel. The file is watched, not
+        # the setting, and every control in Settings writes the whole
+        # file: dragging the opacity slider sent a burst of registrations
+        # for a shortcut nobody had touched. A single write also arrives
+        # as several events of its own.
+        self.applied = None
 
     # ── The shortcut itself ─────────────────────────────────────
     def listen(self):
@@ -265,7 +271,11 @@ class Helper:
             # the default is a better answer than dying here.
             key = KEY_META
 
-        self.set_shortcut(key if enabled else 0)
+        wanted = key if enabled else 0
+        if wanted == self.applied:
+            return
+        self.applied = wanted
+        self.set_shortcut(wanted)
 
     def watch_config(self):
         self.monitor = Gio.File.new_for_path(CONFIG).monitor_file(

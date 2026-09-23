@@ -1,4 +1,5 @@
 import QtQuick
+import QtQml
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Services.SystemTray
@@ -88,11 +89,29 @@ PanelWindow {
     // it: opening the applications by keyboard and being answered by a
     // panel hanging off nothing reads as broken.
     // Published so the launcher can leave this strip alone.
-    onHeightChanged: win.publishReserved()
-    Component.onCompleted: win.publishReserved()
-    function publishReserved() {
-        DockState.position = Config.data.dockPosition ?? "bottom";
-        DockState.reserved = pill.height + (win.floating ? win.edgeMargin * 2 : 0) + 4;
+    //
+    // As bindings, not as a function called on startup and on height
+    // changes: what it reports also depends on the dock's position, on
+    // whether it floats and on the icon size, and none of those change
+    // the window's height. Move the dock to the top with the old code
+    // and the launcher went on cutting the strip out of the bottom,
+    // which left the dock itself unable to be clicked while it was
+    // open.
+    //
+    // `when` matters too: one of these exists per screen, and the ones
+    // that are not shown have no business saying how much room the
+    // dock takes.
+    Binding {
+        target: DockState
+        property: "position"
+        value: Config.data.dockPosition ?? "bottom"
+        when: win.visible
+    }
+    Binding {
+        target: DockState
+        property: "reserved"
+        value: pill.height + (win.floating ? win.edgeMargin * 2 : 0) + 4
+        when: win.visible
     }
 
     readonly property bool revealed: !autoHide || hovering || popupOpen
@@ -252,11 +271,46 @@ PanelWindow {
             // behind its own divider: they are indicators, not launchers.
             readonly property bool hasTray: (Config.data.showTray ?? true)
                                             && trayModel.length > 0
-            readonly property var trayModel: {
+            // Worked out and kept, not bound. As a binding it handed
+            // the repeater a new array whenever any icon changed
+            // status — Telegram marking a message — and a new array
+            // destroys and rebuilds every delegate, so their entry
+            // animations ran again and the whole tray slid and faded
+            // in by itself, with nothing having come or gone.
+            property var trayModel: []
+
+            function refreshTray() {
                 const out = [];
                 for (const i of SystemTray.items.values)
                     if (i.status !== SystemTrayItem.Passive) out.push(i);
-                return out;
+                if (out.length === row.trayModel.length) {
+                    let same = true;
+                    for (let k = 0; k < out.length; k++)
+                        if (out[k] !== row.trayModel[k]) { same = false; break; }
+                    if (same) return;
+                }
+                row.trayModel = out;
+            }
+
+            Component.onCompleted: row.refreshTray()
+
+            // Two different things to watch. The list says when an
+            // icon comes or goes; it says nothing when one already in
+            // it goes quiet or starts asking for attention, which is
+            // what decides whether it belongs here, so each icon's own
+            // status is watched as well.
+            Connections {
+                target: SystemTray.items
+                function onValuesChanged() { row.refreshTray(); }
+            }
+
+            Instantiator {
+                model: SystemTray.items
+                delegate: QtObject {
+                    required property var modelData
+                    readonly property int st: modelData.status
+                    onStChanged: row.refreshTray()
+                }
             }
             readonly property int trayStep: Math.round(Theme.dockIconSize * 0.62)
                                             + Math.round(Theme.dockIconSpacing * 0.55)
@@ -418,7 +472,12 @@ PanelWindow {
         // own position is added here, when it is already laid out.
         x: Math.max(6, Math.min(win.width - width - 6,
                                 pill.x + row.x + win.menuX - width / 2))
-        y: pill.y - height - 10
+        // Above the pill, or below it when the dock is at the top:
+        // unconditional, this fell off the top edge — nothing
+        // visible, but the menu counted as open and the window
+        // went on swallowing clicks meant for the desktop.
+        y: win.atTop ? (pill.y + pill.height + 10)
+                     : (pill.y - height - 10)
     }
 
     Timer {
@@ -436,6 +495,11 @@ PanelWindow {
 
         x: Math.max(6, Math.min(win.width - width - 6,
                                 pill.x + row.x + win.listX - width / 2))
-        y: pill.y - height - 10
+        // Above the pill, or below it when the dock is at the top:
+        // unconditional, this fell off the top edge — nothing
+        // visible, but the menu counted as open and the window
+        // went on swallowing clicks meant for the desktop.
+        y: win.atTop ? (pill.y + pill.height + 10)
+                     : (pill.y - height - 10)
     }
 }

@@ -14,6 +14,74 @@ Since there is no public API here, that means:
 
 ## [Unreleased]
 
+### Added
+
+- Japanese, built on KDE's own Japanese terminology. A native speaker
+  going over it would be welcome.
+- A tint for the launcher, alongside the island's and the dock's.
+
+### Fixed
+
+- Shutting down from the island could leave the session unable to power
+  off afterwards, in Plasma's own menu as well
+- Keeping the machine awake outlived the shell if it was killed, and
+  the machine would not suspend again until reboot
+- The session menu offered what the machine cannot do — hibernation on
+  most setups — and the entry silently did nothing
+- The pomodoro labels and the calendar's month name ignored the chosen
+  language
+- Every setting under Notifications was forgotten on restart
+- The cross that dismisses a notification never lit up, and moved away
+  from under the pointer as you reached for it
+- Links in a notification body opened whatever scheme they carried
+- Notifications were never let go of, growing without limit on a
+  desktop left running
+- Pinning the island and dock to a screen that is then unplugged left
+  nothing on screen at all, and no way back to the settings
+- With the dock at the top, an icon's menu was drawn off the edge and
+  the window went on swallowing clicks
+- The room the dock reserves ignored its position and icon size, so
+  moving it to the top made it unclickable while the launcher was open
+- With two screens, both launcher windows asked for the keyboard and
+  one was left deaf
+- Changing a monitor's scale did not show up in the settings until
+  restarting
+- A settings file that was no longer valid JSON was silently replaced
+  by the defaults, losing everything in it. A copy is kept at
+  `config.json.bak` instead
+- One odd bookmark emptied the whole Places list
+- An invalid colour in the settings turned the accent black, taking the
+  text drawn on it with it; an icon size of zero gave a dock that could
+  not be laid out
+- Setting the language to a name like `toString` left the interface
+  blank, with no way back from inside it
+- Typing on while the launcher searched dropped the search for what you
+  had just typed, and left the results of the older one under it
+- Commands ran in Konsole whatever terminal the session had chosen, and
+  in any other terminal the window closed before the output could be
+  read
+- Searching for a town kept the list of the one typed before it, so the
+  wrong place could be saved with a click
+- Deleting a town's name back down to two letters sent out one more
+  search for the text just erased
+- With a session menu open, clicking the button beside it only folded
+  the first one away: opening the other took a second click
+- Menu height was listed twice in the settings
+- A desktop nobody was touching kept Shima starting two and a half
+  processes a second. Idle now costs about a seventh of what it did
+- The dock's tray slid and faded itself back in whenever any of its
+  icons asked for attention
+- The launcher's grid threw away every tile and built it again several
+  times a second, and once more for every letter typed into the box
+  that adds an app to the dock
+- The network figure added up every interface on the machine —
+  loopback, container bridges, virtual machines, the VPN — so copying a
+  file to yourself showed up as traffic, twice
+- A game installed while Shima was running was not recognised until it
+  was restarted
+- Dragging any slider in the settings re-registered the launcher
+  shortcut with KDE, over and over
+
 ## [0.1.0] — 2026-09-23
 
 First release. Installable and packaged; expect rough edges.

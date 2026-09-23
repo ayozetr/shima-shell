@@ -19,10 +19,19 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "shima-launcher"
 
-    // It needs the keyboard so you can type the moment it opens.
-    WlrLayershell.keyboardFocus: win.visible
-        ? WlrKeyboardFocus.Exclusive
-        : WlrKeyboardFocus.None
+    // It needs the keyboard so you can type the moment it opens — but
+    // only one of them does. See LauncherState.focusScreen.
+    WlrLayershell.keyboardFocus:
+        (win.visible && LauncherState.focusScreen === win.screenName)
+            ? WlrKeyboardFocus.Exclusive
+            : WlrKeyboardFocus.None
+
+    onVisibleChanged: {
+        if (win.visible && LauncherState.focusScreen === "")
+            LauncherState.focusScreen = win.screenName;
+        else if (!win.visible && LauncherState.focusScreen === win.screenName)
+            LauncherState.focusScreen = "";
+    }
     color: "transparent"
 
     property string screenName: ""
@@ -48,9 +57,41 @@ PanelWindow {
         }
     }
 
-    readonly property var apps: (Apps.revision, LauncherState.open)
-        ? Apps.listApps(LauncherState.category, LauncherState.query)
-        : []
+    // What the grid shows. A binding here handed it a brand new array
+    // every time anything it reads moved, and a new array means the
+    // grid throws away every tile and builds it again — an icon takes
+    // a frame to load, so the whole grid blinks. Same trap the dock's
+    // list already documents, and the same answer: work out the list,
+    // and only put it in when it differs.
+    property var apps: []
+
+    function refreshApps() {
+        const next = LauncherState.open
+            ? Apps.listApps(LauncherState.category, LauncherState.query)
+            : [];
+        if (next.length === win.apps.length) {
+            let same = true;
+            for (let i = 0; i < next.length; i++) {
+                if (next[i].id !== win.apps[i].id) { same = false; break; }
+            }
+            if (same) return;
+        }
+        win.apps = next;
+    }
+
+    Connections {
+        target: Apps
+        function onRevisionChanged() { win.refreshApps(); }
+    }
+
+    Connections {
+        target: LauncherState
+        function onOpenChanged() { win.refreshApps(); }
+        function onCategoryChanged() { win.refreshApps(); }
+        function onQueryChanged() { win.refreshApps(); }
+    }
+
+    Component.onCompleted: win.refreshApps()
 
     // ── The per-application menu ───────────────────────────────
     //
@@ -95,7 +136,7 @@ PanelWindow {
         width: 660
         height: 480
         radius: 18
-        color: Qt.rgba(0, 0, 0, 0.88)
+        color: Theme.launcherBg
         border.width: 1
         border.color: "#22ffffff"
 
@@ -206,7 +247,7 @@ PanelWindow {
                 Item {
                     required property var modelData
                     readonly property int count:
-                        (Apps.revision, Apps.categoryCounts()[modelData.id] || 0)
+                        Apps.categoryCounts[modelData.id] || 0
                     readonly property bool current: LauncherState.category === modelData.id
 
                     // Favourites, frequent and places are always there
@@ -608,8 +649,13 @@ PanelWindow {
         }
 
         // A click anywhere in the panel folds the session submenus
-        // back. It sits above the grid but below the submenus
-        // themselves, which carry a higher z.
+        // back — anywhere except the bar itself, which is given a
+        // higher z below so its own clicks reach it. The submenus
+        // carry a z of their own too, but that one counts only among
+        // their siblings inside the bar: from out here the whole bar
+        // is one item, and while this sat above it, the click that
+        // should have swapped one submenu for the other was spent
+        // closing the first.
         MouseArea {
             anchors.fill: parent
             enabled: sessionBar.openMenu !== "" || win.menuShown
@@ -639,6 +685,7 @@ PanelWindow {
         // ── Bottom bar: power, session and settings ──────────────
         SessionBar {
             id: sessionBar
+            z: 45
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom

@@ -97,6 +97,15 @@ Singleton {
             appName: n.appName || "",
             summary: n.summary || "",
             body: n.body || "",
+            // Cleaned once here rather than in the bindings that draw
+            // it: the list re-evaluates on every change, and running
+            // two regular expressions per visible notification each
+            // time adds up for a value that never changes.
+            //   bodyText  — no markup at all, for the island and the peek
+            //   bodyRich  — markup kept, images dropped, for the card
+            bodyText: (n.body || "").replace(/<[^>]*>/g, "")
+                                    .replace(/\s+/g, " ").trim(),
+            bodyRich: (n.body || "").replace(/<img[^>]*>/g, ""),
             // The application's own icon beats the one it sent, which
             // is often a generic "information" glyph.
             icon: (app && app.icon) ? app.icon : (n.appIcon || ""),
@@ -117,8 +126,12 @@ Singleton {
         // glance, not worth keeping.
         if (!entry.transient) {
             const next = [entry].concat(root.items);
+            // Whatever falls off the end is gone from the history, so
+            // it has to be let go of as well.
+            const dropped = next.slice(root.historyLimit);
             if (next.length > root.historyLimit) next.length = root.historyLimit;
             root.items = next;
+            for (const d of dropped) root.releaseIfGone(d);
         }
 
         // Some notifications are not a passing remark. One that came
@@ -147,8 +160,12 @@ Singleton {
 
     function closeCard(key) {
         const next = [];
-        for (const c of root.cards) if (c.key !== key) next.push(c);
+        let gone = null;
+        for (const c of root.cards) {
+            if (c.key === key) gone = c; else next.push(c);
+        }
         root.cards = next;
+        root.releaseIfGone(gone);
     }
 
     function buttonsOf(entry) {
@@ -212,8 +229,27 @@ Singleton {
         root.peek = null;
     }
 
+    // Nothing lets go of a notification on its own: `tracked` is what
+    // keeps Quickshell from destroying it, and it was set on every one
+    // that arrived and cleared only by dismissing or clearing the
+    // history. Two kinds never went through either — the transient
+    // ones, which never enter the history, and the ones pushed off the
+    // end of it — so on a desktop left running they piled up without
+    // limit. This lets go once an entry is gone from everywhere it
+    // could still be drawn.
+    function releaseIfGone(entry) {
+        if (!entry) return;
+        for (const it of root.items) if (it.key === entry.key) return;
+        for (const c of root.cards) if (c.key === entry.key) return;
+        if (root.peek && root.peek.key === entry.key) return;
+        const n = root.live(entry.id);
+        if (n) n.dismiss();
+    }
+
     function dismissPeek() {
+        const gone = root.peek;
         root.peek = null;
+        root.releaseIfGone(gone);
     }
 
     // How long the island holds a notification up. The sender's own

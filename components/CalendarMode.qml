@@ -39,9 +39,11 @@ Item {
             Text {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                // Qt doesn't inherit the system language here and
-                // prints month names in English, so we pin the locale.
-                text: root.shown.toLocaleDateString(Qt.locale("es_ES"), "MMMM yyyy")
+                // Qt does not inherit the session language here and
+                // would print the month in English, so the locale is
+                // given explicitly — the one the interface is set to,
+                // not a fixed one.
+                text: root.shown.toLocaleDateString(Qt.locale(I18n.qtLocale), "MMMM yyyy")
                 color: Theme.textPrimary
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
@@ -134,7 +136,7 @@ Item {
             spacing: 6
 
             PomoButton {
-                label: Focus.running ? "Pausar" : "Iniciar"
+                label: Focus.running ? I18n.t.pause : I18n.t.start
                 primary: true
                 onTriggered: Focus.toggle()
             }

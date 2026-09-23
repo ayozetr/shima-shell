@@ -1,61 +1,59 @@
 pragma Singleton
 import Quickshell
-import Quickshell.Io
+import org.kde.plasma.private.sessions
 
-// Power and session actions, through the same interfaces Plasma's own
-// menu uses rather than raw systemctl: that way logging out asks the
-// applications to close properly and the session is torn down in
-// order, instead of being pulled from under them.
+// Power and session actions, through the very object Plasma's own menu
+// uses.
+//
+// This used to call org.kde.Shutdown over gdbus. That name is D-Bus
+// activated, so the call started plasma-shutdown and left it resident
+// when the shutdown did not go through. From then on
+// ksmserver-logout-greeter — the confirmation dialog — could not claim
+// the name and quit on sight, so pressing shut down did nothing at all,
+// in Shima *and* in Plasma's own menu, until that stray process was
+// killed. It happened here: twelve hours of a machine that would not
+// turn off.
+//
+// SessionManagement does not make that impossible, and it is worth
+// being precise about why: it lives in libkworkspace, which talks to
+// org.kde.Shutdown as well. What it does is take the same road as the
+// panel, with confirmation left at whatever KDE is set to — and the
+// default goes through org.kde.LogoutPrompt, which claims the name and
+// gives it back when the dialog closes. So Shima can no longer break
+// the session's shutdown on its own; at worst it fails exactly where
+// Plasma's own menu fails.
+//
+// It also says what the machine can do, which shelling out never told
+// us: hibernation is unavailable on plenty of setups, and the entry
+// for it was there anyway.
 Singleton {
     id: root
 
-    Process { id: proc }
+    SessionManagement { id: session }
 
-    function run(args) { proc.exec(args); }
-
-    function kde(method) {
-        root.run(["gdbus", "call", "--session",
-                  "--dest", "org.kde.Shutdown",
-                  "--object-path", "/Shutdown",
-                  "--method", "org.kde.Shutdown." + method]);
-    }
+    // These arrive asynchronously — logind is asked once the object is
+    // built — so they read false for the first second or so. Bind to
+    // them rather than reading them once.
+    readonly property bool canShutdown:   session.canShutdown
+    readonly property bool canReboot:     session.canReboot
+    readonly property bool canLogout:     session.canLogout
+    readonly property bool canSuspend:    session.canSuspend
+    readonly property bool canHibernate:  session.canHibernate
+    readonly property bool canSwitchUser: session.canSwitchUser
+    readonly property bool canLock:       session.canLock
 
     // ── Power ──────────────────────────────────────────────────
-    function shutdown() { root.kde("logoutAndShutdown"); }
-    function reboot()   { root.kde("logoutAndReboot"); }
-
-    function suspend() {
-        root.run(["gdbus", "call", "--system",
-                  "--dest", "org.freedesktop.login1",
-                  "--object-path", "/org/freedesktop/login1",
-                  "--method", "org.freedesktop.login1.Manager.Suspend", "true"]);
-    }
-
-    function hibernate() {
-        root.run(["gdbus", "call", "--system",
-                  "--dest", "org.freedesktop.login1",
-                  "--object-path", "/org/freedesktop/login1",
-                  "--method", "org.freedesktop.login1.Manager.Hibernate", "true"]);
-    }
+    //
+    // No confirmation is asked for here: these follow whatever KDE is
+    // set to do, which is what somebody who has already picked "shut
+    // down" in a menu expects.
+    function shutdown()  { session.requestShutdown(); }
+    function reboot()    { session.requestReboot(); }
+    function suspend()   { session.suspend(); }
+    function hibernate() { session.hibernate(); }
 
     // ── Session ────────────────────────────────────────────────
-    function lock() {
-        root.run(["gdbus", "call", "--session",
-                  "--dest", "org.freedesktop.ScreenSaver",
-                  "--object-path", "/ScreenSaver",
-                  "--method", "org.freedesktop.ScreenSaver.Lock"]);
-    }
-
-    function logout() { root.kde("logout"); }
-
-    // Switching users goes through the display manager, which parks the
-    // current session and shows the greeter.
-    function switchUser() {
-        const seat = Quickshell.env("XDG_SEAT_PATH")
-                     || "/org/freedesktop/DisplayManager/Seat0";
-        root.run(["gdbus", "call", "--system",
-                  "--dest", "org.freedesktop.DisplayManager",
-                  "--object-path", seat,
-                  "--method", "org.freedesktop.DisplayManager.Seat.SwitchToGreeter"]);
-    }
+    function lock()       { session.lock(); }
+    function logout()     { session.requestLogout(); }
+    function switchUser() { session.switchUser(); }
 }

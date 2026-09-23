@@ -27,6 +27,26 @@ Singleton {
             if (error === FileViewError.FileNotFound) writeAdapter();
         }
 
+        // A file that is there but is not JSON any more — truncated by
+        // a power cut mid-write, or edited into something broken —
+        // does not fail to load: it loads, and the adapter quietly
+        // keeps its defaults. The shell then came up as if new, and
+        // the first control you touched wrote over the lot — place,
+        // shortcut, screens and colours gone, without a word.
+        //
+        // So the text is parsed here as well, only to find out whether
+        // it was readable at all.
+        onLoaded: {
+            try {
+                JSON.parse(file.text());
+            } catch (e) {
+                console.warn("[shima] " + root.path + " is not valid JSON; "
+                           + "keeping a copy at " + root.path + ".bak "
+                           + "and carrying on with the defaults");
+                rescue.running = true;
+            }
+        }
+
         adapter: JsonAdapter {
             id: cfg
 
@@ -59,6 +79,17 @@ Singleton {
             property string shortcutLabel:   "Meta"
             // Folded behind a chevron, like Plasma's arrow, or always out.
             property bool   trayCollapsible:  true
+
+            // ── Notifications ──────────────────────────────────
+            // These were read with a `?? default` everywhere and
+            // declared nowhere, so the whole settings page worked
+            // until the shell restarted and then quietly forgot. The
+            // defaults here are the ones those reads were using.
+            property bool   notificationsEnabled:    true
+            property int    notificationPeekSeconds: 5
+            property bool   notificationCards:       true
+            property int    notificationCardSeconds: 12
+            property int    notificationHistory:     50
             property bool   dockAutoHide:     false
             property int    dockHideDelay:    700    // ms before hiding
 
@@ -131,7 +162,15 @@ Singleton {
             property string accent:           "#a78bfa"
             property string dockTint:         "#000000"
             property string islandTint:       "#000000"
+            property string launcherTint:     "#000000"
         }
+    }
+
+    // Just the copy: the defaults are already in the adapter, and
+    // whatever gets saved later will land on top of them anyway.
+    Process {
+        id: rescue
+        command: ["sh", "-c", "cp -f -- \"$1\" \"$1.bak\"", "shima", root.path]
     }
 
     function save() { file.writeAdapter(); }
@@ -142,9 +181,23 @@ Singleton {
     }
 
     // Empty means "all of them", not "none".
+    //
+    // And so does a list naming only screens that are not there. Pin
+    // the island and the dock to DP-1, unplug it or let the connector
+    // come back under another name, and every window Shima has —
+    // island, dock, cards and launcher — disappears at once. Both ways
+    // into the settings live inside those windows, so the only way back
+    // would be editing the JSON by hand. Falling back to every screen
+    // is wrong in a small way; vanishing is wrong in a way you cannot
+    // undo.
     function onScreen(text, name) {
         const list = root.screenList(text);
-        return list.length === 0 || list.indexOf(name) !== -1;
+        if (list.length === 0) return true;
+        let present = false;
+        for (const s of Quickshell.screens) {
+            if (list.indexOf(s.name) !== -1) { present = true; break; }
+        }
+        return present ? list.indexOf(name) !== -1 : true;
     }
 
     // Check or uncheck a screen. If unchecking would leave the list

@@ -29,6 +29,7 @@ var strings = {
     recentFiles: "FITXERS",
     copyResult: "copia",
     runCommand: "Executa al terminal",
+    commandDone: "Fet. Premeu Retorn per tancar.",
     searching: "S'està cercant…",
     // ── Weather, pomodoro and odds and ends ──
     wxClear: "Serè",
@@ -44,7 +45,6 @@ var strings = {
     wxThunderstorm: "Tempesta",
     reset: "Reinicia",
     skip: "Omet",
-    searchPlace: "Cerca una localitat…",
     focusOver: "Sessió acabada",
     breakOver: "Descans acabat",
     takeABreak: "Fes un descans.",
@@ -109,14 +109,11 @@ var strings = {
     battery: "BATERIA",
 
     // ── Island: media and focus ──
-    nothingPlaying: "Cap reproducció",
     focus: "CONCENTRACIÓ",
     breakLabel: "DESCANS",
     longBreak: "DESCANS LLARG",
     start: "Inicia",
     pause: "Pausa",
-    reset: "Reinicia",
-    skip: "Salta",
 
     // ── Settings: sections ──
     secScreens: "PANTALLES",
@@ -204,6 +201,7 @@ var strings = {
     detachedHint: "Deixa un espai a dalt en lloc de néixer de la vora",
     topGap: "Espai superior",
     islandTint: "To de l'illa",
+    launcherTint: "To del menú",
 
     duration: "Durada",
     durationHint: "Quant dura una sessió de concentració",

@@ -17,8 +17,13 @@ Column {
     // resizes afterwards. Only KWin knows the real scale.
     property var scales: ({})
 
+    // Asked again every time the picker is shown, not once when it is
+    // built: change a monitor's scale and the old code went on showing
+    // the resolution it had at startup until the shell was restarted.
+    // Given how much trouble scaling has caused here, stale numbers in
+    // this particular list are worse than none.
     Process {
-        running: true
+        running: root.visible
         command: ["sh", "-c",
             "kscreen-doctor -o 2>/dev/null | sed -e 's/\x1b\[[0-9;]*m//g' "
             + "| awk '/^Output:/ { name=$3 } /Scale:/ { print name, $2 }'"]

@@ -82,11 +82,24 @@ Singleton {
     // nothing should keep a machine awake after the shell is gone.
     property bool keepAwake: false
 
+    // It used to hold the inhibition with `sleep infinity`, which
+    // outlives the shell: kill Quickshell with a signal it cannot
+    // handle, or let the compositor take it down with it, and the
+    // process stays behind holding the lock. The machine then refuses
+    // to suspend until the next reboot, with nothing on screen saying
+    // why. Confirmed, not theoretical.
+    //
+    // Waiting on standard input ties one to the other instead. While
+    // the shell lives the pipe stays open and the read blocks; the
+    // moment it dies the pipe closes, the read returns, and
+    // systemd-inhibit exits and lets go. No signal handling, no
+    // polling, and it holds even for SIGKILL.
     Process {
         id: inhibitor
         running: root.keepAwake
+        stdinEnabled: true
         command: ["systemd-inhibit", "--what=idle:sleep", "--who=Shima",
                   "--why=Keep awake", "--mode=block",
-                  "sleep", "infinity"]
+                  "sh", "-c", "read _"]
     }
 }

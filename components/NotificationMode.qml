@@ -164,7 +164,7 @@ Item {
 
                 Text {
                     width: parent.width
-                    text: modelData.body.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()
+                    text: modelData.bodyText
                     color: Theme.textSecondary
                     font.pixelSize: 10
                     elide: Text.ElideRight
@@ -180,10 +180,16 @@ Item {
                 anchors.rightMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
                 width: 16; height: 16
-                opacity: rowArea.containsMouse ? 1 : 0
+                // Both, because the cross has a mouse area of its own
+                // and a sibling on top takes the hover off the one
+                // below: reaching for the cross made the row stop
+                // being hovered, and the cross faded out from under
+                // the pointer. Same trap as the island's.
+                opacity: (rowArea.containsMouse || dropArea.containsMouse) ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: Theme.hoverDuration } }
 
                 Canvas {
+                    id: dismissGlyph
                     anchors.fill: parent
                     onPaint: {
                         const ctx = getContext("2d");
@@ -199,9 +205,13 @@ Item {
                         ctx.lineTo(width * 0.30, height * 0.70);
                         ctx.stroke();
                     }
+                    // Named rather than `parent`: Connections is not a
+                    // visual element, so `parent` there is null and the
+                    // call threw on every hover. The cross was painted
+                    // once, dim, and never repainted again.
                     Connections {
                         target: dropArea
-                        function onContainsMouseChanged() { parent.requestPaint(); }
+                        function onContainsMouseChanged() { dismissGlyph.requestPaint(); }
                     }
                 }
 
