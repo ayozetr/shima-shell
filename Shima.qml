@@ -42,6 +42,10 @@ ShellRoot {
         Notifications.enabled;
         Places.entries.length;
         Power.available;
+        // Its can* properties are answered by logind asynchronously,
+        // so a menu opened before that lands would hide entries that
+        // do work.
+        Session.canShutdown;
         // The tray needs to register as a host and wait for the items
         // to answer; woken late it reports an empty tray for seconds.
         SystemTray.items.values.length;

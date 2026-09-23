@@ -38,12 +38,20 @@ Item {
         id: powerMenu
         x: 0
         visible: root.openMenu === "power"
+        // Only what the machine can actually do. Hibernation is
+        // unavailable on plenty of setups — no swap, or no resume
+        // configured — and an entry that silently does nothing is
+        // worse than no entry at all.
         entries: [
-            { label: I18n.t.suspend, act: () => Session.suspend() },
-            { label: I18n.t.hibernate, act: () => Session.hibernate() },
-            { label: I18n.t.reboot, act: () => Session.reboot() },
-            { label: I18n.t.shutdown,    act: () => Session.shutdown(), danger: true }
-        ]
+            Session.canSuspend
+                ? { label: I18n.t.suspend, act: () => Session.suspend() } : null,
+            Session.canHibernate
+                ? { label: I18n.t.hibernate, act: () => Session.hibernate() } : null,
+            Session.canReboot
+                ? { label: I18n.t.reboot, act: () => Session.reboot() } : null,
+            Session.canShutdown
+                ? { label: I18n.t.shutdown, act: () => Session.shutdown(), danger: true } : null
+        ].filter(e => e)
     }
 
     Popup_ {
@@ -51,10 +59,13 @@ Item {
         x: 36
         visible: root.openMenu === "user"
         entries: [
-            { label: I18n.t.lockSession, act: () => Session.lock() },
-            { label: I18n.t.switchUser, act: () => Session.switchUser() },
-            { label: I18n.t.logout,   act: () => Session.logout(), danger: true }
-        ]
+            Session.canLock
+                ? { label: I18n.t.lockSession, act: () => Session.lock() } : null,
+            Session.canSwitchUser
+                ? { label: I18n.t.switchUser, act: () => Session.switchUser() } : null,
+            Session.canLogout
+                ? { label: I18n.t.logout, act: () => Session.logout(), danger: true } : null
+        ].filter(e => e)
     }
 
     component Button_: Rectangle {
