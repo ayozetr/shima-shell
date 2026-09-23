@@ -14,6 +14,8 @@ Since there is no public API here, that means:
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-23
+
 ### Added
 
 - The settings window now appears in the dock while it is open, with
@@ -27,6 +29,16 @@ Since there is no public API here, that means:
   session and nothing reaches the disk, and anything the program that
   copied it marked as a password is not kept at all. Needs
   wl-clipboard, and says so if it is missing.
+- The launcher can be used without the mouse: up and down walk what is
+  on screen and return opens it.
+- The notification history survives the shell restarting or crashing.
+  It is kept in memory for the session, not on the disk, so it goes
+  when you log out.
+- Games installed through Heroic and Lutris are recognised in the dock,
+  by reading the launchers' own catalogues.
+- Keeping the machine awake can be remembered across restarts. Off by
+  default, because a machine that will not sleep because of something
+  switched on days ago is hard to work out.
 
 ### Fixed
 
@@ -62,22 +74,23 @@ Since there is no public API here, that means:
   disabled but still took clicks
 - The island cut off the control centre instead of making room when its
   list of outputs or screens grew past a fixed height
-
-- The launcher can be used without the mouse: up and down walk what is
-  on screen and return opens it.
-- The notification history survives the shell restarting or crashing.
-  It is kept in memory for the session, not on the disk, so it goes
-  when you log out.
-- Games installed through Heroic and Lutris are recognised in the dock,
-  by reading the launchers' own catalogues.
-- Keeping the machine awake can be remembered across restarts. Off by
-  default, because a machine that will not sleep because of something
-  switched on days ago is hard to work out.
+- Quickshell sometimes dies in the first seconds of starting and does
+  not try again, which on a desktop with no panels left is logging in
+  to nothing. It is started again now, twice, for an early death only
 
 ### Changed
 
 - The parts with no screen in them have tests now, run with
   `node tests/run.js` and nothing installed.
+
+### Known issues
+
+- Games from Heroic and Lutris are recognised by reading the launchers'
+  catalogues, which has not been tried against a real installed game.
+  If the format is not what was expected, nothing is recognised rather
+  than anything breaking.
+- The launcher's category names follow the language of your session,
+  not the one set in Shima: they come from KDE's menu.
 
 ## [0.2.0] — 2026-09-23
 
@@ -189,6 +202,7 @@ First release. Installable and packaged; expect rough edges.
 - The launcher's category names follow the language of your session,
   not the one set in Shima: they come from KDE's menu.
 
-[Unreleased]: https://github.com/ayozetr/shima-shell/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ayozetr/shima-shell/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.1.0
