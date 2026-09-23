@@ -6,7 +6,23 @@ import "components"
 FloatingWindow {
     id: win
 
-    visible: SettingsWindow.open
+    // Through a Binding and not a plain one, and the two are not the
+    // same thing here. Closing the window with its own button writes
+    // visible from outside, which throws a plain binding away for
+    // good: the singleton stayed saying it was open, nothing could put
+    // it back on screen, and Settings was gone until the shell was
+    // restarted. A Binding object survives that and applies again the
+    // next time it is asked for.
+    Binding {
+        target: win
+        property: "visible"
+        value: SettingsWindow.open
+    }
+
+    // And the other direction, so closing it by hand is the same as
+    // closing it from the dock.
+    onVisibleChanged: if (!win.visible) SettingsWindow.hide()
+
     implicitWidth: 520
     implicitHeight: 640
     title: I18n.t.settingsWindowTitle

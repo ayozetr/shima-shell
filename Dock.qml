@@ -251,7 +251,16 @@ PanelWindow {
             id: dockMouse
             anchors.fill: parent
             acceptedButtons: Qt.RightButton
-            onClicked: { LauncherState.hide(); SettingsWindow.toggle(); }
+            // Not a toggle. Settings is an ordinary window and can
+            // end up behind something else, and closing what somebody
+            // cannot see is not what they meant by clicking here: with
+            // it open, this brings it to the front, exactly as its own
+            // icon in the dock does.
+            onClicked: {
+                LauncherState.hide();
+                if (SettingsWindow.open) Apps.launch(Apps.settingsId);
+                else SettingsWindow.show();
+            }
         }
 
         // Positioned by hand instead of using a Row: needed so the

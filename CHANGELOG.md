@@ -14,6 +14,22 @@ Since there is no public API here, that means:
 
 ## [Unreleased]
 
+### Added
+
+- The settings window now appears in the dock while it is open, with
+  Shima's own icon, and clicking it brings it to the front.
+- It also wears that icon in its own titlebar, and wherever else the
+  system lists windows, instead of Quickshell's.
+
+### Fixed
+
+- Closing the settings window with its own button left Shima believing
+  it was still open, and it could not be opened again until the shell
+  was restarted
+- Right-clicking the dock with the settings window already open closed
+  it instead of bringing it to the front, which was no use at all when
+  the reason for clicking was that it had ended up behind something
+
 ## [0.2.0] — 2026-09-23
 
 ### Added
