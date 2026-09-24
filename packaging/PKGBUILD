@@ -1,7 +1,7 @@
 # Maintainer: ayozetr <ayozetr@users.noreply.github.com>
 
 pkgname=shima-shell
-pkgver=0.3.0
+pkgver=0.4.0
 pkgrel=1
 pkgdesc='Dynamic island and dock for KDE Plasma on Wayland'
 arch=('any')

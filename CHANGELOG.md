@@ -14,6 +14,89 @@ Since there is no public API here, that means:
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-25
+
+### Added
+
+- The settings window is six pages down a side — general, dock,
+  launcher, island, notifications, weather and about — instead of one
+  column with sixty-two rows and five screens of scrolling to reach
+  the language.
+- Shima's settings appear in the application menu, so they can be
+  found by name. Turning the dock off used to leave nowhere to change
+  anything: the only way in was a right click on the dock itself.
+  Opening them starts the shell if it is not already up.
+- An about page, with the version, a link to the source and one to
+  Ko-fi.
+- What a right click on the dock opens is now yours to choose: the
+  settings, a system monitor you have installed, any other application
+  by its id, or nothing.
+- A tone that sets the dock, the island and the launcher at once, in
+  general. It marks nothing when the three differ, rather than naming
+  one of them and being wrong about the other two.
+- The settings window can be used without the mouse. Tab walks every
+  control, the arrows work sliders, choices and lists, delete removes
+  a pinned application, and escape closes the window. Every control
+  also says what it is to a screen reader, with the name of the row it
+  sits in.
+- The media panel shows how far into the track you are, where the
+  volume of the whole machine used to be — that is one turn of the
+  wheel away in the control centre. It can be dragged where the player
+  says it can seek, and a live stream says so beside whoever is
+  streaming instead of pretending to have an end.
+- Searching in the launcher marks the first answer, so return opens it.
+
+### Changed
+
+- The dock no longer starts with a written list of applications, which
+  was the author's own. With nothing to inherit from a Plasma panel it
+  asks the system what it opens a web address, a folder and a terminal
+  with.
+- The launcher forgets what you last searched for.
+- The island speaks for whatever is playing and, failing that,
+  whatever is paused. It used to take the first player on the bus,
+  which is a browser that registered itself hours ago: pausing Spotify
+  handed the island an empty panel with no way to press play again.
+- A shortcut can be set to a combination. A modifier used to be taken
+  the moment it went down, so Meta+V could not be typed at all; it now
+  waits to see what follows. Ours are taken out of KDE's hands while
+  the box is listening, since a registered combination never reaches
+  the window, and what a key was taken from is said — in red when it
+  was one of ours, which is left without one.
+- A key borrowed from Plasma is given back as soon as we stop using
+  it, rather than only when Shima is uninstalled.
+- The weather starts on the forecast model Open-Meteo picks for your
+  location. The Met Office was the default because it feeds BBC and
+  therefore Plasma's widget, but with BBC as the provider the model's
+  temperature is never read — all it decides is the icon.
+
+### Fixed
+
+- Dropping a reordered dock icon brought the whole row in from the
+  left edge.
+- The clipboard settings were filed under "dock applications", which
+  they had nothing to do with.
+- Ticking a setting that shows or hides the row under it threw you
+  back to the top of the page.
+- The last colour in a row came out with a slice missing, and the
+  chevron of a list was cut by the corner of its row.
+- A notification's own picture came back wearing somebody else's face
+  after a restart: the address is a number handed out in order, and
+  the count starts again with the shell.
+- A player that is stopped no longer shows what it left behind. A
+  browser clears the title when the video ends but keeps pointing at
+  its own logo.
+- The calendar stayed on whatever month you walked to.
+- The dock's menu sat underneath the launcher instead of closing, and
+  the launcher's own menu for an application came back on its own the
+  next time it opened.
+- An application pinned to the dock and no longer installed left a
+  blank square that still took up room and swallowed clicks.
+- With BBC as the weather provider and the unit set to Fahrenheit, the
+  degrees shown were Celsius.
+- The notification history no longer says it could not be read on the
+  first start of every session, when there is nothing to read yet.
+
 ## [0.3.0] — 2026-09-23
 
 ### Added
@@ -202,7 +285,8 @@ First release. Installable and packaged; expect rough edges.
 - The launcher's category names follow the language of your session,
   not the one set in Shima: they come from KDE's menu.
 
-[Unreleased]: https://github.com/ayozetr/shima-shell/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ayozetr/shima-shell/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.1.0
