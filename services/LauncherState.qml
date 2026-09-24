@@ -21,14 +21,14 @@ Singleton {
     // Rereading KDE's menu on open is what makes an entry you edited
     // there show up here without restarting anything.
     function show() {
-        Apps.readMenu();
-        Apps.refreshFavorites();
-        Apps.readRecent();
+        Menu.read();
+        Favorites.refresh();
+        Recent.read();
         Games.refresh();
         // Favourites first, which is the point of having them — unless
         // there are none yet, and an empty panel would be a poor
         // greeting.
-        root.category = Apps.favorites.length > 0 ? "favorites" : "all";
+        root.category = Favorites.list.length > 0 ? "favorites" : "all";
         root.query = "";
         root.open = true;
     }
@@ -50,7 +50,7 @@ Singleton {
 
     function refresh() {
         const nextApps = root.open
-            ? Apps.listApps(root.category, root.query) : [];
+            ? Menu.list(root.category, root.query) : [];
         if (!root.sameList(nextApps, root.apps)) root.apps = nextApps;
 
         const q = root.query.trim();

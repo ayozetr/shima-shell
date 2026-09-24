@@ -332,7 +332,7 @@ FloatingWindow {
                 Controls.Button_ {
                     anchors.right: parent.right
                     label: I18n.t.import
-                    onTriggered: Apps.importFavoritesFromPlasma()
+                    onTriggered: Favorites.importFromPlasma()
                 }
             }
 
@@ -342,7 +342,7 @@ FloatingWindow {
                 Controls.Button_ {
                     anchors.right: parent.right
                     label: I18n.t.import
-                    onTriggered: Apps.importFromPlasma()
+                    onTriggered: Pinned.importFromPlasma()
                 }
             }
 

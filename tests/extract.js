@@ -129,10 +129,41 @@ function opensRegex(text, i) {
     return ")]".indexOf(c) === -1;
 }
 
+// A property whose value is written out in the file — a list of
+// names, a table of icons — evaluated as it is written. Tests that
+// need one take the real thing this way instead of keeping a copy
+// beside it, which is a copy that goes stale without anyone noticing.
+function literal(file, name) {
+    const text = source(file);
+    const decl = new RegExp("property\\s+\\w+\\s+" + name + "\\s*:").exec(text);
+    if (!decl) throw new Error("no such property: " + name);
+
+    let i = decl.index + decl[0].length;
+    while (i < text.length && /[\s(]/.test(text[i])) i++;
+    const open = text[i];
+    if (open !== "[" && open !== "{") throw new Error(name + " is not written out");
+
+    const close = open === "[" ? "]" : "}";
+    let depth = 0;
+    for (let j = i; j < text.length; j++) {
+        const skipped = skip(text, j);
+        if (skipped >= 0) { j = skipped; continue; }
+        if (text[j] === open) depth++;
+        else if (text[j] === close && --depth === 0)
+            return new Function("return (" + text.slice(i, j + 1) + ");")();
+    }
+    throw new Error("unterminated property: " + name);
+}
+
 // The functions, plus whatever they lean on, in one scope. `refs` is
 // what the QML around them would have provided: another singleton, a
 // property, a constant. `root` is provided for free and ends up being
 // the functions themselves, since that is how they call each other.
+//
+// What comes back is that scope and not merely the functions, because
+// plenty of them answer by writing to `root` rather than by returning
+// — the menu, the recent list — and a test has to be able to read
+// what they wrote, and to put something there first.
 function load(file, names, refs) {
     const text = source(file);
     const parts = names.map(n => body(text, n));
@@ -143,9 +174,8 @@ function load(file, names, refs) {
 
     const make = new Function(...keys,
         parts.join("\n") + "\nreturn {" + names.join(", ") + "};");
-    const out = make(...keys.map(k => all[k]));
-    Object.assign(self, out);
-    return out;
+    Object.assign(self, make(...keys.map(k => all[k])));
+    return self;
 }
 
-module.exports = { source, body, load, root };
+module.exports = { source, body, literal, load, root };

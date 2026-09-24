@@ -24,7 +24,7 @@ Rectangle {
     readonly property var entry: (Apps.revision, Apps.entryFor(root.appId))
     readonly property var actions: root.entry ? (root.entry.actions || []) : []
 
-    readonly property bool running: (Apps.revision, Apps.isRunning(root.appId))
+    readonly property bool running: (Apps.revision, Windows.isRunning(root.appId))
 
     readonly property var items: {
         const out = [{ label: I18n.t.open, icon: "", kind: "open", danger: false, sep: false }];
@@ -43,11 +43,11 @@ Rectangle {
 
         // Closing needs a window to act on. Minimising is not here on
         // purpose: clicking the icon already does it.
-        if (root.context === "dock" && root.running && Apps.hasKdotool)
+        if (root.context === "dock" && root.running && Windows.hasKdotool)
             out.push({ label: I18n.t.closeWindow, icon: "window-close", kind: "close",
                        danger: false, sep: true });
 
-        const fav = Apps.isFavorite(root.appId);
+        const fav = Favorites.has(root.appId);
         if (root.context === "launcher")
             out.push({ label: fav ? I18n.t.removeFavorite : I18n.t.addFavorite,
                        icon: fav ? "starred-symbolic" : "non-starred-symbolic",
@@ -160,15 +160,15 @@ Rectangle {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             switch (modelData.kind) {
-                                case "open":     Apps.launch(root.appId); break;
+                                case "open":     Windows.raiseOrStart(root.appId); break;
                                 case "action":   modelData.action.execute(); break;
-                                case "new":      Apps.launchNew(root.appId); break;
-                                case "close":    Apps.closeWindow(root.appId); break;
+                                case "new":      Windows.launchNew(root.appId); break;
+                                case "close":    Windows.close(root.appId); break;
                                 case "pin":
-                                    if (root.pinned) Apps.unpin(root.appId);
-                                    else             Apps.pin(root.appId);
+                                    if (root.pinned) Pinned.remove(root.appId);
+                                    else             Pinned.add(root.appId);
                                     break;
-                                case "favorite": Apps.toggleFavorite(root.appId); break;
+                                case "favorite": Favorites.toggle(root.appId); break;
                                 case "edit":     Apps.editApp(root.appId); break;
                                 case "desktop":  Apps.addToDesktop(root.appId); break;
                             }

@@ -165,7 +165,7 @@ PanelWindow {
     function openMenu(id, name, x, y) {
         win.menuAppId = id;
         win.menuAppName = name;
-        win.menuPinned = Apps.pinned.indexOf(id) !== -1;
+        win.menuPinned = Pinned.list.indexOf(id) !== -1;
         win.menuX = x;
         win.menuY = y;
         win.menuShown = true;
@@ -310,12 +310,12 @@ PanelWindow {
             spacing: 2
 
             Repeater {
-                model: Apps.categories
+                model: Menu.categories
 
                 Item {
                     required property var modelData
                     readonly property int count:
-                        Apps.categoryCounts[modelData.id] || 0
+                        Menu.categoryCounts[modelData.id] || 0
                     readonly property bool current: LauncherState.category === modelData.id
 
                     // Favourites, frequent, places and the clipboard
@@ -600,15 +600,15 @@ PanelWindow {
 
                 Heading {
                     text: I18n.t.recentApps
-                    visible: Apps.recentApps.length > 0
+                    visible: Recent.apps.length > 0
                 }
-                Tiles { model: Apps.recentApps }
+                Tiles { model: Recent.apps }
 
                 Heading {
                     text: I18n.t.recentFiles
-                    visible: Apps.recentFiles.length > 0
+                    visible: Recent.files.length > 0
                 }
-                Tiles { model: Apps.recentFiles }
+                Tiles { model: Recent.files }
             }
         }
 
@@ -838,7 +838,7 @@ PanelWindow {
                 reorderable: LauncherState.category === "favorites"
                              && LauncherState.query === ""
                 onLaunched: LauncherState.hide()
-                onReordered: (from, to) => Apps.moveFavorite(from, to)
+                onReordered: (from, to) => Favorites.move(from, to)
             }
         }
 

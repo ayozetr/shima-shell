@@ -14,7 +14,7 @@ Column {
         spacing: 6
 
         Repeater {
-            model: Apps.pinned
+            model: Pinned.list
 
             Rectangle {
                 required property string modelData
@@ -61,7 +61,7 @@ Column {
                         anchors.margins: -4
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Apps.unpin(parent.parent.modelData)
+                        onClicked: Pinned.remove(parent.parent.modelData)
                     }
                 }
             }
@@ -120,8 +120,8 @@ Column {
 
     // Pinning one of them takes it out of the list it was picked from.
     Connections {
-        target: Apps
-        function onPinnedChanged() { root.lookUp(); }
+        target: Pinned
+        function onListChanged() { root.lookUp(); }
     }
 
     function lookUp() {
@@ -131,7 +131,7 @@ Column {
         const out = [];
         for (const e of DesktopEntries.applications.values) {
             if (e.noDisplay) continue;
-            if (Apps.pinned.indexOf(e.id) !== -1) continue;
+            if (Pinned.list.indexOf(e.id) !== -1) continue;
             if (e.name.toLowerCase().indexOf(q) === -1) continue;
             out.push(e);
             if (out.length >= 6) break;
@@ -185,7 +185,7 @@ Column {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: { Apps.pin(modelData.id); search.text = ""; }
+                    onClicked: { Pinned.add(modelData.id); search.text = ""; }
                 }
             }
         }
