@@ -46,6 +46,11 @@ ShellRoot {
         // so a menu opened before that lands would hide entries that
         // do work.
         Session.canShutdown;
+        // Nothing watches the clipboard until this singleton exists,
+        // so left alone it only started recording when something first
+        // read it — opening the launcher, usually, minutes in. What
+        // you copied before that was gone.
+        Clipboard.available;
         // The tray needs to register as a host and wait for the items
         // to answer; woken late it reports an empty tray for seconds.
         SystemTray.items.values.length;

@@ -289,9 +289,20 @@ Singleton {
         fetch.running = true;
     }
 
-    Component.onCompleted: {
-        root.place = Config.data.weatherPlace ?? "";
-        // First run: inherit whatever the Plasma weather widget has.
-        if ((Config.data.weatherLat ?? 0) === 0) root.importFromPlasma();
+    // Read when the settings arrive, not when this is built. A
+    // singleton is born before its file has been read, so asking at
+    // construction gets the defaults — and the default latitude is
+    // zero, which is exactly the "nothing chosen yet" the line below
+    // is looking for. So the import from Plasma's widget ran at every
+    // single start and wrote its location over the one you picked. On
+    // a machine where both point at the same town it is invisible;
+    // anywhere else your choice came back changed after every login.
+    Connections {
+        target: Config
+        function onReady() {
+            root.place = Config.data.weatherPlace ?? "";
+            // First run: inherit whatever the Plasma weather widget has.
+            if ((Config.data.weatherLat ?? 0) === 0) root.importFromPlasma();
+        }
     }
 }

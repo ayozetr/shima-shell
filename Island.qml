@@ -109,7 +109,11 @@ PanelWindow {
 
     Item {
         id: edgeStrip
-        width: parent.width
+        // Measured against the window and not against contentItem,
+        // which is not always the same size — the dock's strip carries
+        // the same note for the same reason. A strip narrower than the
+        // screen is an island that does not come back at the edges.
+        width: win.width
         height: 3
         y: 0
         HoverHandler {
