@@ -155,6 +155,33 @@ function is(what, got, want) {
     is("nor valueOf", i18n.has("valueOf"), false);
 }
 
+// ── Reading a function out of a .qml ─────────────────────────────
+//
+// The thing every test above rests on. It counts braces to find where
+// a function ends, and it used to count the ones inside strings,
+// comments and regular expressions too — so a brace written in a
+// comment would have failed a test on the other side of the file,
+// with an error pointing nowhere near what was changed.
+{
+    const { body } = require("./extract.js");
+
+    const cases = [
+        ["a brace inside a string",  'function f() { const s = "}"; return 1; }'],
+        ["a brace inside a regex",   "function f() { const r = /[{]/; return 2; }"],
+        ["a brace in a line comment", "function f() { // }\n    return 3; }"],
+        ["a brace in a block comment", "function f() { /* } */ return 4; }"],
+        ["a brace in a template hole", 'function f() { const t = `x${ "}" }y`; return 5; }'],
+        ["a slash that divides",     "function f() { return g() / 2; }"],
+        ["a regex right after return", 'function f() { return /}/.test("x"); }'],
+        ["a quote inside a regex",   "function f() { return /['\"]/.source; }"]
+    ];
+    for (const [what, src] of cases) {
+        let got;
+        try { got = body(src, "f"); } catch (e) { got = "threw: " + e.message; }
+        is("the whole function comes back with " + what, got, src);
+    }
+}
+
 // ── Every setting has a line in the documentation ────────────────
 //
 // Not logic, but the one thing about the reference that can be checked

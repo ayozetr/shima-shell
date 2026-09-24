@@ -14,17 +14,13 @@ Singleton {
     id: root
 
     // .desktop IDs, in order. On first run they are inherited from the
-    // Plasma task manager; after that pinned.json wins. This list is
-    // only the last resort.
-    property var pinned: [
-        "zen",
-        "org.kde.dolphin",
-        "org.telegram.desktop",
-        "discord",
-        "spotify",
-        "obsidian",
-        "org.kde.konsole"
-    ]
+    // Plasma task manager, and where there is nothing to inherit — no
+    // panel has ever been set up, which is exactly the desktop the
+    // README describes — from what the system answers for a browser,
+    // a file manager and a terminal. It used to start as a written
+    // list, which was the author's own dock arriving on somebody
+    // else's machine.
+    property var pinned: []
     property var runningIds: ({})
     // How many sweeps in a row have failed to see each application.
     property var misses: ({})
@@ -695,15 +691,41 @@ Singleton {
     // is visible, because an icon takes a frame to load and the gap
     // shows.
     property var dockItems: []
+    // How many of those are pinned ones, which is where the divider
+    // goes. Not the length of `pinned`: what cannot be drawn is not in
+    // the row.
+    property int dockPinnedCount: 0
 
     function syncDockItems() {
-        const next = root.pinned.concat(root.runningExtra);
+        // Something pinned that is not installed any more draws
+        // nothing — there is no entry to take an icon or a name from —
+        // but the empty square stayed in the row all the same, taking
+        // up its place and swallowing the clicks meant for it. It is
+        // left out of the row while it cannot be drawn, and stays in
+        // pinned.json, so installing it again brings it back where it
+        // was. Not while the catalogue is still being read, though:
+        // during that everything looks uninstalled.
+        const known = DesktopEntries.applications.values.length > 0;
+        const next = [];
+        for (const id of root.pinned)
+            if (!known || root.entryFor(id)) next.push(id);
+        // The ones that are merely open are kept either way: that tile
+        // is the way back to a window that is on screen right now.
+        for (const id of root.runningExtra) next.push(id);
+
+        root.dockPinnedCount = next.length - root.runningExtra.length;
+
         if (next.join("\u0000") === root.dockItems.join("\u0000")) return;
         root.dockItems = next;
     }
 
     onPinnedChanged: root.syncDockItems()
     onRunningExtraChanged: root.syncDockItems()
+    // And whenever what can be drawn changes, which is what `revision`
+    // already means everywhere else: the catalogue finishing its scan,
+    // Steam's manifests being read, Heroic and Lutris answering. The
+    // row is a kept list and not a binding, so it has to be told.
+    onRevisionChanged: root.syncDockItems()
 
     // Index from process name to .desktop id. Built once, it turns
     // every scan into a direct lookup instead of comparing each process
@@ -1195,21 +1217,62 @@ Singleton {
                 applications:*)          echo "\${e#applications:}" ;;
                 file://*)                basename "\${e#file://}" ;;
               esac
-            done | sed 's/\.desktop$//' | awk 'NF && !seen[$0]++'
+            done | sed 's/\\.desktop$//' | awk 'NF && !seen[$0]++'
         `]
         stdout: StdioCollector {
             onStreamFinished: {
                 const ids = text.split("\n").map(s => s.trim()).filter(s => s);
                 if (!ids.length) {
-                    console.log("[shima] the task manager has no pinned apps to import");
+                    console.log("[shima] the task manager has nothing pinned; "
+                              + "asking the system what it opens things with");
+                    starters.running = true;
                     return;
                 }
-                root.pinned = ids;
-                root.savePinned();
-                root.revision++;
-                root.sweepNow();
+                root.adopt(ids);
             }
         }
+    }
+
+    // Nothing to inherit: a session with no panel, or one where the
+    // task manager was never touched. Rather than a dock of somebody
+    // else's applications, the three the system can name by itself —
+    // what it opens a web address with, what it opens a folder with,
+    // and the terminal Plasma's own chooser wrote down.
+    Process {
+        id: starters
+        command: ["sh", "-c", `
+            {
+              xdg-mime query default x-scheme-handler/https
+              xdg-mime query default inode/directory
+              kreadconfig6 --file kdeglobals --group General --key TerminalService
+              echo org.kde.konsole.desktop
+            } 2>/dev/null | while read -r e; do
+              [ -n "$e" ] || continue
+              case "$e" in *.desktop) ;; *) e="$e.desktop";; esac
+              IFS=:
+              for d in \${XDG_DATA_HOME:-$HOME/.local/share}:\${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do
+                [ -f "$d/applications/$e" ] || continue
+                echo "$e"
+                break
+              done
+              unset IFS
+            done | sed 's/\\.desktop$//' | awk 'NF && !seen[$0]++'
+        `]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const ids = text.split("\n").map(s => s.trim()).filter(s => s);
+                if (ids.length) root.adopt(ids);
+            }
+        }
+    }
+
+    // Whatever was worked out is written down at once, so the working
+    // out happens on the first run and never again.
+    function adopt(ids) {
+        root.pinned = ids;
+        root.savePinned();
+        root.revision++;
+        root.sweepNow();
     }
 
     function importFromPlasma() { importer.running = true; }
@@ -1515,12 +1578,19 @@ Singleton {
         }
     }
 
-    // Reorder and remove, from dragging in the dock or from settings.
+    // Reordering, from dragging in the dock. The two numbers are
+    // places in the row, and the row is not the pinned list — anything
+    // pinned that cannot be drawn is missing from it — so they are
+    // turned back into what was picked up and what it was dropped on
+    // before the pinned list is touched.
     function move(from, to) {
         if (from === to || from < 0 || to < 0) return;
+        if (from >= root.dockItems.length || to >= root.dockItems.length) return;
         const list = root.pinned.slice();
-        if (from >= list.length || to >= list.length) return;
-        list.splice(to, 0, list.splice(from, 1)[0]);
+        const a = list.indexOf(root.dockItems[from]);
+        const b = list.indexOf(root.dockItems[to]);
+        if (a < 0 || b < 0) return;
+        list.splice(b, 0, list.splice(a, 1)[0]);
         root.pinned = list;
         root.savePinned();
     }

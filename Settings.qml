@@ -700,10 +700,10 @@ FloatingWindow {
                 hint: I18n.t.sourceHint
                 visible: win.c.weatherEnabled ?? true
                 Controls.Choice_ {
-                    options: [{value: "ukmo_seamless", label: "Met Office"},
-                              {value: "ecmwf_ifs025",  label: "ECMWF"},
-                              {value: "best_match",    label: I18n.t.autoSource}]
-                    value: win.c.weatherModel ?? "ukmo_seamless"
+                    options: [{value: "best_match",    label: I18n.t.autoSource},
+                              {value: "ukmo_seamless", label: "Met Office"},
+                              {value: "ecmwf_ifs025",  label: "ECMWF"}]
+                    value: win.c.weatherModel ?? "best_match"
                     onPicked: (v) => { win.c.weatherModel = v; Config.save(); }
                 }
             }

@@ -351,7 +351,7 @@ PanelWindow {
                                             + (hasTray ? Theme.dockIconSpacing : 0)
             readonly property int trayIconsLead: trayLead + toggleStep
             readonly property int count: Apps.dockItems.length
-            readonly property int pinnedCount: Apps.pinned.length
+            readonly property int pinnedCount: Apps.dockPinnedCount
             width: Math.max(0, !hasTray
                 ? lead + count * step - Theme.dockIconSpacing
                 : trayIconsLead
@@ -391,11 +391,23 @@ PanelWindow {
                 color: "#20ffffff"
             }
 
+            // The drag is over before the list is told, and that
+            // order is the whole point. Reordering hands the Repeater
+            // a different list, which builds every icon again from
+            // scratch — and each new one reads this drag while working
+            // out where to sit. With it still set, they were all born
+            // somewhere else: slotOf() was still shifting them around
+            // the hole left by the icon being carried, and the one
+            // landing on the index that was being dragged was born
+            // holding a dragX of its own, which is zero, at the very
+            // left of the dock. Clearing it first and moving after,
+            // each one is built where it belongs and nothing has
+            // anywhere to travel from.
             function commitDrag() {
-                if (dragIndex >= 0 && dropIndex >= 0 && dragIndex !== dropIndex)
-                    Apps.move(dragIndex, dropIndex);
+                const from = dragIndex, to = dropIndex;
                 dragIndex = -1;
                 dropIndex = -1;
+                if (from >= 0 && to >= 0 && from !== to) Apps.move(from, to);
             }
 
             LauncherButton {

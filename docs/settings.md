@@ -105,7 +105,7 @@ when you log out.
 |---|---|---|
 | `weatherEnabled` | `true` | |
 | `weatherProvider` | `"bbc"` | `"bbc"` for what a nearby station measured, `"openmeteo"` for the model's figure at your exact spot |
-| `weatherModel` | `"ukmo_seamless"` | Which Open-Meteo model: also `"ecmwf_ifs025"` or `"best_match"` |
+| `weatherModel` | `"best_match"` | Which Open-Meteo model picks the icon: also `"ukmo_seamless"` (the Met Office, what BBC and Plasma's widget use) or `"ecmwf_ifs025"` |
 | `weatherLat` | `0` | −90 to 90. Zero means no town chosen yet |
 | `weatherLon` | `0` | −180 to 180 |
 | `weatherPlace` | `""` | What the island shows it as |

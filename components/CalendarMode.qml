@@ -13,7 +13,21 @@ Item {
     }
 
     readonly property date today: clock.date
+
+    // How far from this month the arrows have walked. It is a glance
+    // at the month, so it comes back to today the moment it stops
+    // being looked at — the island folding away, or the scroll wheel
+    // moving on to another mode. Leaving it where it was meant
+    // opening the island tomorrow and finding March 2027.
     property int monthOffset: 0
+    onVisibleChanged: if (!root.visible) root.monthOffset = 0
+
+    // Something to hold on to at the ends. Fifty years either way is
+    // further than anyone walks a month at a time, and without it the
+    // arrows run to wherever a date stops being a date.
+    function step(by) {
+        root.monthOffset = Math.max(-600, Math.min(600, root.monthOffset + by));
+    }
 
     readonly property date shown: new Date(today.getFullYear(), today.getMonth() + monthOffset, 1)
     readonly property int daysInMonth: new Date(shown.getFullYear(), shown.getMonth() + 1, 0).getDate()
@@ -56,8 +70,8 @@ Item {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 2
-                Arrow { dir: -1; onTriggered: root.monthOffset-- }
-                Arrow { dir:  1; onTriggered: root.monthOffset++ }
+                Arrow { dir: -1; onTriggered: root.step(-1) }
+                Arrow { dir:  1; onTriggered: root.step(1) }
             }
         }
 

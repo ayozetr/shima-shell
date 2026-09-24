@@ -142,11 +142,17 @@ Singleton {
             property real   weatherLat:        0
             property real   weatherLon:        0
             property string weatherPlace:      ""
-            // Forecast model. The default is the UK Met Office, which
-            // is what feeds BBC Weather and therefore Plasma's widget:
-            // picking anything else shows a different temperature than
-            // the one you are used to seeing on the panel.
-            property string weatherModel:      "ukmo_seamless"
+            // Forecast model. It used to default to the UK Met
+            // Office, the reasoning being that it feeds BBC Weather
+            // and therefore Plasma's widget — but with the provider
+            // set to BBC, which is also the default, the model's
+            // temperature is never read: the number comes from BBC and
+            // all the model decides is the icon and whether it is day.
+            // So that default bought nothing and cost accuracy where
+            // the global model is weak. Open-Meteo's own pick per
+            // location does better; the Met Office is still there for
+            // anyone who wants the panel's own source.
+            property string weatherModel:      "best_match"
 
             // bbc reads the very feed Plasma's weather widget uses, so
             // the temperature matches the panel instead of merely

@@ -61,6 +61,13 @@ Singleton {
     FileView {
         id: historyFile
         path: root.historyPath
+        // The runtime directory is empty at the start of every
+        // session, so the first read of this always fails and used to
+        // put a warning in the log for it. Nothing is wrong: there is
+        // no history yet because there has been no session yet. The
+        // reading is done below, where a missing file is an answer and
+        // anything else is worth saying out loud.
+        printErrors: false
         onLoaded: {
             if (root.restored) return;
             root.restored = true;
@@ -78,6 +85,16 @@ Singleton {
                     e.actions = [];
                     e.actionCount = 0;
                     e.buttons = 0;
+                    // A picture the application sent along is held by
+                    // the shell as "image://qsimage/23/1", a number
+                    // handed out in order as the images arrive. The
+                    // count starts again with the shell, so that
+                    // address does not merely stop resolving: it comes
+                    // back pointing at somebody else's picture, and an
+                    // old message from one person would be wearing the
+                    // face of whoever wrote next. The application's
+                    // own icon is underneath it and is what shows.
+                    e.image = "";
                     out.push(e);
                     if (out.length >= root.historyLimit) break;
                 }
@@ -85,7 +102,12 @@ Singleton {
                 for (const e of out) if (e.key > root.serial) root.serial = e.key;
             } catch (e) { /* half-written by a shell that was killed */ }
         }
-        onLoadFailed: root.restored = true;
+        onLoadFailed: (error) => {
+            root.restored = true;
+            if (error !== FileViewError.FileNotFound)
+                console.warn("[shima] the notification history at "
+                           + root.historyPath + " could not be read");
+        }
     }
 
     property bool restored: false

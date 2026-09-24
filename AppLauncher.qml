@@ -65,9 +65,9 @@ PanelWindow {
 
     Connections {
         target: LauncherState
-        function onOpenChanged() { win.selected = -1; }
-        function onCategoryChanged() { win.selected = -1; }
-        function onQueryChanged() { win.selected = -1; }
+        function onOpenChanged() { win.selectedKey = ""; }
+        function onCategoryChanged() { win.selectedKey = ""; }
+        function onQueryChanged() { win.selectedKey = ""; }
     }
 
     // ── Moving without the mouse ─────────────────────────────────
@@ -81,24 +81,54 @@ PanelWindow {
     // sideways in a grid is a launcher you cannot correct a typo in.
     // In a grid, one step is the next cell along and then the row
     // below, which is the order the eye reads them in anyway.
-    property int selected: -1
+    //
+    // What is marked is held by what it is and not by where it sits.
+    // These lists change on their own — an application closes and the
+    // sweep takes its icon out, something is copied and the clipboard
+    // grows a row on top — and a mark that was the number three then
+    // stayed on the number three, which by now is a different thing.
+    // Return opened it.
+    property string selectedKey: ""
 
+    // Whichever list is on screen, as one. The search view holds two
+    // sections, the applications and then the files, and they are
+    // walked as a single run.
+    readonly property var navItems: {
+        if (clipView.visible) return win.clips;
+        if (searchView.visible) return win.apps.concat(Search.files);
+        if (grid.visible) return win.apps;
+        return [];
+    }
 
-    readonly property int navCount: {
-        if (clipView.visible) return win.clips.length;
-        // The search view holds two sections, the applications and
-        // then the files, and they are walked as one list.
-        if (searchView.visible) return win.apps.length + Search.files.length;
-        if (grid.visible) return win.apps.length;
-        return 0;
+    readonly property int navCount: win.navItems.length
+
+    // A clipboard entry is known by its mark and everything else by
+    // its id; an entry made up on the spot for a game is a new object
+    // each time, so the objects themselves cannot be compared.
+    function navKeyOf(item) {
+        if (!item) return "";
+        return String(item.mark !== undefined ? item.mark : (item.id || ""));
+    }
+
+    // Worked out from the mark rather than stored, so a list that
+    // changes underneath moves it along or, if what was marked is
+    // gone, drops it.
+    readonly property int selected: {
+        if (win.selectedKey === "") return -1;
+        const items = win.navItems;
+        for (let i = 0; i < items.length; i++)
+            if (win.navKeyOf(items[i]) === win.selectedKey) return i;
+        return -1;
     }
 
     function navMove(by) {
-        if (win.navCount === 0) return;
-        const from = win.selected < 0 ? (by > 0 ? -1 : win.navCount) : win.selected;
-        win.selected = Math.max(0, Math.min(win.navCount - 1, from + by));
+        const items = win.navItems;
+        if (items.length === 0) return;
+        const from = win.selected < 0 ? (by > 0 ? -1 : items.length) : win.selected;
+        const at = Math.max(0, Math.min(items.length - 1, from + by));
+        win.selectedKey = win.navKeyOf(items[at]);
         if (grid.visible)
-            grid.positionViewAtIndex(win.selected, GridView.Contain);
+            grid.positionViewAtIndex(at, GridView.Contain);
     }
 
     // What return does. False means nothing was marked, and the caller
