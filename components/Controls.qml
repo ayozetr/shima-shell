@@ -433,6 +433,58 @@ Item {
         property string label: ""
         property bool listening: false
         property string describedAs: ""
+        // Which of ours this one sets, so it is not reported as being
+        // in the way of itself: "launcher" or "clipboard".
+        property string role: ""
+        // Who held the key that was just taken, if anybody, and
+        // whether that somebody was us — which is the case worth
+        // colouring, because one of ours was left without a key.
+        property string tookFrom: ""
+        property bool tookFromOurs: false
+
+        // It has been read by then, and a warning that stays for ever
+        // stops being one: the red would still be there tomorrow,
+        // about something settled a minute after it was said.
+        onTookFromChanged: if (cap.tookFrom !== "") forget.restart(); else forget.stop()
+
+        property Timer forget: Timer {
+            interval: 7000
+            onTriggered: {
+                cap.tookFrom = "";
+                cap.tookFromOurs = false;
+            }
+        }
+        // A modifier held down, waiting to find out whether it is the
+        // answer or only the start of one.
+        property int pending: 0
+
+        // While this is listening, the shell ignores its own global
+        // shortcuts: otherwise pressing the combination you are trying
+        // to set also does what it is already set to do.
+        //
+        // And for a moment afterwards, which is the part that is not
+        // obvious. The key that ends the capture is the same key KDE
+        // has registered, and KDE's turn comes after ours: the capture
+        // was already finished and the flag already down by the time
+        // the shortcut arrived — through D-Bus, through a process of
+        // its own — so the launcher opened anyway. The flag stays up
+        // long enough for that to land and be ignored.
+        onListeningChanged: {
+            if (cap.listening) {
+                grace.stop();
+                SettingsWindow.capturing = true;
+            } else {
+                grace.restart();
+            }
+        }
+
+        property Timer grace: Timer {
+            interval: 800
+            onTriggered: SettingsWindow.capturing = false
+        }
+        // Closed with it still listening — the window shut, the page
+        // changed — and nothing would ever put that back.
+        Component.onDestruction: SettingsWindow.capturing = false
         signal captured(int key, string label)
 
         activeFocusOnTab: true
@@ -447,7 +499,10 @@ Item {
         }
         // Tabbing away with it still listening leaves a control that
         // eats every key in the window.
-        onActiveFocusChanged: if (!cap.activeFocus) cap.listening = false
+        onActiveFocusChanged: if (!cap.activeFocus) {
+            cap.listening = false;
+            cap.pending = 0;
+        }
 
         Accessible.role: Accessible.Button
         Accessible.name: cap.describedAs
@@ -465,10 +520,17 @@ Item {
         width: Math.max(96, capText.implicitWidth + 22)
         height: 26
         radius: 8
-        color: cap.listening ? Theme.accentSoft
-                             : (capMouse.containsMouse ? "#25ffffff" : "#15ffffff")
+        color: {
+            if (cap.listening) return Theme.accentSoft;
+            if (cap.tookFromOurs) return "#33f87171";
+            return capMouse.containsMouse ? "#25ffffff" : "#15ffffff";
+        }
         border.width: 1
-        border.color: cap.listening ? Theme.accent : "#1affffff"
+        border.color: {
+            if (cap.listening) return Theme.accent;
+            if (cap.tookFromOurs) return "#f87171";
+            return "#1affffff";
+        }
         Behavior on color { ColorAnimation { duration: Theme.hoverDuration } }
 
         Text {
@@ -485,6 +547,11 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: {
+                cap.tookFrom = "";
+                cap.tookFromOurs = false;
+                // Read afresh: somebody may have changed their
+                // shortcuts since this window was opened.
+                Shortcuts.refresh();
                 cap.listening = true;
                 cap.forceActiveFocus();
             }
@@ -496,21 +563,26 @@ Item {
             if (!cap.listening) return;
             event.accepted = true;
 
-            if (event.key === Qt.Key_Escape) { cap.listening = false; return; }
-
-            // A modifier pressed alone is a valid answer, but only once
-            // it arrives without any other modifier held down.
-            const isModifier = cap.modifierNames[event.key] !== undefined;
-            if (isModifier) {
-                const others = event.modifiers & ~Qt.KeypadModifier;
-                const own = { 16777248: Qt.ShiftModifier, 16777249: Qt.ControlModifier,
-                              16777250: Qt.MetaModifier, 16777251: Qt.AltModifier }[event.key];
-                if ((others & ~own) !== 0) return;   // still building a combination
+            if (event.isAutoRepeat) return;
+            if (event.key === Qt.Key_Escape) {
                 cap.listening = false;
-                cap.captured(event.key, cap.modifierNames[event.key]);
+                cap.pending = 0;
                 return;
             }
 
+            // A modifier on its own is a valid answer — the Meta key
+            // alone is the usual one here — but it cannot be taken the
+            // moment it goes down, because that is also how every
+            // combination starts. Taken there, Meta+V was impossible
+            // to type: the Meta was accepted and the V never got a
+            // turn. So it waits to see what follows, and is answered
+            // for when it is let go.
+            if (cap.modifierNames[event.key] !== undefined) {
+                cap.pending = event.key;
+                return;
+            }
+
+            cap.pending = 0;
             const parts = [];
             if (event.modifiers & Qt.MetaModifier) parts.push("Meta");
             if (event.modifiers & Qt.ControlModifier) parts.push("Ctrl");
@@ -519,7 +591,26 @@ Item {
             parts.push(cap.nameOf(event.key, event.text));
 
             cap.listening = false;
-            cap.captured(event.key | event.modifiers, parts.join("+"));
+            const label = parts.join("+");
+            cap.captured(event.key | event.modifiers, label);
+            const took = Shortcuts.claim(cap.role, label);
+            cap.tookFrom = took.who;
+            cap.tookFromOurs = took.ours;
+        }
+
+        // Let go without anything after it: the modifier was the whole
+        // answer.
+        Keys.onReleased: (event) => {
+            if (!cap.listening || event.isAutoRepeat) return;
+            if (event.key !== cap.pending) return;
+            event.accepted = true;
+            const key = cap.pending;
+            cap.pending = 0;
+            cap.listening = false;
+            cap.captured(key, cap.modifierNames[key]);
+            const took = Shortcuts.claim(cap.role, cap.modifierNames[key]);
+            cap.tookFrom = took.who;
+            cap.tookFromOurs = took.ours;
         }
 
         function nameOf(key, text) {
@@ -817,16 +908,6 @@ Item {
         }
     }
 
-    // ── Section heading ──────────────────────────────────────────
-    component Section_: Text {
-        color: Theme.textTertiary
-        font.pixelSize: 10
-        font.bold: true
-        font.letterSpacing: 1.2
-        topPadding: 14
-        bottomPadding: 2
-    }
-}
     // ── Somewhere to type something ──────────────────────────────
     //
     // For the values a list cannot cover: the id of an application
@@ -894,3 +975,13 @@ Item {
         bottomPadding: 6
     }
 
+    // ── Section heading ──────────────────────────────────────────
+    component Section_: Text {
+        color: Theme.textTertiary
+        font.pixelSize: 10
+        font.bold: true
+        font.letterSpacing: 1.2
+        topPadding: 14
+        bottomPadding: 2
+    }
+}

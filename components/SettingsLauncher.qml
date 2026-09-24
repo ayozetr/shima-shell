@@ -27,9 +27,12 @@ Column {
 
     Controls.Row_ {
         label: I18n.t.shortcutKey
+        hint: I18n.t.shortcutKeyHint
         visible: root.c.shortcutEnabled ?? true
         Controls.KeyCapture_ {
+            id: launcherKey
             anchors.right: parent.right
+            role: "launcher"
             value: root.c.shortcutKey ?? 16777250
             label: root.c.shortcutLabel ?? "Meta"
             onCaptured: (key, text) => {
@@ -40,6 +43,16 @@ Column {
         }
     }
 
+    Controls.Notice_ {
+        visible: launcherKey.tookFrom !== ""
+        grave: launcherKey.tookFromOurs
+        text: {
+            if (launcherKey.tookFrom === "") return "";
+            return (launcherKey.tookFromOurs ? I18n.t.shortcutTaken
+                                    : I18n.t.shortcutBorrowed)
+                + " " + launcherKey.tookFrom;
+        }
+    }
 
 
     Controls.Row_ {
@@ -146,7 +159,9 @@ Column {
         visible: (root.c.clipboardHistory ?? true)
                  && (root.c.clipboardShortcutEnabled ?? true)
         Controls.KeyCapture_ {
+            id: clipboardKey
             anchors.right: parent.right
+            role: "clipboard"
             value: root.c.clipboardKey ?? 268435542
             label: root.c.clipboardLabel ?? "Meta+V"
             onCaptured: (key, text) => {
@@ -157,4 +172,14 @@ Column {
         }
     }
 
+    Controls.Notice_ {
+        visible: clipboardKey.tookFrom !== ""
+        grave: clipboardKey.tookFromOurs
+        text: {
+            if (clipboardKey.tookFrom === "") return "";
+            return (clipboardKey.tookFromOurs ? I18n.t.shortcutTaken
+                                    : I18n.t.shortcutBorrowed)
+                + " " + clipboardKey.tookFrom;
+        }
+    }
 }

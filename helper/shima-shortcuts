@@ -72,6 +72,12 @@ BORROWED = os.path.join(
     _dir("SHIMA_STATE_DIR", "XDG_STATE_HOME", "~/.local/state"),
     "borrowed-keys.json")
 
+# Written by the shell while the settings window is waiting for a key,
+# and removed when it stops. In the runtime directory because it says
+# what is happening this second and means nothing after a reboot.
+CAPTURING = os.path.join(
+    _dir("SHIMA_RUNTIME_DIR", "XDG_RUNTIME_DIR", "/tmp"), "capturing")
+
 
 def only_one():
     """Refuse to be the second helper.
@@ -289,16 +295,69 @@ class Helper:
             "clipboard": (ACTION_CLIPBOARD, self.wanted_key(
                 cfg, "clipboardShortcutEnabled", "clipboardKey", KEY_META_V)),
         }
+        # Nothing is registered while the settings window is waiting
+        # for a key: the compositor hands a registered combination to
+        # whoever owns it and never to the window, so ours could not be
+        # typed into the box that asks for them.
+        if os.path.exists(CAPTURING):
+            for name, (action, _) in wanted.items():
+                if self.applied.get(name) == 0:
+                    continue
+                self.applied[name] = 0
+                self.accel.set_keys(action, [])
+            return
+
         for name, (action, key) in wanted.items():
             if self.applied.get(name) == key:
                 continue
             self.applied[name] = key
             self.set_shortcut(action, key)
 
+        self.return_unused([k for _, k in wanted.values() if k])
+
+    def return_unused(self, keys):
+        """Give back a key we borrowed and no longer use.
+
+        Taking Meta off Plasma is fair while we answer to it. Changing
+        our own shortcut to something else and keeping Meta out of
+        Plasma's hands is not: it left the session worse for a key
+        nobody was using, until an uninstall that may never come.
+        """
+        borrowed = load_borrowed()
+        keep = []
+        for entry in borrowed:
+            action_id = entry.get("actionId")
+            original = entry.get("keys")
+            if not isinstance(action_id, list) or not isinstance(original, list):
+                continue
+            original = [int(k) for k in original]
+            # Still holding something of theirs, so it stays borrowed.
+            if any(k in original for k in keys):
+                keep.append(entry)
+                continue
+            try:
+                self.accel.set_foreign_keys(action_id, original)
+            except GLib.Error:
+                keep.append(entry)   # could not, so it is still ours to return
+                continue
+
+        if len(keep) != len(borrowed):
+            save_borrowed(keep)
+
     def watch_config(self):
         self.monitor = Gio.File.new_for_path(CONFIG).monitor_file(
             Gio.FileMonitorFlags.NONE, None)
         self.monitor.connect("changed", self.apply)
+
+        # The same treatment for the marker: appearing takes our keys
+        # out of the compositor's hands, and going away puts them back.
+        try:
+            os.makedirs(os.path.dirname(CAPTURING), exist_ok=True)
+        except OSError:
+            pass
+        self.capture_monitor = Gio.File.new_for_path(CAPTURING).monitor_file(
+            Gio.FileMonitorFlags.NONE, None)
+        self.capture_monitor.connect("changed", self.apply)
 
     def run(self):
         self.listen()

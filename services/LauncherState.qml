@@ -96,10 +96,13 @@ Singleton {
 
     // What the global shortcut calls. It is a plain toggle so the same
     // key closes what it opened.
+    // The way in from outside: the shortcut helper, which owns the
+    // keys registered with KDE, calls these.
     IpcHandler {
         target: "launcher"
 
         function toggle(): string {
+            if (SettingsWindow.capturing) return "capturing";
             root.toggle();
             return root.open ? "open" : "closed";
         }
@@ -108,6 +111,9 @@ Singleton {
         function hide(): string { root.hide(); return "closed"; }
 
         function clipboard(): string {
+            // Not while somebody is setting that very key. The press
+            // belongs to the box waiting for it, not to us.
+            if (SettingsWindow.capturing) return "capturing";
             root.showClipboard();
             return root.open ? "open" : "closed";
         }
