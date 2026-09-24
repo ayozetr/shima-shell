@@ -22,6 +22,11 @@ depends=(
     'wireplumber'
     'sqlite'
     'curl'
+    # The clipboard is read and written with these, and without them
+    # both the history and the launcher's copy button are gone.
+    'wl-clipboard'
+    # Opening a place from the launcher.
+    'xdg-utils'
     # Not in the official repositories, but window management depends
     # entirely on it: focus, minimise and the running dots on the dock.
     # KWin exposes no protocol for listing windows, so there is no
@@ -30,12 +35,19 @@ depends=(
 )
 
 # Each of these switches off one feature and nothing else.
+# Everything here is reached by name at runtime and everything here is
+# optional in the sense that its absence costs one feature, not the
+# shell. What is not listed anywhere, because listing it would be odd,
+# is Plasma itself: this replaces its panels and talks to KWin,
+# KGlobalAccel and its settings modules throughout.
 optdepends=(
     'cava: the audio visualiser'
     'fd: faster file search in the launcher'
-    'libnotify: sending test notifications from the settings'
+    'libnotify: the pomodoro telling you a session is over, and test notifications'
     'power-profiles-daemon: power profile switching'
     'kmenuedit: editing an application entry from the right-click menu'
+    'systemsettings: opening a settings page from the control centre'
+    'qt6-tools: handing a copied result to Klipper, where there is one'
 )
 
 install="$pkgname.install"
@@ -81,5 +93,6 @@ package() {
         "$icons/symbolic/apps/shima-symbolic.svg"
 
     install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
-    install -Dm644 README.md -t "$pkgdir/usr/share/doc/$pkgname"
+    install -Dm644 README.md docs/settings.md \
+        -t "$pkgdir/usr/share/doc/$pkgname"
 }

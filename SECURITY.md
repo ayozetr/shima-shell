@@ -38,8 +38,8 @@ and there is no back-porting: fixes go out in a new version.
 
 | Version | Supported |
 |---|---|
-| 0.1.x | yes |
-| older | there is nothing older |
+| 0.3.x | yes |
+| older | no — the fix goes out in a new version |
 
 ## What happens next
 

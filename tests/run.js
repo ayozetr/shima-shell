@@ -20,7 +20,7 @@ function is(what, got, want) {
     const a = JSON.stringify(got), b = JSON.stringify(want);
     if (a === b) { passed++; return; }
     failed++;
-    failures.push("  " + what + "\n      esperado " + b + "\n      obtenido " + a);
+    failures.push("  " + what + "\n      expected " + b + "\n      got      " + a);
 }
 
 // ── The calculator ───────────────────────────────────────────────
@@ -51,15 +51,15 @@ function is(what, got, want) {
 {
     const p = load("services/Places.qml", ["decode", "between", "attr"]);
 
-    is("decode de un porcentaje válido",
+    is("decode of a valid percent",
        p.decode("/home/ayoze/Un%20informe.pdf"), "/home/ayoze/Un informe.pdf");
     // One malformed percent used to throw from inside the parsing
     // loop, which took every other bookmark with it.
-    is("decode de un porcentaje roto", p.decode("/home/%ZZ/x"), "/home/%ZZ/x");
+    is("decode of a broken percent", p.decode("/home/%ZZ/x"), "/home/%ZZ/x");
 
-    is("between corriente",
+    is("between, the ordinary case",
        p.between("<title>Casa</title>", "<title>", "</title>"), "Casa");
-    is("between sin cierre",
+    is("between with nothing closing it",
        p.between("<title>Casa", "<title>", "</title>"), "");
     is("attr", p.attr('<bookmark href="file:///tmp">', 'href="'), "file:///tmp");
 }
@@ -69,29 +69,29 @@ function is(what, got, want) {
     const c = load("services/Clipboard.qml",
                    ["isFiles", "preview", "matches"]);
 
-    is("una dirección de fichero se reconoce",
+    is("a file address is recognised",
        c.isFiles("file:///home/ayoze/x.pdf"), true);
-    is("un texto cualquiera no",
+    is("an ordinary line of text is not",
        c.isFiles("file: no es esto"), false);
 
-    is("la vista previa junta los espacios",
-       c.preview({ kind: "text", text: "tres   palabras\ny un salto" }),
-       "tres palabras y un salto");
-    is("y muestra el fichero como ruta",
+    is("the preview collapses the whitespace",
+       c.preview({ kind: "text", text: "three   words\nand a newline" }),
+       "three words and a newline");
+    is("and shows a file as its path",
        c.preview({ kind: "text", text: "file:///home/ayoze/Un%20informe.pdf" }),
        "/home/ayoze/Un informe.pdf");
-    is("una imagen no tiene vista previa",
+    is("a picture has no preview",
        c.preview({ kind: "image", path: "/x.png" }), "");
 
-    is("buscar encuentra por dentro",
-       c.matches({ kind: "text", text: "Hola Mundo" }, "mun"), true);
-    is("y no confunde",
-       c.matches({ kind: "text", text: "Hola Mundo" }, "adiós"), false);
+    is("searching matches inside the text",
+       c.matches({ kind: "text", text: "Hello World" }, "lo w"), true);
+    is("and does not match what is not there",
+       c.matches({ kind: "text", text: "Hello World" }, "goodbye"), false);
     // A picture has nothing to search, so it is not an answer to
     // everything.
-    is("una imagen no responde a una búsqueda",
+    is("a picture is not an answer to every search",
        c.matches({ kind: "image", path: "/x.png" }, "x"), false);
-    is("sin búsqueda, todo vale",
+    is("with nothing typed, everything counts",
        c.matches({ kind: "image", path: "/x.png" }, ""), true);
 }
 
@@ -101,15 +101,15 @@ function is(what, got, want) {
     const cfg = load("services/Config.qml", ["screenList", "onScreen"],
                      { Quickshell: { screens: screens } });
 
-    is("una lista vacía es todas", cfg.onScreen("", "DP-1"), true);
-    is("la elegida", cfg.onScreen("DP-1", "DP-1"), true);
-    is("y no la otra", cfg.onScreen("DP-1", "HDMI-A-1"), false);
+    is("an empty list means every screen", cfg.onScreen("", "DP-1"), true);
+    is("the one that was chosen", cfg.onScreen("DP-1", "DP-1"), true);
+    is("and not the other one", cfg.onScreen("DP-1", "HDMI-A-1"), false);
     // Pinned to a screen that is not there any more: better on every
     // screen than on none, which is a shell with no way back to the
     // settings.
-    is("una pantalla que ya no está no deja a nadie sin isla",
+    is("a screen that is gone leaves nobody without an island",
        cfg.onScreen("DP-99", "DP-1"), true);
-    is("varias, separadas por comas",
+    is("several, separated by commas",
        cfg.onScreen("DP-1, HDMI-A-1", "HDMI-A-1"), true);
 }
 
@@ -117,27 +117,27 @@ function is(what, got, want) {
 {
     const { number } = load("services/Config.qml", ["number"]);
 
-    is("un número corriente", number(42, 10, 0, 100), 42);
-    is("una cadena con un número", number("42", 10, 0, 100), 42);
-    is("por debajo del mínimo", number(-5, 10, 0, 100), 0);
-    is("por encima del máximo", number(9999, 10, 0, 100), 100);
+    is("an ordinary number", number(42, 10, 0, 100), 42);
+    is("a number written as text", number("42", 10, 0, 100), 42);
+    is("below the minimum", number(-5, 10, 0, 100), 0);
+    is("above the maximum", number(9999, 10, 0, 100), 100);
 
-    // Lo que `?? por defecto` dejaba pasar y acababa en una geometría
-    // o en un temporizador.
-    is("la clave no está", number(undefined, 10, 0, 100), 10);
-    is("nula", number(null, 10, 0, 100), 10);
-    is("cadena vacía", number("", 10, 0, 100), 10);
-    is("no es un número", number("banana", 10, 0, 100), 10);
-    // Infinito cuenta como "esto no es un número que pueda usar", no
-    // como "el máximo": en un JSON sólo puede llegar escrito a mano.
-    is("infinito", number(Infinity, 10, 0, 100), 10);
-    is("infinito escrito", number("Infinity", 10, 0, 100), 10);
-    is("no es un número, de verdad", number(NaN, 10, 0, 100), 10);
+    // What `?? default` let through, on its way into a geometry or a
+    // timer.
+    is("the key is not there", number(undefined, 10, 0, 100), 10);
+    is("null", number(null, 10, 0, 100), 10);
+    is("an empty string", number("", 10, 0, 100), 10);
+    is("not a number at all", number("banana", 10, 0, 100), 10);
+    // Infinity counts as "not a number I can use" rather than as the
+    // maximum: in JSON it can only have been written by hand.
+    is("infinity", number(Infinity, 10, 0, 100), 10);
+    is("infinity, written out", number("Infinity", 10, 0, 100), 10);
+    is("NaN itself", number(NaN, 10, 0, 100), 10);
 
-    // El cero es un valor legítimo cuando el mínimo lo permite — es
-    // lo que dice "no hay localidad elegida" — y no lo es cuando no.
-    is("cero, permitido", number(0, 10, 0, 100), 0);
-    is("cero, no permitido", number(0, 25, 1, 600), 1);
+    // Zero is a real value where the minimum allows it — it is what
+    // says "no town chosen yet" — and is not where it does not.
+    is("zero, where zero is allowed", number(0, 10, 0, 100), 0);
+    is("zero, where it is not", number(0, 25, 1, 600), 1);
 }
 
 // ── The language ─────────────────────────────────────────────────
@@ -145,20 +145,45 @@ function is(what, got, want) {
     const strings = { en: {}, es: {} };
     const i18n = load("services/I18n.qml", ["has"], { root: { strings: strings } });
 
-    is("un idioma que existe", i18n.has("es"), true);
-    is("uno que no", i18n.has("zz"), false);
+    is("a language that exists", i18n.has("es"), true);
+    is("one that does not", i18n.has("zz"), false);
     // Every object in JavaScript has these, and answering yes to them
     // filled the interface with blanks and took the language picker
     // with it.
-    is("toString no es un idioma", i18n.has("toString"), false);
-    is("constructor tampoco", i18n.has("constructor"), false);
-    is("ni valueOf", i18n.has("valueOf"), false);
+    is("toString is not a language", i18n.has("toString"), false);
+    is("nor is constructor", i18n.has("constructor"), false);
+    is("nor valueOf", i18n.has("valueOf"), false);
+}
+
+// ── Every setting has a line in the documentation ────────────────
+//
+// Not logic, but the one thing about the reference that can be checked
+// by a machine: a settings file people are told to edit by hand is
+// only useful while it is all written down, and a key added without a
+// line is a key nobody outside this repository can find out about.
+{
+    const fs = require("fs");
+    const path = require("path");
+    const { root, source } = require("./extract.js");
+
+    const cfg = source("services/Config.qml");
+    const adapter = cfg.slice(cfg.indexOf("JsonAdapter"));
+    const keys = [...adapter.matchAll(/^\s+property\s+\w+\s+(\w+):/gm)]
+        .map(m => m[1]);
+    const doc = fs.readFileSync(path.join(root, "docs/settings.md"), "utf8");
+
+    const missing = keys.filter(k => !doc.includes("`" + k + "`"));
+    is("every setting is in docs/settings.md", missing, []);
+    // And the other way: a line for something that no longer exists.
+    const documented = [...doc.matchAll(/^\| `(\w+)` \|/gm)].map(m => m[1]);
+    const stale = documented.filter(k => !keys.includes(k));
+    is("and nothing is documented that is gone", stale, []);
 }
 
 // ── ──────────────────────────────────────────────────────────────
 if (failed > 0) {
     console.log("\n" + failures.join("\n\n") + "\n");
-    console.log(passed + " bien, " + failed + " mal");
+    console.log(passed + " passed, " + failed + " failed");
     process.exit(1);
 }
-console.log(passed + " comprobaciones, todas bien");
+console.log(passed + " checks, all passing");

@@ -238,6 +238,8 @@ var strings = {
     source: "Quelle",
     autoSource: "Auto",
     sourceHint: "Das KDE-Miniprogramm nutzt ebenfalls das Met Office",
+    provider: "Temperatur von",
+    providerHint: "Die BBC meldet, was eine Station in der Nähe gemessen hat; Open-Meteo liefert den Modellwert für Ihren genauen Ort.",
     units: "Einheiten",
     inheritPlasma: "Von Plasma übernehmen",
     inheritPlasmaHint: "Nur mit dem Wetter-Miniprogramm von KDE",

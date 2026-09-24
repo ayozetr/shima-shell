@@ -684,6 +684,18 @@ FloatingWindow {
             }
 
             Controls.Row_ {
+                label: I18n.t.provider
+                hint: I18n.t.providerHint
+                visible: win.c.weatherEnabled ?? true
+                Controls.Choice_ {
+                    options: [{value: "bbc", label: "BBC"},
+                              {value: "openmeteo", label: "Open-Meteo"}]
+                    value: win.c.weatherProvider ?? "bbc"
+                    onPicked: (v) => { win.c.weatherProvider = v; Config.save(); }
+                }
+            }
+
+            Controls.Row_ {
                 label: I18n.t.source
                 hint: I18n.t.sourceHint
                 visible: win.c.weatherEnabled ?? true

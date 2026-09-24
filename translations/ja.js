@@ -226,6 +226,8 @@ var strings = {
     source: "提供元",
     autoSource: "自動",
     sourceHint: "Met Office は KDE のウィジェットが使用しているものです",
+    provider: "気温の取得元",
+    providerHint: "BBC は近くの観測所の実測値を、Open-Meteo はその地点のモデル値を返します。",
     units: "単位",
     inheritPlasma: "Plasma から引き継ぐ",
     inheritPlasmaHint: "KDE の天気ウィジェットがある場合のみ",

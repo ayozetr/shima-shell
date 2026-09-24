@@ -35,6 +35,10 @@ you change one of the parts above, add the case that would have caught
 what you fixed: every case in there is something that actually went
 wrong once.
 
+One of them is not logic: it checks that every key in the settings file
+has a line in [docs/settings.md](docs/settings.md). Adding a setting
+means adding that line, and the test will say so.
+
 ## The assets
 
 Everything under `assets/` is reserved (see the README) but that does

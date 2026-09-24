@@ -238,6 +238,8 @@ var strings = {
     source: "Fuente",
     autoSource: "Auto",
     sourceHint: "El Met Office es lo que usa el widget de KDE",
+    provider: "Temperatura de",
+    providerHint: "La BBC da lo que midió una estación cercana; Open-Meteo da la cifra del modelo para tu punto exacto.",
     units: "Unidades",
     inheritPlasma: "Heredar de Plasma",
     inheritPlasmaHint: "Sólo si tienes el widget meteorológico de KDE",

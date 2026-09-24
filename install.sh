@@ -116,6 +116,10 @@ pkg_for() {
         sqlite:apt)       echo sqlite3 ;;
         sqlite:*)         echo sqlite ;;
         curl:*)           echo curl ;;
+        # Same name everywhere it exists, which is everywhere with
+        # Wayland: it is the only way to read or write the clipboard.
+        wlclipboard:*)    echo wl-clipboard ;;
+        xdgutils:*)       echo xdg-utils ;;
         *)                echo "" ;;
     esac
 }
@@ -278,6 +282,10 @@ ensure_deps() {
     python3 -c 'import gi' 2>/dev/null || missing="$missing $(pkg_for pygobject)"
     have sqlite3 || missing="$missing $(pkg_for sqlite)"
     have curl    || missing="$missing $(pkg_for curl)"
+    # The clipboard history and the launcher's copy button are these
+    # two programs and nothing else; Wayland offers no other way in.
+    have wl-copy || missing="$missing $(pkg_for wlclipboard)"
+    have xdg-open || missing="$missing $(pkg_for xdgutils)"
     missing=$(echo "$missing" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
 
     if [ -n "$missing" ]; then
@@ -286,7 +294,8 @@ ensure_deps() {
         if [ -n "$PM" ] && ask "Install them?"; then
             pm_install $missing || err "Some could not be installed; carrying on."
         else
-            say "Skipped. The global shortcut and some panels may not work."
+            say "Skipped. The global shortcut, the clipboard and some"
+            say "panels may not work."
         fi
     fi
 

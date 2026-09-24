@@ -226,6 +226,8 @@ var strings = {
     source: "Source",
     autoSource: "Auto",
     sourceHint: "The Met Office is what KDE's widget uses",
+    provider: "Temperature from",
+    providerHint: "The BBC reports what a nearby station measured; Open-Meteo gives the model's figure for your exact spot.",
     units: "Units",
     inheritPlasma: "Inherit from Plasma",
     inheritPlasmaHint: "Only if you have KDE's weather widget",
