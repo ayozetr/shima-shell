@@ -55,13 +55,30 @@ Column {
         }
     }
 
+    // One tone for the three surfaces at once. Not a fourth setting
+    // kept somewhere: picking here writes the dock's, the island's and
+    // the launcher's, and each of them can still be changed on its own
+    // page afterwards. When they are not all the same it marks
+    // nothing, which says "these are mixed" instead of naming one of
+    // the three and being wrong about the other two.
     Controls.Row_ {
-        label: I18n.t.dockTint
+        label: I18n.t.tintAll
+        hint: I18n.t.tintAllHint
         Controls.Swatches_ {
             anchors.right: parent.right
             colors: ["#000000", "#12121a", "#1a1410", "#101a14", "#181818"]
-            value: root.c.dockTint ?? "#000000"
-            onPicked: (v) => { root.c.dockTint = v; Config.save(); }
+            value: {
+                const dock = root.c.dockTint ?? "#000000";
+                const island = root.c.islandTint ?? "#000000";
+                const launcher = root.c.launcherTint ?? "#000000";
+                return (dock === island && island === launcher) ? dock : "";
+            }
+            onPicked: (v) => {
+                root.c.dockTint = v;
+                root.c.islandTint = v;
+                root.c.launcherTint = v;
+                Config.save();
+            }
         }
     }
 }

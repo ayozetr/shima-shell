@@ -9,7 +9,38 @@ Column {
     spacing: 6
 
     // ── The ones already there ───────────────────────────────────
+    //
+    // One tab stop for the whole row of them and the arrows to walk
+    // it, rather than a stop per application: a dock with a dozen
+    // things pinned would otherwise be a dozen presses on the way to
+    // the box below.
+    property int mark: 0
+
+    FocusScope {
+        width: parent.width
+        height: chips.height
+        activeFocusOnTab: Pinned.list.length > 0
+
+        Accessible.role: Accessible.List
+        Accessible.name: I18n.t.secDockApps
+
+        Keys.onLeftPressed: root.mark = Math.max(0, root.mark - 1)
+        Keys.onRightPressed:
+            root.mark = Math.min(Pinned.list.length - 1, root.mark + 1)
+        Keys.onPressed: (e) => {
+            if (e.key !== Qt.Key_Delete && e.key !== Qt.Key_Backspace) return;
+            if (root.mark < 0 || root.mark >= Pinned.list.length) return;
+            e.accepted = true;
+            const id = Pinned.list[root.mark];
+            // Step back first: taking the last one out would leave the
+            // mark past the end of a list that no longer has it.
+            if (root.mark >= Pinned.list.length - 1)
+                root.mark = Math.max(0, root.mark - 1);
+            Pinned.remove(id);
+        }
+
     Flow {
+        id: chips
         width: parent.width
         spacing: 6
 
@@ -17,15 +48,23 @@ Column {
             model: Pinned.list
 
             Rectangle {
+                id: chipTile
                 required property string modelData
+                required property int index
                 readonly property var entry: (Apps.revision, Apps.entryFor(modelData))
+                readonly property bool marked:
+                    index === root.mark && chipTile.parent.parent.activeFocus
 
                 width: chip.implicitWidth + 54
                 height: 28
                 radius: 8
                 color: "#18ffffff"
                 border.width: 1
-                border.color: "#1affffff"
+                border.color: chipTile.marked ? Theme.accent : "#1affffff"
+
+                Accessible.role: Accessible.ListItem
+                Accessible.name: chipTile.entry
+                    ? chipTile.entry.name : chipTile.modelData
 
                 IconImage {
                     id: chipIcon
@@ -67,6 +106,7 @@ Column {
             }
         }
     }
+    }
 
     // ── Search box to add more ───────────────────────────────────
     Rectangle {
@@ -87,8 +127,23 @@ Column {
             font.pixelSize: 12
             clip: true
             selectByMouse: true
+            activeFocusOnTab: true
+
+            Accessible.role: Accessible.EditableText
+            Accessible.name: I18n.t.addApp
+
+            // The first answer is marked as you type, so finding
+            // something and pressing return pins it. The arrows walk
+            // the rest without leaving the box, which is where your
+            // hands already are.
+            Keys.onDownPressed:
+                root.pick = Math.min(root.results.length - 1, root.pick + 1)
+            Keys.onUpPressed: root.pick = Math.max(0, root.pick - 1)
+            Keys.onReturnPressed: root.add()
+            Keys.onEnterPressed: root.add()
 
             onTextChanged: {
+                root.pick = 0;
                 if (text.length > 0) settle.restart();
                 else { settle.stop(); root.results = []; }
             }
@@ -111,6 +166,15 @@ Column {
     // which threw away the rows and their icons and built them again
     // on every keystroke.
     property var results: []
+    // Which answer return would take.
+    property int pick: 0
+
+    function add() {
+        if (!root.results.length) return;
+        const at = Math.max(0, Math.min(root.results.length - 1, root.pick));
+        Pinned.add(root.results[at].id);
+        search.text = "";
+    }
 
     Timer {
         id: settle
@@ -156,10 +220,18 @@ Column {
 
             Rectangle {
                 required property var modelData
+                required property int index
+                readonly property bool marked:
+                    index === root.pick && search.activeFocus
+
                 width: parent.width
                 height: 28
                 radius: 6
-                color: hm.containsMouse ? "#1fffffff" : "transparent"
+                color: marked ? "#2affffff"
+                     : (hm.containsMouse ? "#1fffffff" : "transparent")
+
+                Accessible.role: Accessible.ListItem
+                Accessible.name: modelData.name
 
                 IconImage {
                     id: resIcon
@@ -185,7 +257,7 @@ Column {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: { Pinned.add(modelData.id); search.text = ""; }
+                    onClicked: { Pinned.add(parent.modelData.id); search.text = ""; }
                 }
             }
         }

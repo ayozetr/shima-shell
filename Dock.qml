@@ -222,13 +222,22 @@ PanelWindow {
             id: dockMouse
             anchors.fill: parent
             acceptedButtons: Qt.RightButton
-            // Not a toggle. Settings is an ordinary window and can
-            // end up behind something else, and closing what somebody
-            // cannot see is not what they meant by clicking here: with
-            // it open, this brings it to the front, exactly as its own
-            // icon in the dock does.
             onClicked: {
                 LauncherState.hide();
+                const what = Config.data.dockRightClick ?? "settings";
+                if (what === "none" || what === "") return;
+                if (what !== "settings") {
+                    // Somebody else's application, by its id: started
+                    // the way everything else here is, so one that
+                    // wants a terminal gets one.
+                    Windows.raiseOrStart(what);
+                    return;
+                }
+                // Not a toggle. Settings is an ordinary window and can
+                // end up behind something else, and closing what
+                // somebody cannot see is not what they meant by
+                // clicking here: with it open, this brings it to the
+                // front, exactly as its own icon in the dock does.
                 if (SettingsWindow.open) Windows.raiseOrStart(Apps.settingsId);
                 else SettingsWindow.show();
             }

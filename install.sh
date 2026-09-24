@@ -26,6 +26,9 @@ PREFIX=${PREFIX:-$HOME/.local}
 SHARE="$PREFIX/share/shima"
 BIN="$PREFIX/bin/shima"
 DESKTOP="$PREFIX/share/applications/shima.desktop"
+# The settings window as an application of its own, so it can be
+# found in the menu by somebody who has turned the dock off.
+DESKTOP_SETTINGS="$PREFIX/share/applications/shima-settings.desktop"
 ICONS="$PREFIX/share/icons/hicolor"
 AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/shima.desktop"
 
@@ -382,6 +385,8 @@ do_install() {
     chmod +x "$BIN"
 
     sed "s|^Exec=shima$|Exec=$BIN|" "$SRC/packaging/shima.desktop" > "$DESKTOP"
+    sed "s|^Exec=shima |Exec=$BIN |" \
+        "$SRC/packaging/shima-settings.desktop" > "$DESKTOP_SETTINGS"
 
     # Icons where the freedesktop specification expects them, so that
     # the Icon=shima line in the .desktop file resolves.
@@ -433,7 +438,7 @@ do_uninstall() {
     pkill -f "$CACHE/shell.qml" 2>/dev/null || true
 
     rm -rf "$SHARE" "$CACHE"
-    rm -f "$BIN" "$DESKTOP" "$AUTOSTART"
+    rm -f "$BIN" "$DESKTOP" "$DESKTOP_SETTINGS" "$AUTOSTART"
     rm -f "$ICONS/scalable/apps/shima.svg" "$ICONS/16x16/apps/shima.svg" \
           "$ICONS/22x22/apps/shima.svg" "$ICONS/symbolic/apps/shima-symbolic.svg"
     say "Removed the program."
@@ -460,6 +465,7 @@ while [ $# -gt 0 ]; do
             PREFIX=$1
             SHARE="$PREFIX/share/shima"; BIN="$PREFIX/bin/shima"
             DESKTOP="$PREFIX/share/applications/shima.desktop"
+            DESKTOP_SETTINGS="$PREFIX/share/applications/shima-settings.desktop"
             ICONS="$PREFIX/share/icons/hicolor"
             ;;
         --help|-h) usage; exit 0 ;;

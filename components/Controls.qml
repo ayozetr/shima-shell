@@ -827,3 +827,70 @@ Item {
         bottomPadding: 2
     }
 }
+    // ── Somewhere to type something ──────────────────────────────
+    //
+    // For the values a list cannot cover: the id of an application
+    // nobody thought to put on ours. Written down as you type, since
+    // a settings window with a save button would be the only one here.
+    component Field_: Rectangle {
+        id: field
+        property string value: ""
+        property string placeholder: ""
+        property string describedAs: ""
+        signal edited(string value)
+
+        width: parent ? parent.width : 200
+        height: 30
+        radius: 9
+        color: "#1a1a1a"
+        border.width: 1
+        border.color: input.activeFocus ? Theme.accent : "#2a2a2a"
+
+        // The text is set from outside only while you are not in it:
+        // writing into a box under somebody's hands moves the cursor
+        // to the end on every keystroke.
+        onValueChanged: if (!input.activeFocus) input.text = field.value
+
+        TextInput {
+            id: input
+            anchors.fill: parent
+            anchors.leftMargin: 11
+            anchors.rightMargin: 11
+            verticalAlignment: TextInput.AlignVCenter
+            color: Theme.textPrimary
+            font.pixelSize: 11
+            clip: true
+            selectByMouse: true
+            activeFocusOnTab: true
+            text: field.value
+
+            Accessible.role: Accessible.EditableText
+            Accessible.name: field.describedAs
+            Accessible.description: input.text
+
+            onTextChanged: if (activeFocus) field.edited(text)
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: input.text === ""
+                text: field.placeholder
+                color: Theme.textTertiary
+                font.pixelSize: 11
+            }
+        }
+    }
+
+    // ── A line that says something went sideways ─────────────────
+    component Notice_: Text {
+        // Red for something lost, quiet grey for something merely
+        // worth knowing.
+        property bool grave: true
+        width: parent ? parent.width : 0
+        visible: text !== ""
+        color: grave ? "#f87171" : Theme.textTertiary
+        font.pixelSize: 11
+        wrapMode: Text.WordWrap
+        topPadding: 2
+        bottomPadding: 6
+    }
+

@@ -91,6 +91,84 @@ Column {
         }
     }
 
+    // ── What a right click opens ──────────────────────────────
+    //
+    // The list is written down here because there is no way to ask
+    // the system which applications are system monitors: the one KDE
+    // ships does not declare the freedesktop "Monitor" category at
+    // all, and the ones that do include a hardware topology viewer.
+    // Checked against what is installed, so nobody is offered
+    // something they do not have — and the settings file takes any
+    // application id, which is the way out for anything missing here.
+    readonly property var knownMonitors: [
+        "org.kde.plasma-systemmonitor", "org.kde.ksysguard",
+        "io.missioncenter.MissionCenter", "net.nokyan.Resources",
+        "gnome-system-monitor", "org.gnome.SystemMonitor",
+        "mate-system-monitor", "xfce4-taskmanager", "lxtask",
+        "btop", "htop", "bpytop", "bashtop", "org.kde.kinfocenter"
+    ]
+
+    readonly property var rightClickOptions: {
+        const out = [{ value: "settings", label: I18n.t.rightClickSettings }];
+        for (const id of root.knownMonitors) {
+            const e = (Apps.revision, Apps.entryFor(id));
+            if (e) out.push({ value: id, label: e.name });
+        }
+        out.push({ value: "other", label: I18n.t.rightClickOther });
+        out.push({ value: "none", label: I18n.t.rightClickNothing });
+        return out;
+    }
+
+    readonly property string rightClick: root.c.dockRightClick ?? "settings"
+    // Anything that is not ours, not nothing and not on the list is
+    // something typed by hand, and the box below is where it lives.
+    readonly property bool rightClickOther: {
+        if (root.rightClick === "settings" || root.rightClick === "none")
+            return false;
+        return root.knownMonitors.indexOf(root.rightClick) === -1
+            || !(Apps.revision, Apps.entryFor(root.rightClick));
+    }
+
+    Controls.SelectRow_ {
+        label: I18n.t.rightClick
+        hint: I18n.t.rightClickHint
+        options: root.rightClickOptions
+        value: root.rightClickOther ? "other" : root.rightClick
+        onPicked: (v) => {
+            // Choosing "another one" does not itself mean anything:
+            // it opens the box below and waits to be told what.
+            root.c.dockRightClick = (v === "other") ? "" : v;
+            Config.save();
+        }
+    }
+
+    Controls.Row_ {
+        label: I18n.t.rightClickId
+        hint: I18n.t.rightClickIdHint
+        visible: root.rightClickOther || root.rightClick === ""
+        Controls.Field_ {
+            anchors.right: parent.right
+            width: parent.width
+            placeholder: "org.kde.plasma-systemmonitor"
+            value: root.rightClick
+            onEdited: (v) => { root.c.dockRightClick = v.trim(); Config.save(); }
+        }
+    }
+
+    Item { width: 1; height: 6 }
+
+    Controls.Row_ {
+        label: I18n.t.dockTint
+        Controls.Swatches_ {
+            anchors.right: parent.right
+            colors: ["#000000", "#12121a", "#1a1410", "#101a14", "#181818"]
+            value: root.c.dockTint ?? "#000000"
+            onPicked: (v) => { root.c.dockTint = v; Config.save(); }
+        }
+    }
+
+    Item { width: 1; height: 6 }
+
     Controls.Section_ { text: I18n.t.secDockApps }
 
     PinnedEditor {
@@ -99,127 +177,6 @@ Column {
     }
 
     Item { width: 1; height: 8 }
-
-    Controls.Row_ {
-        label: I18n.t.launcherButton
-        hint: I18n.t.launcherButtonHint
-        Controls.Toggle_ {
-            anchors.right: parent.right
-            checked: root.c.showLauncher ?? true
-            onToggled: (v) => { root.c.showLauncher = v; Config.save(); }
-        }
-    }
-
-    Controls.Row_ {
-        label: I18n.t.launcherLift
-        hint: I18n.t.launcherLiftHint
-        visible: root.c.showLauncher ?? true
-        Controls.Slider_ {
-            from: 0; to: 400; step: 5; suffix: " px"
-            value: root.c.launcherLift ?? 0
-            onMoved: (v) => { root.c.launcherLift = v; Config.save(); }
-        }
-    }
-
-    Controls.Row_ {
-        label: I18n.t.keepAwakeRemember
-        hint: I18n.t.keepAwakeRememberHint
-        Controls.Toggle_ {
-            anchors.right: parent.right
-            checked: root.c.keepAwakeRemember ?? false
-            onToggled: (v) => {
-                root.c.keepAwakeRemember = v;
-                if (v) root.c.keepAwakeOn = Power.keepAwake;
-                Config.save();
-            }
-        }
-    }
-
-    Controls.Row_ {
-        label: I18n.t.clipboardHistory
-        hint: I18n.t.clipboardHistoryHint
-        Controls.Toggle_ {
-            anchors.right: parent.right
-            checked: root.c.clipboardHistory ?? true
-            onToggled: (v) => { root.c.clipboardHistory = v; Config.save(); }
-        }
-    }
-
-    Controls.Row_ {
-        label: I18n.t.clipboardImages
-        hint: I18n.t.clipboardImagesHint
-        visible: root.c.clipboardHistory ?? true
-        Controls.Toggle_ {
-            anchors.right: parent.right
-            checked: root.c.clipboardImages ?? true
-            onToggled: (v) => { root.c.clipboardImages = v; Config.save(); }
-        }
-    }
-
-    Controls.Row_ {
-        label: I18n.t.clipboardShortcut
-        visible: root.c.clipboardHistory ?? true
-        Controls.Toggle_ {
-            anchors.right: parent.right
-            checked: root.c.clipboardShortcutEnabled ?? true
-            onToggled: (v) => {
-                root.c.clipboardShortcutEnabled = v;
-                Config.save();
-            }
-        }
-    }
-
-    Controls.Row_ {
-        label: I18n.t.clipboardShortcutKey
-        visible: (root.c.clipboardHistory ?? true)
-                 && (root.c.clipboardShortcutEnabled ?? true)
-        Controls.KeyCapture_ {
-            anchors.right: parent.right
-            value: root.c.clipboardKey ?? 268435542
-            label: root.c.clipboardLabel ?? "Meta+V"
-            onCaptured: (key, text) => {
-                root.c.clipboardKey = key;
-                root.c.clipboardLabel = text;
-                Config.save();
-            }
-        }
-    }
-
-    Controls.Row_ {
-        label: I18n.t.launcherTint
-        visible: root.c.showLauncher ?? true
-        Controls.Swatches_ {
-            anchors.right: parent.right
-            colors: ["#000000", "#12121a", "#1a1410", "#101a14", "#181818"]
-            value: root.c.launcherTint ?? "#000000"
-            onPicked: (v) => { root.c.launcherTint = v; Config.save(); }
-        }
-    }
-
-    Controls.Row_ {
-        label: I18n.t.shortcut
-        hint: I18n.t.shortcutHint
-        Controls.Toggle_ {
-            anchors.right: parent.right
-            checked: root.c.shortcutEnabled ?? true
-            onToggled: (v) => { root.c.shortcutEnabled = v; Config.save(); }
-        }
-    }
-
-    Controls.Row_ {
-        label: I18n.t.shortcutKey
-        visible: root.c.shortcutEnabled ?? true
-        Controls.KeyCapture_ {
-            anchors.right: parent.right
-            value: root.c.shortcutKey ?? 16777250
-            label: root.c.shortcutLabel ?? "Meta"
-            onCaptured: (key, text) => {
-                root.c.shortcutKey = key;
-                root.c.shortcutLabel = text;
-                Config.save();
-            }
-        }
-    }
 
     Controls.Row_ {
         label: I18n.t.showNames
@@ -261,17 +218,6 @@ Column {
             onToggled: (v) => { root.c.showRunning = v; Config.save(); }
         }
     }
-
-    Controls.Row_ {
-        label: I18n.t.inheritFavorites
-        hint: I18n.t.inheritFavoritesHint
-        Controls.Button_ {
-            anchors.right: parent.right
-            label: I18n.t.import
-            onTriggered: Favorites.importFromPlasma()
-        }
-    }
-
     Controls.Row_ {
         label: I18n.t.inheritTaskbar
         hint: I18n.t.inheritTaskbarHint

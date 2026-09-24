@@ -39,12 +39,14 @@ FloatingWindow {
     readonly property var pages: [
         { id: "general",  label: I18n.t.pageGeneral,  icon: "preferences-desktop" },
         { id: "dock",     label: I18n.t.pageDock,     icon: "computer" },
+        { id: "launcher", label: I18n.t.pageLauncher, icon: "view-grid" },
         { id: "island",   label: I18n.t.pageIsland,   icon: "view-media-visualization" },
         { id: "notifications", label: I18n.t.pageNotifications, icon: "preferences-desktop-notification" },
         { id: "weather",  label: I18n.t.pageWeather,  icon: "weather-clear" },
         { id: "about",    label: I18n.t.pageAbout,    icon: "help-about" }
     ]
     property string page: "general"
+    onPageChanged: flick.contentY = 0
 
     // Closing with the keyboard, from wherever the focus is. The list
     // that opens inside the general page swallows this while it is
@@ -204,14 +206,33 @@ FloatingWindow {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        anchors.margins: 22
-        contentHeight: pageLoader.height
+        // Room for the focus ring, which is drawn four pixels outside
+        // whatever it marks. The controls sit against the right edge
+        // of the page, so without this the ring was cut in half by the
+        // very thing that scrolls them — and the same at the top, for
+        // the first control on the page.
+        anchors.margins: 17
+        contentHeight: pageLoader.height + 10
         clip: true
         boundsBehavior: Flickable.StopAtBounds
 
-        // Back to the top when the page changes: arriving halfway down
-        // a page you have not seen reads as something being missing.
-        onContentHeightChanged: contentY = 0
+        // The height changes for two very different reasons, and this
+        // used to treat them alike. Changing page should start at the
+        // top — arriving halfway down a page you have not seen reads
+        // as something being missing — but a setting that shows or
+        // hides the row below it changes the height as well, and
+        // being thrown back to the top for ticking a box is the
+        // window losing your place. So the page change is handled
+        // where it happens, and this only keeps the view from ending
+        // up past the end of a page that just got shorter.
+        onContentHeightChanged: {
+            flick.returnToBounds();
+            // Something appeared or went away. If it appeared under
+            // the control you are working with, it is worth showing:
+            // a message nobody scrolls down to find is a message that
+            // was not given.
+            flick.follow(flick.focused, 48);
+        }
 
         // Asked of the window through the attached property rather
         // than of the window object: what Quickshell hands out here is
@@ -222,13 +243,18 @@ FloatingWindow {
         // Tabbing to something below the fold has to bring it into
         // view, or the keyboard walks off the bottom of the window and
         // nothing appears to happen.
-        function follow(item) {
+        // `extra` is room to leave underneath: something that appeared
+        // below what you were using and would otherwise be off the
+        // bottom of the window — the line that says which shortcut you
+        // just took a key from, for one, which is written under the
+        // last row on its page.
+        function follow(item, extra) {
             if (!item || item === flick || !flick.contentItem) return;
             const p = item.mapToItem(flick.contentItem, 0, 0);
             // Anything to the left of us is the sidebar, not a setting.
             if (p.x < 0) return;
             const top = p.y - 14;
-            const bottom = p.y + item.height + 14;
+            const bottom = p.y + item.height + 14 + (extra || 0);
             if (top < flick.contentY)
                 flick.contentY = Math.max(0, top);
             else if (bottom > flick.contentY + flick.height)
@@ -239,10 +265,13 @@ FloatingWindow {
 
         Loader {
             id: pageLoader
-            width: parent.width
+            x: 5
+            y: 5
+            width: parent.width - 10
             sourceComponent: {
                 switch (win.page) {
                     case "dock":          return dockPage;
+                    case "launcher":      return launcherPage;
                     case "island":        return islandPage;
                     case "notifications": return notificationsPage;
                     case "weather":       return weatherPage;
@@ -255,6 +284,7 @@ FloatingWindow {
 
     Component { id: generalPage;       SettingsGeneral {} }
     Component { id: dockPage;          SettingsDock {} }
+    Component { id: launcherPage;      SettingsLauncher {} }
     Component { id: islandPage;        SettingsIsland {} }
     Component { id: notificationsPage; SettingsNotifications {} }
     Component { id: weatherPage;       SettingsWeather {} }

@@ -97,6 +97,7 @@ Column {
                         font.pixelSize: 9
                     }
                     MiniToggle {
+                        describedAs: I18n.t.island + " — " + modelData.name
                         on: Config.onScreen(Config.data.islandScreens, modelData.name)
                         onToggled: (v) => Config.toggleScreen(
                             "islandScreens", modelData.name, v, root.allNames)
@@ -112,6 +113,7 @@ Column {
                         font.pixelSize: 9
                     }
                     MiniToggle {
+                        describedAs: I18n.t.dock + " — " + modelData.name
                         on: Config.onScreen(Config.data.dockScreens, modelData.name)
                         onToggled: (v) => Config.toggleScreen(
                             "dockScreens", modelData.name, v, root.allNames)
@@ -124,7 +126,32 @@ Column {
     component MiniToggle: Rectangle {
         id: tg
         property bool on: false
+        property string describedAs: ""
         signal toggled(bool value)
+
+        activeFocusOnTab: true
+        Keys.onSpacePressed: tg.toggled(!tg.on)
+        Keys.onReturnPressed: tg.toggled(!tg.on)
+        Keys.onEnterPressed: tg.toggled(!tg.on)
+
+        Accessible.role: Accessible.CheckBox
+        Accessible.name: tg.describedAs
+        Accessible.checked: tg.on
+        Accessible.onToggleAction: tg.toggled(!tg.on)
+        Accessible.onPressAction: tg.toggled(!tg.on)
+
+        // Its own ring rather than the one in Controls: this file does
+        // not import that library, and one rectangle is cheaper than
+        // the dependency.
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -4
+            radius: parent.radius + 4
+            color: "transparent"
+            border.width: 2
+            border.color: Theme.accent
+            visible: tg.activeFocus
+        }
 
         width: 34; height: 19; radius: 9.5
         color: tg.on ? Theme.accent : "#3a3a3a"

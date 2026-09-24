@@ -175,6 +175,15 @@ Singleton {
             property string islandScreens: ""
             property string dockScreens:   ""
 
+            // What a right click on the dock's background opens.
+            // "settings" is ours, "none" is nothing at all, and
+            // anything else is the id of an application — the name of
+            // its .desktop file without the extension. The settings
+            // window offers the ones it finds installed from a list it
+            // knows; this takes any of them, which is the way out when
+            // yours is not on that list.
+            property string dockRightClick:   "settings"
+
             // ── Color ──────────────────────────────────────────
             property string accent:           "#a78bfa"
             property string dockTint:         "#000000"

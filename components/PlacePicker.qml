@@ -51,15 +51,32 @@ Column {
             font.pixelSize: 12
             clip: true
             selectByMouse: true
+            activeFocusOnTab: true
+
+            Accessible.role: Accessible.EditableText
+            Accessible.name: I18n.t.searchPlace
 
             // Deleting back down to two letters used to leave the
             // timer running, and a moment later a search went out for
             // the text that had just been erased.
             onTextChanged: {
+                root.pick = 0;
                 if (text.length >= 3) debounce.restart();
                 else { debounce.stop(); Weather.clearSearch(); }
             }
-            Keys.onReturnPressed: Weather.lookup(text)
+
+            // The arrows walk the towns found without leaving the box.
+            // Return takes the marked one, and asks again only when
+            // there is nothing to take — which is what it did before,
+            // and is still what you want after typing a name the
+            // search has not answered for yet.
+            Keys.onDownPressed:
+                root.pick = Math.min(root.shown.length - 1, root.pick + 1)
+            Keys.onUpPressed: root.pick = Math.max(0, root.pick - 1)
+            Keys.onReturnPressed: {
+                if (root.shown.length) root.choose(root.shown[root.pick]);
+                else Weather.lookup(text);
+            }
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
@@ -69,6 +86,18 @@ Column {
                 font.pixelSize: 12
             }
         }
+    }
+
+    // The towns on offer, and which of them return would take.
+    readonly property var shown: Weather.searchResults.slice(0, 5)
+    property int pick: 0
+
+    function choose(place) {
+        if (!place) return;
+        Weather.setPlace(place);
+        Weather.clearSearch();
+        search.text = "";
+        search.focus = false;
     }
 
     // Don't fire a request on every keystroke.
@@ -84,14 +113,22 @@ Column {
         visible: search.text.length >= 3 && Weather.searchResults.length > 0
 
         Repeater {
-            model: Weather.searchResults.slice(0, 5)
+            model: root.shown
 
             Rectangle {
                 required property var modelData
+                required property int index
+                readonly property bool marked:
+                    index === root.pick && search.activeFocus
+
                 width: parent.width
                 height: 28
                 radius: 6
-                color: hm.containsMouse ? "#1fffffff" : "transparent"
+                color: marked ? "#2affffff"
+                     : (hm.containsMouse ? "#1fffffff" : "transparent")
+
+                Accessible.role: Accessible.ListItem
+                Accessible.name: modelData.name
 
                 Text {
                     anchors.left: parent.left
@@ -111,12 +148,7 @@ Column {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        Weather.setPlace(modelData);
-                        Weather.clearSearch();
-                        search.text = "";
-                        search.focus = false;
-                    }
+                    onClicked: root.choose(parent.modelData)
                 }
             }
         }

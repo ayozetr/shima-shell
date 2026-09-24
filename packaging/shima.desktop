@@ -8,5 +8,12 @@ Icon=shima
 Terminal=false
 Categories=Utility;
 OnlyShowIn=KDE;
+# This one is for starting the shell — at login, or by hand from a
+# terminal. It is not something to go looking for in a menu: clicking
+# it while Shima is already running starts a second one, which
+# Quickshell refuses, so it looks like nothing happened. What belongs
+# in the menu is shima-settings.desktop, and that one starts the shell
+# too if it is not up yet.
+NoDisplay=true
 X-KDE-autostart-phase=2
 X-GNOME-Autostart-enabled=true

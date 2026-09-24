@@ -34,6 +34,7 @@ Times are in milliseconds unless the name says otherwise.
 | `dockMagnify` | `true` | Icons grow under the pointer |
 | `dockAutoHide` | `false` | Hide it until the pointer reaches the edge |
 | `dockHideDelay` | `700` | How long it waits before hiding, 100 to 60000 |
+| `dockRightClick` | `"settings"` | What a right click on an empty part of the dock opens: `"settings"` for Shima's own, `"none"` for nothing, or the id of an application — the name of its `.desktop` file without the extension. The settings window offers the system monitors it finds installed; this takes any application |
 | `dockScreens` | `""` | Comma-separated screen names, or empty for all. A name that is not there any more is ignored rather than leaving you with no dock |
 | `iconShape` | `"squircle"` | `"squircle"`, `"circle"` or `"square"` |
 | `iconRadiusPct` | `33` | Corner radius as a percentage of the icon, 0 to 50. Only for `"squircle"` |

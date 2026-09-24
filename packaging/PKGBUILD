@@ -82,7 +82,7 @@ package() {
     # Found through /usr/bin/../share/shima by the launcher itself.
     install -Dm755 shima "$pkgdir/usr/bin/shima"
 
-    install -Dm644 packaging/shima.desktop \
+    install -Dm644 packaging/shima.desktop packaging/shima-settings.desktop \
         -t "$pkgdir/usr/share/applications"
 
     # Icons, where the freedesktop specification says they go: that is
