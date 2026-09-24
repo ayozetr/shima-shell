@@ -7,6 +7,24 @@ import "../services"
 Item {
     id: root
 
+    // The relative times below are the only ones in the shell, so the
+    // thing that keeps them current runs while this is on screen and
+    // not otherwise. Counted rather than flagged: there is an island
+    // per screen.
+    property bool counting: false
+
+    function follow() {
+        const want = root.visible;
+        if (want === root.counting) return;
+        root.counting = want;
+        Notifications.watch(want);
+    }
+
+    onVisibleChanged: root.follow()
+    Component.onCompleted: root.follow()
+    Component.onDestruction: if (root.counting) Notifications.watch(false);
+
+
     readonly property int preferredHeight: 186
 
     Item {

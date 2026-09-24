@@ -340,9 +340,23 @@ Singleton {
     // without anything else changing.
     property int tick: 0
 
+    // How many lists of notifications are on screen — there can be one
+    // per island. The tick woke the process every thirty seconds
+    // whatever was happening, and put every entry in the history
+    // through the sum again, for labels that are only drawn in one
+    // place and are almost never on screen.
+    property int watchers: 0
+
+    function watch(on) {
+        root.watchers = Math.max(0, root.watchers + (on ? 1 : -1));
+        // Coming back to a list the tick has not been running for: the
+        // times on it are as old as whenever it stopped.
+        if (on) root.tick++;
+    }
+
     Timer {
         interval: 30000
-        running: true
+        running: root.watchers > 0
         repeat: true
         onTriggered: root.tick++
     }

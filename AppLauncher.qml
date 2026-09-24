@@ -57,38 +57,17 @@ PanelWindow {
         }
     }
 
-    // What the grid shows. A binding here handed it a brand new array
-    // every time anything it reads moved, and a new array means the
-    // grid throws away every tile and builds it again — an icon takes
-    // a frame to load, so the whole grid blinks. Same trap the dock's
-    // list already documents, and the same answer: work out the list,
-    // and only put it in when it differs.
-    property var apps: []
-
-    function refreshApps() {
-        const next = LauncherState.open
-            ? Apps.listApps(LauncherState.category, LauncherState.query)
-            : [];
-        if (next.length === win.apps.length) {
-            let same = true;
-            for (let i = 0; i < next.length; i++) {
-                if (next[i].id !== win.apps[i].id) { same = false; break; }
-            }
-            if (same) return;
-        }
-        win.apps = next;
-    }
-
-    Connections {
-        target: Apps
-        function onRevisionChanged() { win.refreshApps(); }
-    }
+    // Worked out once in LauncherState, because there is one of these
+    // windows per screen and they all show the same thing: done here,
+    // every keystroke walked the catalogue once per monitor.
+    readonly property var apps: LauncherState.apps
+    readonly property var clips: LauncherState.clips
 
     Connections {
         target: LauncherState
-        function onOpenChanged() { win.refreshApps(); win.selected = -1; }
-        function onCategoryChanged() { win.refreshApps(); win.selected = -1; }
-        function onQueryChanged() { win.refreshApps(); win.selected = -1; }
+        function onOpenChanged() { win.selected = -1; }
+        function onCategoryChanged() { win.selected = -1; }
+        function onQueryChanged() { win.selected = -1; }
     }
 
     // ── Moving without the mouse ─────────────────────────────────
@@ -140,17 +119,6 @@ PanelWindow {
         return true;
     }
 
-    Component.onCompleted: win.refreshApps()
-
-    // The search box filters the clipboard too, so what is on screen
-    // is worked out here rather than in the view.
-    readonly property var clips: {
-        const q = LauncherState.query.trim();
-        const out = [];
-        for (const e of Clipboard.entries)
-            if (Clipboard.matches(e, q)) out.push(e);
-        return out;
-    }
 
     // ── The per-application menu ───────────────────────────────
     //
