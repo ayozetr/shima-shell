@@ -26,6 +26,19 @@ PanelWindow {
         onOpened: (id) => Windows.load(id)
     }
 
+    // The other half of what DockPopup does when it opens. It puts the
+    // launcher away, but nothing put it away: opening the launcher
+    // over an open menu left the menu underneath it, still there when
+    // you closed the launcher again.
+    Connections {
+        target: LauncherState
+        function onOpenChanged() {
+            if (!LauncherState.open) return;
+            win.menu.hide();
+            win.windowList.hide();
+        }
+    }
+
     // Whether the pinned entry in the menu says pin or unpin. Worked
     // out here rather than handed over at the click: it is already
     // written down, and a copy taken at the moment of opening is a

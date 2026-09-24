@@ -619,6 +619,26 @@ function is(what, got, want) {
     }
 }
 
+// ── The clock under what is playing ──────────────────────────────
+//
+// Read against Spotify, which reports 251.217 seconds for a track its
+// own window calls 4:11.
+{
+    const { clock } = load("components/MediaMode.qml", ["clock"], {});
+    const cases = [
+        [251.217, "4:11"],   // what Spotify said, to the millisecond
+        [0, "0:00"], [4.2, "0:04"], [59.9, "0:59"], [60, "1:00"],
+        [599, "9:59"], [3599, "59:59"],
+        // Past the hour it grows a field, and the minutes take a
+        // leading zero so the columns do not jump about.
+        [3600, "1:00:00"], [3661, "1:01:01"], [7322, "2:02:02"],
+        // Nothing sensible in, nothing silly out.
+        [-5, "0:00"], [NaN, "0:00"]
+    ];
+    for (const [seconds, want] of cases)
+        is("clock(" + seconds + ")", clock(seconds), want);
+}
+
 // ── Reading a function out of a .qml ─────────────────────────────
 //
 // The thing every test above rests on. It counts braces to find where

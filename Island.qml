@@ -187,10 +187,25 @@ PanelWindow {
         onTriggered: Notifications.dismissPeek()
     }
 
+    // Which player the island speaks for.
+    //
+    // Whatever is playing, and after that whatever is merely paused —
+    // which is the one you mean to go back to. Taking the first on the
+    // bus instead was enough while only one program registered itself,
+    // but a browser stays registered long after the video ended, with
+    // nothing in it and stopped. Pausing Spotify then handed the
+    // island to the browser: an empty panel, and no way to press play
+    // on the thing you had just paused.
     readonly property MprisPlayer player: {
         const players = Mpris.players.values;
         if (!players.length) return null;
         for (const p of players) if (p.isPlaying) return p;
+        for (const p of players)
+            if (p.playbackState === MprisPlaybackState.Paused) return p;
+        // Nothing playing and nothing paused: whoever still has
+        // something in it, and failing that the first one there is.
+        for (const p of players)
+            if (String(p.trackTitle || "").trim() !== "") return p;
         return players[0];
     }
     readonly property bool hasMedia: player !== null

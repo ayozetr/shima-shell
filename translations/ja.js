@@ -47,6 +47,7 @@ var strings = {
     takeABreak: "休憩しましょう。",
     backToWork: "作業に戻りましょう。",
     untitled: "(無題)",
+    liveNow: "ライブ",
     nothingPlaying: "再生中の項目はありません",
 
     catRecent: "最近",

@@ -6,6 +6,26 @@ import "../services"
 Item {
     id: lib
 
+    // ── Where the keyboard is ────────────────────────────────────
+    //
+    // Everything below can be reached with the tab key, and something
+    // has to say which one is in hand. Drawn outside the control
+    // rather than as a border on it: several of these already use
+    // their border for something, and a ring that moves the thing it
+    // marks is a ring that makes the window twitch as you tab.
+    component FocusRing_: Rectangle {
+        property Item around: null
+        anchors.fill: parent
+        anchors.margins: -4
+        radius: (parent && parent.radius !== undefined ? parent.radius : 6) + 4
+        color: "transparent"
+        border.width: 2
+        border.color: Theme.accent
+        visible: opacity > 0
+        opacity: (around && around.activeFocus) ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 110 } }
+    }
+
     // ── Row with a label on the left and a control on the right ──
     component Row_: Item {
         id: row
@@ -50,6 +70,16 @@ Item {
             width: parent.width * 0.52
             height: parent.height
         }
+
+        // The label belongs to the control as much as to the row: a
+        // reader that says "checkbox" and stops has said nothing. The
+        // controls carry a `describedAs` for it and this fills it in,
+        // so no page has to repeat the label it already wrote.
+        Component.onCompleted: {
+            for (const c of holder.children) {
+                if (c.describedAs !== undefined) c.describedAs = row.label;
+            }
+        }
     }
 
     // ── Slider ───────────────────────────────────────────────────
@@ -60,11 +90,52 @@ Item {
         property real to: 1
         property real step: 0.01
         property string suffix: ""
+        property string describedAs: ""
         signal moved(real value)
+
+        // A step per press, ten with a page key. Held down, the key
+        // repeats and so does this.
+        function nudge(by) {
+            const v = Math.max(sl.from, Math.min(sl.to, sl.value + by * sl.step));
+            if (v !== sl.value) sl.moved(v);
+        }
+
+        activeFocusOnTab: true
+        Keys.onLeftPressed: sl.nudge(-1)
+        Keys.onRightPressed: sl.nudge(1)
+        Keys.onDownPressed: sl.nudge(-1)
+        Keys.onUpPressed: sl.nudge(1)
+        Keys.onPressed: (e) => {
+            if (e.key === Qt.Key_Home) { sl.moved(sl.from); e.accepted = true; }
+            else if (e.key === Qt.Key_End) { sl.moved(sl.to); e.accepted = true; }
+            else if (e.key === Qt.Key_PageDown) { sl.nudge(-10); e.accepted = true; }
+            else if (e.key === Qt.Key_PageUp) { sl.nudge(10); e.accepted = true; }
+        }
+
+        Accessible.role: Accessible.Slider
+        Accessible.name: sl.describedAs
+        // Qt's attached accessibility here carries no value, minimum
+        // or maximum, so the reading goes where there is room for it.
+        Accessible.description: (sl.step >= 1 ? Math.round(sl.value)
+                                              : sl.value.toFixed(2)) + sl.suffix
+        Accessible.onIncreaseAction: sl.nudge(1)
+        Accessible.onDecreaseAction: sl.nudge(-1)
 
         anchors.verticalCenter: parent ? parent.verticalCenter : undefined
         width: parent ? parent.width : 200
         height: 20
+
+        // Around the track alone: the number beside it is not part of
+        // what you are pointing at.
+        FocusRing_ {
+            around: sl
+            anchors.fill: undefined
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - 52 + 8
+            height: 14
+            radius: 7
+        }
 
         readonly property real ratio: (sl.value - sl.from) / (sl.to - sl.from)
 
@@ -125,7 +196,21 @@ Item {
     component Toggle_: Rectangle {
         id: tg
         property bool checked: false
+        property string describedAs: ""
         signal toggled(bool value)
+
+        activeFocusOnTab: true
+        Keys.onSpacePressed: tg.toggled(!tg.checked)
+        Keys.onReturnPressed: tg.toggled(!tg.checked)
+        Keys.onEnterPressed: tg.toggled(!tg.checked)
+
+        Accessible.role: Accessible.CheckBox
+        Accessible.name: tg.describedAs
+        Accessible.checked: tg.checked
+        Accessible.onToggleAction: tg.toggled(!tg.checked)
+        Accessible.onPressAction: tg.toggled(!tg.checked)
+
+        FocusRing_ { around: tg }
 
         anchors.verticalCenter: parent ? parent.verticalCenter : undefined
         width: 42; height: 24; radius: 12
@@ -152,7 +237,31 @@ Item {
         id: ch
         property var options: []        // [{value, label}]
         property string value: ""
+        property string describedAs: ""
         signal picked(string value)
+
+        readonly property int index: {
+            for (let i = 0; i < ch.options.length; i++)
+                if (ch.options[i].value === ch.value) return i;
+            return -1;
+        }
+
+        function step(by) {
+            if (!ch.options.length) return;
+            const at = ch.index < 0 ? 0
+                : Math.max(0, Math.min(ch.options.length - 1, ch.index + by));
+            ch.picked(ch.options[at].value);
+        }
+
+        activeFocusOnTab: true
+        Keys.onLeftPressed: ch.step(-1)
+        Keys.onRightPressed: ch.step(1)
+
+        Accessible.role: Accessible.ComboBox
+        Accessible.name: ch.describedAs
+        Accessible.description: ch.index >= 0 ? ch.options[ch.index].label : ""
+
+        FocusRing_ { around: ch }
 
         anchors.verticalCenter: parent ? parent.verticalCenter : undefined
         width: parent ? parent.width : 200
@@ -194,44 +303,75 @@ Item {
     }
 
     // ── Colour swatches ──────────────────────────────────────────
-    component Swatches_: Row {
+    // An Item around the Row, and not a Row: a positioner lays out
+    // everything you put in it, so the focus ring below became one
+    // more thing in the line — and since it anchors to fill, Qt threw
+    // the whole layout away and the colours vanished. What is laid out
+    // and what is drawn over the top have to be kept apart.
+    component Swatches_: Item {
         id: sw
         property var colors: []
         property string value: ""
+        property string describedAs: ""
         signal picked(string value)
 
+        function step(by) {
+            if (!sw.colors.length) return;
+            const i = sw.colors.indexOf(sw.value);
+            const at = i < 0 ? 0
+                : Math.max(0, Math.min(sw.colors.length - 1, i + by));
+            sw.picked(sw.colors[at]);
+        }
+
+        activeFocusOnTab: true
+        Keys.onLeftPressed: sw.step(-1)
+        Keys.onRightPressed: sw.step(1)
+
+        Accessible.role: Accessible.ComboBox
+        Accessible.name: sw.describedAs
+        Accessible.description: sw.value
+
         anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-        // Four, not eight: each swatch now carries its own margin, in
-        // the box below.
-        spacing: 4
+        width: row.width
+        height: row.height
 
-        Repeater {
-            model: sw.colors
+        FocusRing_ { around: sw; radius: 17 }
 
-            // The box is bigger than the circle on purpose. The chosen
-            // one grows, and the growing goes past the circle — at the
-            // end of the row that was past the window as well, and the
-            // last colour came out with a slice missing.
-            Item {
-                id: slot
-                required property var modelData
-                width: 26; height: 26
+        Row {
+            id: row
+            // Four, not eight: each swatch carries its own margin, in
+            // the box below.
+            spacing: 4
 
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: 22; height: 22; radius: 11
-                    color: slot.modelData
-                    border.width: slot.modelData === sw.value ? 2 : 0
-                    border.color: "#ffffff"
-                    scale: slot.modelData === sw.value ? 1.1 : 1
-                    Behavior on scale {
-                        NumberAnimation { duration: 140; easing.type: Easing.OutBack }
-                    }
+            Repeater {
+                model: sw.colors
 
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: sw.picked(slot.modelData)
+                // The box is bigger than the circle on purpose. The
+                // chosen one grows, and the growing goes past the
+                // circle — at the end of the row that was past the
+                // window as well, and the last colour came out with a
+                // slice missing.
+                Item {
+                    id: slot
+                    required property var modelData
+                    width: 26; height: 26
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 22; height: 22; radius: 11
+                        color: slot.modelData
+                        border.width: slot.modelData === sw.value ? 2 : 0
+                        border.color: "#ffffff"
+                        scale: slot.modelData === sw.value ? 1.1 : 1
+                        Behavior on scale {
+                            NumberAnimation { duration: 140; easing.type: Easing.OutBack }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: sw.picked(slot.modelData)
+                        }
                     }
                 }
             }
@@ -243,6 +383,17 @@ Item {
         id: btn
         property string label: ""
         signal triggered()
+
+        activeFocusOnTab: true
+        Keys.onSpacePressed: btn.triggered()
+        Keys.onReturnPressed: btn.triggered()
+        Keys.onEnterPressed: btn.triggered()
+
+        Accessible.role: Accessible.Button
+        Accessible.name: btn.label
+        Accessible.onPressAction: btn.triggered()
+
+        FocusRing_ { around: btn }
 
         anchors.verticalCenter: parent ? parent.verticalCenter : undefined
         width: txt.implicitWidth + 22
@@ -281,7 +432,29 @@ Item {
         property int value: 0
         property string label: ""
         property bool listening: false
+        property string describedAs: ""
         signal captured(int key, string label)
+
+        activeFocusOnTab: true
+        // Space and return start it listening, the same as a click.
+        // Not while it is listening, or the shortcut you meant to set
+        // would be the key that started the setting of it.
+        Keys.onSpacePressed: (e) => {
+            if (!cap.listening) { cap.listening = true; e.accepted = true; }
+        }
+        Keys.onReturnPressed: (e) => {
+            if (!cap.listening) { cap.listening = true; e.accepted = true; }
+        }
+        // Tabbing away with it still listening leaves a control that
+        // eats every key in the window.
+        onActiveFocusChanged: if (!cap.activeFocus) cap.listening = false
+
+        Accessible.role: Accessible.Button
+        Accessible.name: cap.describedAs
+        Accessible.description: cap.listening ? I18n.t.pressAKey : (cap.label || "—")
+        Accessible.onPressAction: cap.listening = true
+
+        FocusRing_ { around: cap }
 
         readonly property var modifierNames: ({
             16777248: "Shift", 16777249: "Ctrl",
@@ -315,9 +488,10 @@ Item {
                 cap.listening = true;
                 cap.forceActiveFocus();
             }
+            // A click anywhere else stops it listening, which used to
+            // need the escape key.
         }
 
-        focus: cap.listening
         Keys.onPressed: (event) => {
             if (!cap.listening) return;
             event.accepted = true;
@@ -390,7 +564,45 @@ Item {
         property var options: []        // [{value, label}]
         property string value: ""
         property bool expanded: false
+        property string describedAs: ""
         signal picked(string value)
+
+        readonly property int index: {
+            for (let i = 0; i < sel.options.length; i++)
+                if (sel.options[i].value === sel.value) return i;
+            return -1;
+        }
+
+        // Closed, up and down change the choice without opening it,
+        // which is what a list does everywhere else. Open, they walk
+        // it and return takes what is under the mark.
+        function step(by) {
+            if (!sel.options.length) return;
+            const at = sel.index < 0 ? 0
+                : Math.max(0, Math.min(sel.options.length - 1, sel.index + by));
+            sel.picked(sel.options[at].value);
+        }
+
+        activeFocusOnTab: true
+        Keys.onUpPressed: sel.step(-1)
+        Keys.onDownPressed: sel.step(1)
+        Keys.onSpacePressed: sel.expanded = !sel.expanded
+        Keys.onReturnPressed: sel.expanded = !sel.expanded
+        Keys.onEnterPressed: sel.expanded = !sel.expanded
+        Keys.onEscapePressed: (e) => {
+            // Only ours to swallow while the list is open; otherwise it
+            // belongs to whoever wants to close the window.
+            if (sel.expanded) { sel.expanded = false; e.accepted = true; }
+            else e.accepted = false;
+        }
+        // Tabbing away from a list left open leaves it hanging over
+        // the rows below, which are no longer under it.
+        onActiveFocusChanged: if (!sel.activeFocus) sel.expanded = false
+
+        Accessible.role: Accessible.ComboBox
+        Accessible.name: sel.describedAs
+        Accessible.description: sel.current
+        Accessible.onPressAction: sel.expanded = !sel.expanded
 
         readonly property string current: {
             for (const o of sel.options) if (o.value === sel.value) return o.label;
@@ -407,6 +619,20 @@ Item {
             NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
         }
         clip: true
+
+        // Inside, and not around: this one clips, so a ring drawn
+        // outside it would be cut by the very thing it marks.
+        FocusRing_ {
+            around: sel
+            anchors.fill: undefined
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 0
+            height: sel.headHeight
+            radius: 9
+            z: 5
+        }
 
         Rectangle {
             id: head
@@ -586,6 +812,7 @@ Item {
             width: parent.width * 0.52
             options: srow.options
             value: srow.value
+            describedAs: srow.label
             onPicked: (v) => srow.picked(v)
         }
     }

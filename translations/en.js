@@ -47,6 +47,7 @@ var strings = {
     takeABreak: "Take a break.",
     backToWork: "Back to work.",
     untitled: "(untitled)",
+    liveNow: "Live",
     nothingPlaying: "Nothing playing",
 
     catRecent: "Recent",

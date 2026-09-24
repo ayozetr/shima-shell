@@ -19,6 +19,28 @@ Column {
         property string hint: ""
         property string url: ""
 
+        function open() { Quickshell.execDetached(["xdg-open", link.url]); }
+
+        activeFocusOnTab: true
+        Keys.onSpacePressed: link.open()
+        Keys.onReturnPressed: link.open()
+        Keys.onEnterPressed: link.open()
+
+        Accessible.role: Accessible.Link
+        Accessible.name: link.label
+        Accessible.description: link.hint
+        Accessible.onPressAction: link.open()
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -4
+            radius: 16
+            color: "transparent"
+            border.width: 2
+            border.color: Theme.accent
+            visible: link.activeFocus
+        }
+
         width: parent ? parent.width : 0
         height: 62
         radius: 12
@@ -75,7 +97,7 @@ Column {
             // Through xdg-open rather than Qt.openUrlExternally: the
             // rest of the shell opens things that way, and it is the
             // one that honours what KDE has set as the browser.
-            onClicked: Quickshell.execDetached(["xdg-open", link.url])
+            onClicked: link.open()
         }
     }
 

@@ -71,6 +71,8 @@ Item {
         }
     }
 
+    // The same rule as the expanded panel: what a stopped player left
+    // in its metadata is not a cover.
     AlbumArt {
         anchors.right: parent.right
         anchors.rightMargin: 16
@@ -78,6 +80,7 @@ Item {
         width: 22
         height: 22
         radius: 6
-        source: root.player ? root.player.trackArtUrl : ""
+        source: (root.player && root.player.playbackState !== MprisPlaybackState.Stopped)
+            ? root.player.trackArtUrl : ""
     }
 }

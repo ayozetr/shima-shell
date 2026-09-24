@@ -50,6 +50,7 @@ var strings = {
     takeABreak: "Faça uma pausa.",
     backToWork: "De volta ao trabalho.",
     untitled: "(sem título)",
+    liveNow: "Ao vivo",
     nothingPlaying: "Nada em reprodução",
 
     catRecent: "Recentes",

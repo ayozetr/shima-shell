@@ -65,9 +65,21 @@ PanelWindow {
 
     Connections {
         target: LauncherState
-        function onOpenChanged() { win.selectedKey = ""; }
+        function onOpenChanged() {
+            win.selectedKey = "";
+            // And the menu for an application goes with it. Left
+            // standing, it came back on its own the next time the
+            // launcher opened, over whatever you had asked for.
+            if (!LauncherState.open) win.closeMenu();
+            // What you last searched for is not a thing to keep. The
+            // state cleared its own copy on opening, but the box holds
+            // its own text and nothing ever told it: the words were
+            // still there while the view showed everything, which is
+            // two answers to the same question.
+            if (LauncherState.open) search.text = "";
+        }
         function onCategoryChanged() { win.selectedKey = ""; }
-        function onQueryChanged() { win.selectedKey = ""; }
+        function onQueryChanged() { win.markFirst(); }
     }
 
     // ── Moving without the mouse ─────────────────────────────────
@@ -119,6 +131,25 @@ PanelWindow {
         for (let i = 0; i < items.length; i++)
             if (win.navKeyOf(items[i]) === win.selectedKey) return i;
         return -1;
+    }
+
+    // Searching marks the first answer straight away, so return opens
+    // it without a trip through the arrows: type "spot", see Spotify
+    // marked, press return. Not when you are only browsing a category
+    // — there the mark would be a promise that the next return does
+    // something, made to somebody who is reading.
+    function markFirst() {
+        if (LauncherState.query === "") { win.selectedKey = ""; return; }
+        const items = win.navItems;
+        win.selectedKey = items.length ? win.navKeyOf(items[0]) : "";
+    }
+
+    // The files arrive after the applications, and a search that found
+    // nothing among the applications has nothing to mark until they
+    // do. Only while nothing is marked, so this cannot pull the mark
+    // back to the top while you are walking the list.
+    onNavItemsChanged: {
+        if (LauncherState.query !== "" && win.selected < 0) win.markFirst();
     }
 
     function navMove(by) {
