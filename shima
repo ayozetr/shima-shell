@@ -178,8 +178,11 @@ SHIMA_CACHE_DIR=$cache
 SHIMA_STATE_DIR=$state
 SHIMA_RUNTIME_DIR=$runtime
 SHIMA_SHELL=$entry
+# So the settings window can say which version it is without the
+# number being written down in a second place.
+SHIMA_VERSION=$VERSION
 export SHIMA_DATA_DIR SHIMA_CONFIG_DIR SHIMA_CACHE_DIR SHIMA_STATE_DIR \
-       SHIMA_RUNTIME_DIR SHIMA_SHELL
+       SHIMA_RUNTIME_DIR SHIMA_SHELL SHIMA_VERSION
 
 # What our own windows say they are. Left alone, Quickshell calls them
 # org.quickshell, so the settings window wears Quickshell's cog in its

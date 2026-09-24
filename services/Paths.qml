@@ -19,6 +19,16 @@ Singleton {
         return (v && v !== "") ? v : fallback;
     }
 
+    // Where the program itself is: a checkout while it is being
+    // worked on, /usr/share/shima once installed. The launcher knows
+    // and says so; asked without it, the shell is being run by hand
+    // from its own directory.
+    readonly property string programDir: root.env("SHIMA_DATA_DIR", ".")
+
+    // What it calls itself. Said by the launcher, which is the one
+    // place the number is written down.
+    readonly property string version: root.env("SHIMA_VERSION", "")
+
     // Settings you edit and expect to keep.
     readonly property string configDir:
         root.env("SHIMA_CONFIG_DIR",

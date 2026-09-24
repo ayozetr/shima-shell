@@ -121,6 +121,19 @@ var strings = {
     start: "Start",
     pause: "Pause",
 
+    // ── Settings: pages ──
+    pageGeneral: "General",
+    pageDock: "Dock",
+    pageIsland: "Island",
+    pageNotifications: "Notifications",
+    pageWeather: "Weather",
+    pageAbout: "About",
+    aboutVersion: "Version",
+    aboutVersionUnknown: "Version unknown",
+    aboutLine: "A dynamic island and dock for KDE Plasma on Wayland.",
+    aboutSource: "Source code",
+    aboutSupport: "Support the project",
+
     secScreens: "SCREENS",
     secDock: "DOCK",
     secDockApps: "DOCK APPLICATIONS",

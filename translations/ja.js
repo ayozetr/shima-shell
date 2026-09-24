@@ -121,6 +121,19 @@ var strings = {
     start: "開始",
     pause: "一時停止",
 
+    // ── Settings: pages ──
+    pageGeneral: "一般",
+    pageDock: "ドック",
+    pageIsland: "アイランド",
+    pageNotifications: "通知",
+    pageWeather: "天気",
+    pageAbout: "情報",
+    aboutVersion: "バージョン",
+    aboutVersionUnknown: "バージョン不明",
+    aboutLine: "Wayland 上の KDE Plasma のためのダイナミックアイランドとドック。",
+    aboutSource: "ソースコード",
+    aboutSupport: "プロジェクトを支援する",
+
     secScreens: "スクリーン",
     secDock: "ドック",
     secDockApps: "ドックのアプリケーション",

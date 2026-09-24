@@ -368,6 +368,12 @@ do_install() {
     for dir in components services translations helper; do
         [ -d "$SRC/$dir" ] && cp -r "$SRC/$dir" "$SHARE/"
     done
+    # What the settings window draws: our own logotype and the two
+    # marks it links with. Only those: the rest of assets/ is the brand
+    # work and has no business on anybody's disk.
+    mkdir -p "$SHARE/assets"
+    cp -r "$SRC/assets/vendor" "$SHARE/assets/" 2>/dev/null || true
+    cp "$SRC/assets/logo-white.svg" "$SHARE/assets/" 2>/dev/null || true
     cp "$SRC/LICENSE" "$SRC/README.md" "$SHARE/" 2>/dev/null || true
     chmod +x "$SHARE/helper/shima-shortcuts" "$SHARE/helper/shima-games" \
         2>/dev/null || true

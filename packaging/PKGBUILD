@@ -70,6 +70,12 @@ package() {
     done
     install -Dm644 ./*.qml -t "$share"
 
+    # What the settings window draws: our own logotype and the two
+    # marks it links with. Nothing else from assets/: the rest is the
+    # brand work.
+    install -Dm644 assets/vendor/*.svg -t "$share/assets/vendor"
+    install -Dm644 assets/logo-white.svg -t "$share/assets"
+
     install -Dm755 helper/shima-shortcuts helper/shima-games \
         -t "$share/helper"
 

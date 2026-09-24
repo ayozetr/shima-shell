@@ -130,6 +130,19 @@ var strings = {
     pause: "Anhalten",
 
     // ── Settings: sections ──
+    // ── Settings: pages ──
+    pageGeneral: "Allgemein",
+    pageDock: "Dock",
+    pageIsland: "Insel",
+    pageNotifications: "Benachrichtigungen",
+    pageWeather: "Wetter",
+    pageAbout: "Über",
+    aboutVersion: "Version",
+    aboutVersionUnknown: "Version unbekannt",
+    aboutLine: "Eine dynamische Insel und ein Dock für KDE Plasma unter Wayland.",
+    aboutSource: "Quellcode",
+    aboutSupport: "Projekt unterstützen",
+
     secScreens: "BILDSCHIRME",
     secDock: "DOCK",
     secDockApps: "ANWENDUNGEN IM DOCK",
