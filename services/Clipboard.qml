@@ -61,6 +61,13 @@ Singleton {
         id: sweep
         command: ["sh", "-c",
             'pkill -f "shima-clip[-]watch" 2>/dev/null; '
+            // The path is built from environment variables, and every
+            // one of them has a fallback, so today it can never come
+            // out empty and this can never be `rm -rf /clips`. Today.
+            // A recursive delete should not rest on somebody reading
+            // the whole of Paths before adding to it, so it says out
+            // loud what it expects to be given.
+            + 'case "$1" in */shima/clips) ;; *) exit 0;; esac; '
             + 'rm -rf -- "$1" && mkdir -p "$1"', "shima", root.clipDir]
         onExited: detect.running = true
     }

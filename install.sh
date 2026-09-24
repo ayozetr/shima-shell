@@ -175,6 +175,18 @@ install_quickshell() {
 
 # ── kdotool ──────────────────────────────────────────────────────
 #
+# A named version with its checksum, and not "whatever the latest
+# release is". This is the only thing the installer puts on the machine
+# that somebody else built, and it goes into your own bin directory:
+# fetching whatever a moving tag points at, over nothing but TLS to
+# github.com, and running it is a lot of trust for one line of shell.
+#
+# The cost is that this number has to be raised by hand when upstream
+# publishes a new one, and that is the trade: there is no way to check
+# a file against a hash you do not have yet.
+KDOTOOL_VERSION=0.3.0
+KDOTOOL_SHA256=2079cc1d492b6e83e04def4d9376e34fcb36a4e3bdc637c8c2ee6fa547ce90ff
+#
 # Not optional: KWin exposes no protocol for listing windows, so
 # without it there is no focus, no minimising and no running dots, and
 # clicking an open application starts a second copy. It is in no
@@ -186,14 +198,25 @@ install_kdotool() {
     if have yay;  then yay  -S --needed --noconfirm kdotool-bin && return 0; fi
 
     arch=$(uname -m)
-    if [ "$arch" = "x86_64" ] && have curl && have tar; then
-        say "Fetching the kdotool binary from its releases..."
-        url=$(curl -fsSL https://api.github.com/repos/jinliu/kdotool/releases/latest 2>/dev/null \
-              | grep -o '"browser_download_url": *"[^"]*x86_64-unknown-linux-gnu\.tar\.gz"' \
-              | head -1 | sed 's/.*"\(https[^"]*\)"/\1/')
-        [ -n "$url" ] || { err "could not find the release"; return 1; }
+    if [ "$arch" = "x86_64" ] && have curl && have tar && have sha256sum; then
+        say "Fetching kdotool $KDOTOOL_VERSION from its releases..."
         tmp=$(mktemp -d) || return 1
-        curl -fsSL "$url" | tar -xz -C "$tmp" || { rm -rf "$tmp"; return 1; }
+        url="https://github.com/jinliu/kdotool/releases/download"
+        url="$url/v$KDOTOOL_VERSION/kdotool-$KDOTOOL_VERSION-x86_64-unknown-linux-gnu.tar.gz"
+
+        curl -fsSL "$url" -o "$tmp/kdotool.tar.gz" || { rm -rf "$tmp"; return 1; }
+
+        got=$(sha256sum "$tmp/kdotool.tar.gz" | cut -d' ' -f1)
+        if [ "$got" != "$KDOTOOL_SHA256" ]; then
+            err "the kdotool download is not what it should be."
+            err "  expected $KDOTOOL_SHA256"
+            err "  got      $got"
+            err "Nothing was installed. Please report this."
+            rm -rf "$tmp"
+            return 1
+        fi
+
+        tar -xzf "$tmp/kdotool.tar.gz" -C "$tmp" || { rm -rf "$tmp"; return 1; }
         bin=$(find "$tmp" -type f -name kdotool -perm -u+x | head -1)
         [ -n "$bin" ] || { err "no kdotool binary inside the archive"; rm -rf "$tmp"; return 1; }
         mkdir -p "$PREFIX/bin"
@@ -391,7 +414,17 @@ do_uninstall() {
         "$BIN" --cleanup || true
     fi
 
-    pkill -x qs 2>/dev/null || true
+    # The launcher before the shell, and not the other way round: it
+    # watches what it starts and puts it back if it dies in the first
+    # seconds, so killing the shell on its own brings it straight back
+    # — while this is deleting the files underneath it.
+    #
+    # And ours, not everybody's. `pkill -x qs` takes down any Quickshell
+    # on the machine, which on a desktop running a second configuration
+    # is somebody else's shell. The entry point is a path inside this
+    # user's cache directory, so naming it is enough.
+    pkill -x shima 2>/dev/null || true
+    pkill -f "$CACHE/shell.qml" 2>/dev/null || true
 
     rm -rf "$SHARE" "$CACHE"
     rm -f "$BIN" "$DESKTOP" "$AUTOSTART"
