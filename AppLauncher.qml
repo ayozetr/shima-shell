@@ -191,7 +191,7 @@ PanelWindow {
         // however much higher you asked for.
         anchors.bottomMargin: Theme.dockIconSize + Theme.dockDotLane
                               + Theme.dockPadding * 2 + 26
-                              + (Config.data.launcherLift ?? 0)
+                              + Config.number(Config.data.launcherLift, 0, 0, 1000)
         width: 660
         height: 480
         radius: 18

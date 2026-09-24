@@ -26,7 +26,8 @@ Rectangle {
     // and a decision takes reading.
     Timer {
         id: life
-        interval: (Config.data.notificationCardSeconds ?? 12) * 1000
+        interval:
+            Config.number(Config.data.notificationCardSeconds, 12, 1, 600) * 1000
         running: !root.critical && !hover.hovered
         onTriggered: root.closed()
     }

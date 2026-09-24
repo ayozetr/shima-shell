@@ -36,13 +36,17 @@ Singleton {
         root.islandTintColour.r,
         root.islandTintColour.g,
         root.islandTintColour.b,
-        (Config.data.islandOpacity ?? 1.0))
+        Config.number(Config.data.islandOpacity, 1.0, 0, 1))
     readonly property color islandBorder:  "#1a1a1a"
-    readonly property int   islandRadius:  Config.data.islandRadius ?? 22
+    readonly property int   islandRadius:
+        Config.number(Config.data.islandRadius, 22, 0, 80)
 
-    readonly property int islandCollapsedWidth:  Config.data.islandCollapsedWidth ?? 410
-    readonly property int islandCollapsedHeight: Config.data.islandCollapsedHeight ?? 38
-    readonly property int islandExpandedWidth:   Config.data.islandExpandedWidth ?? 425
+    readonly property int islandCollapsedWidth:
+        Config.number(Config.data.islandCollapsedWidth, 410, 120, 2000)
+    readonly property int islandCollapsedHeight:
+        Config.number(Config.data.islandCollapsedHeight, 38, 16, 400)
+    readonly property int islandExpandedWidth:
+        Config.number(Config.data.islandExpandedWidth, 425, 160, 2000)
     readonly property int islandExpandedHeight:  140
     readonly property int islandExpandedMargin:  8
 
@@ -60,7 +64,7 @@ Singleton {
         root.dockTintColour.r,
         root.dockTintColour.g,
         root.dockTintColour.b,
-        (Config.data.dockOpacity ?? 0.8))
+        Config.number(Config.data.dockOpacity, 0.8, 0, 1))
     readonly property color dockBorder: "#1affffff"
 
     // Gradient of the icon container.
@@ -74,11 +78,12 @@ Singleton {
     // spacing and radius below it and gives geometries that cannot be
     // laid out, and the settings file is edited by hand.
     readonly property int dockIconSize:
-        Math.max(16, Math.min(128, Config.data.dockIconSize ?? 56))
+        Config.number(Config.data.dockIconSize, 56, 16, 128)
     readonly property int dockIconSpacing: Math.round(dockIconSize * 0.333)
     readonly property int dockPadding:     Math.round(dockIconSize * 0.222)
     readonly property real dockIconArt:    0.55
-    readonly property int dockRadius:      Config.data.dockCornerRadius ?? 28
+    readonly property int dockRadius:
+        Config.number(Config.data.dockCornerRadius, 28, 0, 80)
     readonly property int dockDotLane:     10
 
     readonly property int dockIconRadius: {
@@ -86,7 +91,8 @@ Singleton {
         switch (Config.data.iconShape) {
             case "circle": return Math.round(s / 2);
             case "square": return 0;
-            default:       return Math.round(s * (Config.data.iconRadiusPct ?? 33) / 100);
+            default:       return Math.round(
+                s * Config.number(Config.data.iconRadiusPct, 33, 0, 50) / 100);
         }
     }
 

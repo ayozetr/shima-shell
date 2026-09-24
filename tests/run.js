@@ -113,6 +113,33 @@ function is(what, got, want) {
        cfg.onScreen("DP-1, HDMI-A-1", "HDMI-A-1"), true);
 }
 
+// ── Numbers out of the settings file ─────────────────────────────
+{
+    const { number } = load("services/Config.qml", ["number"]);
+
+    is("un número corriente", number(42, 10, 0, 100), 42);
+    is("una cadena con un número", number("42", 10, 0, 100), 42);
+    is("por debajo del mínimo", number(-5, 10, 0, 100), 0);
+    is("por encima del máximo", number(9999, 10, 0, 100), 100);
+
+    // Lo que `?? por defecto` dejaba pasar y acababa en una geometría
+    // o en un temporizador.
+    is("la clave no está", number(undefined, 10, 0, 100), 10);
+    is("nula", number(null, 10, 0, 100), 10);
+    is("cadena vacía", number("", 10, 0, 100), 10);
+    is("no es un número", number("banana", 10, 0, 100), 10);
+    // Infinito cuenta como "esto no es un número que pueda usar", no
+    // como "el máximo": en un JSON sólo puede llegar escrito a mano.
+    is("infinito", number(Infinity, 10, 0, 100), 10);
+    is("infinito escrito", number("Infinity", 10, 0, 100), 10);
+    is("no es un número, de verdad", number(NaN, 10, 0, 100), 10);
+
+    // El cero es un valor legítimo cuando el mínimo lo permite — es
+    // lo que dice "no hay localidad elegida" — y no lo es cuando no.
+    is("cero, permitido", number(0, 10, 0, 100), 0);
+    is("cero, no permitido", number(0, 25, 1, 600), 1);
+}
+
 // ── The language ─────────────────────────────────────────────────
 {
     const strings = { en: {}, es: {} };

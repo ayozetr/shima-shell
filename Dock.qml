@@ -127,7 +127,8 @@ PanelWindow {
 
     readonly property bool atTop: Config.data.dockPosition === "top"
     readonly property bool floating: Config.data.dockFloating ?? false
-    readonly property int edgeMargin: floating ? (Config.data.dockMargin ?? 10) : -1
+    readonly property int edgeMargin: floating
+        ? Config.number(Config.data.dockMargin, 10, 0, 400) : -1
 
     // The window always covers the screen, so a click anywhere can
     // dismiss a popup. What keeps it from stealing the desktop's clicks
@@ -503,7 +504,7 @@ PanelWindow {
 
     Timer {
         id: hideTimer
-        interval: Config.data.dockHideDelay ?? 700
+        interval: Config.number(Config.data.dockHideDelay, 700, 100, 60000)
         onTriggered: win.hovering = false
     }
 

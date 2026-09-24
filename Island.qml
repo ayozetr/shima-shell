@@ -127,13 +127,14 @@ PanelWindow {
 
     Timer {
         id: hideTimer
-        interval: Config.data.islandHideDelay ?? 700
+        interval: Config.number(Config.data.islandHideDelay, 700, 100, 60000)
         onTriggered: win.hovering = false
     }
 
     readonly property bool autoHide: Config.data.islandAutoHide ?? false
     readonly property bool floating: Config.data.islandFloating ?? false
-    readonly property int  topMargin: floating ? (Config.data.islandMargin ?? 8) : 0
+    readonly property int  topMargin: floating
+        ? Config.number(Config.data.islandMargin, 8, 0, 400) : 0
 
     // It won't hide while expanded, obviously.
     readonly property bool revealed: !autoHide || hovering || expanded || peeking

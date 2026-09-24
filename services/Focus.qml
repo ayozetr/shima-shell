@@ -17,10 +17,20 @@ Singleton {
     property int remaining: root.focusSeconds
     property int completed: 0        // finished focus rounds
 
-    readonly property int focusSeconds:     (Config.data.focusMinutes ?? 25) * 60
-    readonly property int breakSeconds:     (Config.data.breakMinutes ?? 5) * 60
-    readonly property int longBreakSeconds: (Config.data.longBreakMinutes ?? 15) * 60
-    readonly property int roundsBeforeLong: Config.data.focusRounds ?? 4
+    // At least a minute each. A phase of nought seconds ends on the
+    // tick it starts and chains straight into the next one, so a zero
+    // here is a notification every second until somebody stops it by
+    // hand — and it is a number in a file people edit.
+    readonly property int focusSeconds:
+        Config.number(Config.data.focusMinutes, 25, 1, 600) * 60
+    readonly property int breakSeconds:
+        Config.number(Config.data.breakMinutes, 5, 1, 600) * 60
+    readonly property int longBreakSeconds:
+        Config.number(Config.data.longBreakMinutes, 15, 1, 600) * 60
+    // Zero would make the "every so many rounds" arithmetic divide by
+    // it, and the long break would never come.
+    readonly property int roundsBeforeLong:
+        Config.number(Config.data.focusRounds, 4, 1, 100)
 
     readonly property bool onBreak: phase === "break" || phase === "longBreak"
 

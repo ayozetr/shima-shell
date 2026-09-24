@@ -103,7 +103,8 @@ Singleton {
 
     onItemsChanged: if (root.restored) saveHistory.restart()
 
-    readonly property int historyLimit: Config.data.notificationHistory ?? 50
+    readonly property int historyLimit:
+        Config.number(Config.data.notificationHistory, 50, 1, 500)
     readonly property int unread: {
         let n = 0;
         for (const it of root.items) if (!it.read) n++;
@@ -329,7 +330,7 @@ Singleton {
         const n = root.live(entry.id);
         const asked = n ? n.expireTimeout : -1;
         if (asked > 0) return Math.max(2.5, Math.min(10, asked / 1000));
-        return Config.data.notificationPeekSeconds ?? 5;
+        return Config.number(Config.data.notificationPeekSeconds, 5, 1, 120);
     }
 
     // ── Relative time ────────────────────────────────────────────

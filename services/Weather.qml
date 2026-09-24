@@ -19,8 +19,10 @@ Singleton {
     property string place: ""
 
     readonly property bool enabled: Config.data.weatherEnabled ?? true
-    readonly property real lat: Config.data.weatherLat ?? 0
-    readonly property real lon: Config.data.weatherLon ?? 0
+    // Zero means "no town chosen yet", which is why it is also the
+    // default; anything outside the globe is somebody's typo.
+    readonly property real lat: Config.number(Config.data.weatherLat, 0, -90, 90)
+    readonly property real lon: Config.number(Config.data.weatherLon, 0, -180, 180)
     readonly property bool fahrenheit: Config.data.weatherFahrenheit ?? false
     // These two end up in a command line, and the configuration file
     // is not ours alone: the importer below copies them out of Plasma's

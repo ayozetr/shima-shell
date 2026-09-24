@@ -195,6 +195,26 @@ Singleton {
         command: ["sh", "-c", "cp -f -- \"$1\" \"$1.bak\"", "shima", root.path]
     }
 
+    // A number out of the file, held inside what it can usefully be.
+    //
+    // `?? default` only catches a key that is not there. A file edited
+    // by hand can say 0, or -5, or "banana", and every one of those
+    // went straight into a geometry or a timer: an island nought
+    // pixels wide is an island nobody can point at, and the mode dots
+    // and the way back to the settings go with it. A pomodoro of nought
+    // minutes ends the instant it starts and chains into the next,
+    // which is a notification a second, for ever.
+    //
+    // The bounds are not opinions about what looks good — the settings
+    // window decides that with its sliders. They are the edges past
+    // which the shell stops working.
+    function number(value, fallback, min, max) {
+        if (value === undefined || value === null || value === "") return fallback;
+        const n = Number(value);
+        if (!isFinite(n)) return fallback;
+        return Math.max(min, Math.min(max, n));
+    }
+
     function save() { file.writeAdapter(); }
 
     function screenList(text) {
