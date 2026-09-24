@@ -19,8 +19,10 @@ Singleton {
     property string place: ""
 
     readonly property bool enabled: Config.data.weatherEnabled ?? true
-    readonly property real lat: Config.data.weatherLat ?? 0
-    readonly property real lon: Config.data.weatherLon ?? 0
+    // Zero means "no town chosen yet", which is why it is also the
+    // default; anything outside the globe is somebody's typo.
+    readonly property real lat: Config.number(Config.data.weatherLat, 0, -90, 90)
+    readonly property real lon: Config.number(Config.data.weatherLon, 0, -180, 180)
     readonly property bool fahrenheit: Config.data.weatherFahrenheit ?? false
     // These two end up in a command line, and the configuration file
     // is not ours alone: the importer below copies them out of Plasma's
@@ -30,8 +32,8 @@ Singleton {
     // fails is not used at all rather than passed along.
     readonly property var models: ["ukmo_seamless", "ecmwf_ifs025", "best_match"]
     readonly property string model: {
-        const m = Config.data.weatherModel ?? "ukmo_seamless";
-        return root.models.indexOf(m) !== -1 ? m : "ukmo_seamless";
+        const m = Config.data.weatherModel ?? "best_match";
+        return root.models.indexOf(m) !== -1 ? m : "best_match";
     }
     // A BBC location id is a plain number and nothing else.
     readonly property string bbcId: {
@@ -95,6 +97,24 @@ Singleton {
         return "";
     }
 
+    // Picking another source or another unit in the settings shows it
+    // at once instead of at the next quarter of an hour. Only once
+    // there is a reading on screen to replace: before the first answer
+    // arrives these fire because the settings file is being read, and
+    // the timer below is about to ask anyway.
+    onModelChanged: if (root.ready) fetch.running = true
+    onUseBbcChanged: root.askBbc()
+    // The unit changes what BBC is asked for as well, and until its
+    // answer arrives the figure in hand is in the scale you just left.
+    // Letting go of it falls back to Open-Meteo's, which is already in
+    // the one you asked for, rather than showing the old number under
+    // a sign that now means something else.
+    onFahrenheitChanged: {
+        if (!root.ready) return;
+        fetch.running = true;
+        if (root.useBbc) { root.bbcReady = false; root.askBbc(); }
+    }
+
     // Refreshed every 15 minutes: the weather does not move faster than
     // that and there is no reason to hammer a free service.
     Timer {
@@ -104,25 +124,48 @@ Singleton {
         triggeredOnStart: true
         onTriggered: {
             fetch.running = true;
-            if (root.useBbc) bbcFetch.running = true;
+            root.askBbc();
         }
     }
 
     // The feed is RSS, so the reading is pulled out with a regular
     // expression rather than parsed: one number from one line.
-    Process {
-        id: bbcFetch
-        // The pipeline needs a shell, so the address is handed over as
-        // a positional argument instead of being pasted into the
-        // command text. The shell then never reads it as syntax, no
-        // matter what it contains.
-        command: ["sh", "-c",
+    //
+    // The line is "Temperature: 33°C (91°F)", and it used to take the
+    // first number it found, whatever the settings said. So with BBC
+    // chosen and the unit set to Fahrenheit you were shown 33 with a
+    // degree sign that no longer said which scale it was: the unit
+    // only ever reached Open-Meteo, whose temperature is not the one
+    // on screen while BBC is the provider. Both figures are in that
+    // same line, so which one to take is now an argument. If the feed
+    // ever stops printing the second, nothing comes back, the BBC
+    // reading is not marked as good and the Open-Meteo one — which is
+    // in the right unit — is what shows.
+    // Built here and not as a binding on the process. A binding is
+    // re-evaluated when its ingredients change, but nothing says it
+    // happens before a handler that reacts to the same change: asking
+    // for the reading again the moment the unit was flipped started
+    // the old command and brought back Celsius under a Fahrenheit
+    // sign. Proved by watching it. What is asked for is fixed at the
+    // moment of asking, which is what the geocoder below does and for
+    // the same kind of reason.
+    function askBbc() {
+        if (!root.useBbc) return;
+        bbcFetch.exec(["sh", "-c",
             "curl -sf --max-time 10 \"$1\" "
-            + "| grep -oE 'Temperature: -?[0-9]+' | head -1 "
-            + "| grep -oE '\\-?[0-9]+'",
+            + "| grep -oE 'Temperature: [^,<]+' | head -1 "
+            + "| grep -oE '\\-?[0-9]+' | sed -n \"$2p\"",
+            // The address is handed over as a positional argument
+            // instead of being pasted into the command text, so the
+            // shell never reads it as syntax whatever it contains.
             "shima",
             "https://weather-broker-cdn.api.bbci.co.uk/en/observation/rss/"
-            + root.bbcId]
+            + root.bbcId,
+            root.fahrenheit ? "2" : "1"]);
+    }
+
+    Process {
+        id: bbcFetch
         stdout: StdioCollector {
             onStreamFinished: {
                 const v = parseInt(text.trim(), 10);
@@ -289,9 +332,20 @@ Singleton {
         fetch.running = true;
     }
 
-    Component.onCompleted: {
-        root.place = Config.data.weatherPlace ?? "";
-        // First run: inherit whatever the Plasma weather widget has.
-        if ((Config.data.weatherLat ?? 0) === 0) root.importFromPlasma();
+    // Read when the settings arrive, not when this is built. A
+    // singleton is born before its file has been read, so asking at
+    // construction gets the defaults — and the default latitude is
+    // zero, which is exactly the "nothing chosen yet" the line below
+    // is looking for. So the import from Plasma's widget ran at every
+    // single start and wrote its location over the one you picked. On
+    // a machine where both point at the same town it is invisible;
+    // anywhere else your choice came back changed after every login.
+    Connections {
+        target: Config
+        function onReady() {
+            root.place = Config.data.weatherPlace ?? "";
+            // First run: inherit whatever the Plasma weather widget has.
+            if ((Config.data.weatherLat ?? 0) === 0) root.importFromPlasma();
+        }
     }
 }

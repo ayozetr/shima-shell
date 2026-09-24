@@ -26,6 +26,9 @@ PREFIX=${PREFIX:-$HOME/.local}
 SHARE="$PREFIX/share/shima"
 BIN="$PREFIX/bin/shima"
 DESKTOP="$PREFIX/share/applications/shima.desktop"
+# The settings window as an application of its own, so it can be
+# found in the menu by somebody who has turned the dock off.
+DESKTOP_SETTINGS="$PREFIX/share/applications/shima-settings.desktop"
 ICONS="$PREFIX/share/icons/hicolor"
 AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/shima.desktop"
 
@@ -116,6 +119,10 @@ pkg_for() {
         sqlite:apt)       echo sqlite3 ;;
         sqlite:*)         echo sqlite ;;
         curl:*)           echo curl ;;
+        # Same name everywhere it exists, which is everywhere with
+        # Wayland: it is the only way to read or write the clipboard.
+        wlclipboard:*)    echo wl-clipboard ;;
+        xdgutils:*)       echo xdg-utils ;;
         *)                echo "" ;;
     esac
 }
@@ -171,6 +178,18 @@ install_quickshell() {
 
 # ── kdotool ──────────────────────────────────────────────────────
 #
+# A named version with its checksum, and not "whatever the latest
+# release is". This is the only thing the installer puts on the machine
+# that somebody else built, and it goes into your own bin directory:
+# fetching whatever a moving tag points at, over nothing but TLS to
+# github.com, and running it is a lot of trust for one line of shell.
+#
+# The cost is that this number has to be raised by hand when upstream
+# publishes a new one, and that is the trade: there is no way to check
+# a file against a hash you do not have yet.
+KDOTOOL_VERSION=0.3.0
+KDOTOOL_SHA256=2079cc1d492b6e83e04def4d9376e34fcb36a4e3bdc637c8c2ee6fa547ce90ff
+#
 # Not optional: KWin exposes no protocol for listing windows, so
 # without it there is no focus, no minimising and no running dots, and
 # clicking an open application starts a second copy. It is in no
@@ -182,14 +201,25 @@ install_kdotool() {
     if have yay;  then yay  -S --needed --noconfirm kdotool-bin && return 0; fi
 
     arch=$(uname -m)
-    if [ "$arch" = "x86_64" ] && have curl && have tar; then
-        say "Fetching the kdotool binary from its releases..."
-        url=$(curl -fsSL https://api.github.com/repos/jinliu/kdotool/releases/latest 2>/dev/null \
-              | grep -o '"browser_download_url": *"[^"]*x86_64-unknown-linux-gnu\.tar\.gz"' \
-              | head -1 | sed 's/.*"\(https[^"]*\)"/\1/')
-        [ -n "$url" ] || { err "could not find the release"; return 1; }
+    if [ "$arch" = "x86_64" ] && have curl && have tar && have sha256sum; then
+        say "Fetching kdotool $KDOTOOL_VERSION from its releases..."
         tmp=$(mktemp -d) || return 1
-        curl -fsSL "$url" | tar -xz -C "$tmp" || { rm -rf "$tmp"; return 1; }
+        url="https://github.com/jinliu/kdotool/releases/download"
+        url="$url/v$KDOTOOL_VERSION/kdotool-$KDOTOOL_VERSION-x86_64-unknown-linux-gnu.tar.gz"
+
+        curl -fsSL "$url" -o "$tmp/kdotool.tar.gz" || { rm -rf "$tmp"; return 1; }
+
+        got=$(sha256sum "$tmp/kdotool.tar.gz" | cut -d' ' -f1)
+        if [ "$got" != "$KDOTOOL_SHA256" ]; then
+            err "the kdotool download is not what it should be."
+            err "  expected $KDOTOOL_SHA256"
+            err "  got      $got"
+            err "Nothing was installed. Please report this."
+            rm -rf "$tmp"
+            return 1
+        fi
+
+        tar -xzf "$tmp/kdotool.tar.gz" -C "$tmp" || { rm -rf "$tmp"; return 1; }
         bin=$(find "$tmp" -type f -name kdotool -perm -u+x | head -1)
         [ -n "$bin" ] || { err "no kdotool binary inside the archive"; rm -rf "$tmp"; return 1; }
         mkdir -p "$PREFIX/bin"
@@ -278,6 +308,10 @@ ensure_deps() {
     python3 -c 'import gi' 2>/dev/null || missing="$missing $(pkg_for pygobject)"
     have sqlite3 || missing="$missing $(pkg_for sqlite)"
     have curl    || missing="$missing $(pkg_for curl)"
+    # The clipboard history and the launcher's copy button are these
+    # two programs and nothing else; Wayland offers no other way in.
+    have wl-copy || missing="$missing $(pkg_for wlclipboard)"
+    have xdg-open || missing="$missing $(pkg_for xdgutils)"
     missing=$(echo "$missing" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
 
     if [ -n "$missing" ]; then
@@ -286,7 +320,8 @@ ensure_deps() {
         if [ -n "$PM" ] && ask "Install them?"; then
             pm_install $missing || err "Some could not be installed; carrying on."
         else
-            say "Skipped. The global shortcut and some panels may not work."
+            say "Skipped. The global shortcut, the clipboard and some"
+            say "panels may not work."
         fi
     fi
 
@@ -336,6 +371,12 @@ do_install() {
     for dir in components services translations helper; do
         [ -d "$SRC/$dir" ] && cp -r "$SRC/$dir" "$SHARE/"
     done
+    # What the settings window draws: our own logotype and the two
+    # marks it links with. Only those: the rest of assets/ is the brand
+    # work and has no business on anybody's disk.
+    mkdir -p "$SHARE/assets"
+    cp -r "$SRC/assets/vendor" "$SHARE/assets/" 2>/dev/null || true
+    cp "$SRC/assets/logo-white.svg" "$SHARE/assets/" 2>/dev/null || true
     cp "$SRC/LICENSE" "$SRC/README.md" "$SHARE/" 2>/dev/null || true
     chmod +x "$SHARE/helper/shima-shortcuts" "$SHARE/helper/shima-games" \
         2>/dev/null || true
@@ -344,6 +385,8 @@ do_install() {
     chmod +x "$BIN"
 
     sed "s|^Exec=shima$|Exec=$BIN|" "$SRC/packaging/shima.desktop" > "$DESKTOP"
+    sed "s|^Exec=shima |Exec=$BIN |" \
+        "$SRC/packaging/shima-settings.desktop" > "$DESKTOP_SETTINGS"
 
     # Icons where the freedesktop specification expects them, so that
     # the Icon=shima line in the .desktop file resolves.
@@ -382,10 +425,20 @@ do_uninstall() {
         "$BIN" --cleanup || true
     fi
 
-    pkill -x qs 2>/dev/null || true
+    # The launcher before the shell, and not the other way round: it
+    # watches what it starts and puts it back if it dies in the first
+    # seconds, so killing the shell on its own brings it straight back
+    # — while this is deleting the files underneath it.
+    #
+    # And ours, not everybody's. `pkill -x qs` takes down any Quickshell
+    # on the machine, which on a desktop running a second configuration
+    # is somebody else's shell. The entry point is a path inside this
+    # user's cache directory, so naming it is enough.
+    pkill -x shima 2>/dev/null || true
+    pkill -f "$CACHE/shell.qml" 2>/dev/null || true
 
     rm -rf "$SHARE" "$CACHE"
-    rm -f "$BIN" "$DESKTOP" "$AUTOSTART"
+    rm -f "$BIN" "$DESKTOP" "$DESKTOP_SETTINGS" "$AUTOSTART"
     rm -f "$ICONS/scalable/apps/shima.svg" "$ICONS/16x16/apps/shima.svg" \
           "$ICONS/22x22/apps/shima.svg" "$ICONS/symbolic/apps/shima-symbolic.svg"
     say "Removed the program."
@@ -412,6 +465,7 @@ while [ $# -gt 0 ]; do
             PREFIX=$1
             SHARE="$PREFIX/share/shima"; BIN="$PREFIX/bin/shima"
             DESKTOP="$PREFIX/share/applications/shima.desktop"
+            DESKTOP_SETTINGS="$PREFIX/share/applications/shima-settings.desktop"
             ICONS="$PREFIX/share/icons/hicolor"
             ;;
         --help|-h) usage; exit 0 ;;

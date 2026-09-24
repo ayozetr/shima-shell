@@ -11,7 +11,7 @@ Rectangle {
     property bool open: false
     signal closeRequested()
 
-    readonly property var windows: Apps.windowsAppId === root.appId ? Apps.windows : []
+    readonly property var windows: Windows.forAppId === root.appId ? Windows.list : []
 
     visible: opacity > 0
     opacity: open ? 1 : 0
@@ -84,7 +84,7 @@ Rectangle {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        Apps.activateWindow(modelData.id);
+                        Windows.activate(modelData.id);
                         root.closeRequested();
                     }
                 }

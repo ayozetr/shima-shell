@@ -109,7 +109,11 @@ PanelWindow {
 
     Item {
         id: edgeStrip
-        width: parent.width
+        // Measured against the window and not against contentItem,
+        // which is not always the same size — the dock's strip carries
+        // the same note for the same reason. A strip narrower than the
+        // screen is an island that does not come back at the edges.
+        width: win.width
         height: 3
         y: 0
         HoverHandler {
@@ -123,13 +127,14 @@ PanelWindow {
 
     Timer {
         id: hideTimer
-        interval: Config.data.islandHideDelay ?? 700
+        interval: Config.number(Config.data.islandHideDelay, 700, 100, 60000)
         onTriggered: win.hovering = false
     }
 
     readonly property bool autoHide: Config.data.islandAutoHide ?? false
     readonly property bool floating: Config.data.islandFloating ?? false
-    readonly property int  topMargin: floating ? (Config.data.islandMargin ?? 8) : 0
+    readonly property int  topMargin: floating
+        ? Config.number(Config.data.islandMargin, 8, 0, 400) : 0
 
     // It won't hide while expanded, obviously.
     readonly property bool revealed: !autoHide || hovering || expanded || peeking
@@ -182,10 +187,25 @@ PanelWindow {
         onTriggered: Notifications.dismissPeek()
     }
 
+    // Which player the island speaks for.
+    //
+    // Whatever is playing, and after that whatever is merely paused —
+    // which is the one you mean to go back to. Taking the first on the
+    // bus instead was enough while only one program registered itself,
+    // but a browser stays registered long after the video ended, with
+    // nothing in it and stopped. Pausing Spotify then handed the
+    // island to the browser: an empty panel, and no way to press play
+    // on the thing you had just paused.
     readonly property MprisPlayer player: {
         const players = Mpris.players.values;
         if (!players.length) return null;
         for (const p of players) if (p.isPlaying) return p;
+        for (const p of players)
+            if (p.playbackState === MprisPlaybackState.Paused) return p;
+        // Nothing playing and nothing paused: whoever still has
+        // something in it, and failing that the first one there is.
+        for (const p of players)
+            if (String(p.trackTitle || "").trim() !== "") return p;
         return players[0];
     }
     readonly property bool hasMedia: player !== null

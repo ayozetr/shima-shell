@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Shima Settings
+GenericName=Shell settings
+Comment=Set up the Shima island, dock and launcher
+Exec=shima --settings
+Icon=shima
+Terminal=false
+Categories=Settings;DesktopSettings;Qt;KDE;
+Keywords=shima;shell;dock;island;launcher;panel;
+OnlyShowIn=KDE;
+StartupNotify=false

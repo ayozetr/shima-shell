@@ -13,83 +13,41 @@ PanelWindow {
     // the window doesn't clip it and the input mask doesn't leave it
     // out.
     property bool hovering: false
-    property string menuAppId: ""
-    property string menuAppName: ""
-    property bool   menuPinned: true
-    property real   menuX: 0
-    // Any popup is open: used for the input mask and for the click
-    // that dismisses them. Each popup has its own condition, or opening
-    // one would open the other along with it.
-    readonly property bool popupOpen: menuShown || listOpen
-    property bool menuShown: false
-    readonly property bool menuOpen: menuShown
-
-    function openMenu(id, name, pinned, xInWindow) {
-        // Clicking the same icon again closes it, rather than
-        // reopening the same menu on top of itself.
-        if (menuShown && menuAppId === id) { closeMenu(); return; }
-        menuCleanup.stop();
-        menuShown = true;
-        // Opening a menu closes the launcher: leaving both open at
-        // once is confusing and forces you to dismiss them separately.
-        LauncherState.hide();
-        closeWindowList();
-        menuAppId = id;
-        menuAppName = name;
-        menuPinned = pinned;
-        menuX = xInWindow;
+    // The two panels the dock puts up, both the same machinery: see
+    // components/DockPopup.qml. The menu belongs to an icon; the list
+    // of windows belongs to an icon and to an answer that has to be
+    // fetched first.
+    property DockPopup menu: DockPopup {
+        other: win.windowList
     }
-    // The contents outlive the fade: clearing the id right away empties
-    // the menu and changes its height mid-animation, which reads as the
-    // fade being cut short.
-    function closeMenu() {
-        menuShown = false;
-        menuCleanup.restart();
+    property DockPopup windowList: DockPopup {
+        other: win.menu
+        ready: Windows.forAppId === windowList.appId && Windows.list.length > 0
+        onOpened: (id) => Windows.load(id)
     }
 
-    Timer {
-        id: menuCleanup
-        interval: 200
-        onTriggered: win.menuAppId = ""
+    // The other half of what DockPopup does when it opens. It puts the
+    // launcher away, but nothing put it away: opening the launcher
+    // over an open menu left the menu underneath it, still there when
+    // you closed the launcher again.
+    Connections {
+        target: LauncherState
+        function onOpenChanged() {
+            if (!LauncherState.open) return;
+            win.menu.hide();
+            win.windowList.hide();
+        }
     }
 
-    // The window list, opened with a middle click. It shares the menu's
-    // plumbing: same window, same mask, closed by the same click.
-    property string listAppId: ""
-    property string listAppName: ""
-    property real   listX: 0
-    property bool listShown: false
+    // Whether the pinned entry in the menu says pin or unpin. Worked
+    // out here rather than handed over at the click: it is already
+    // written down, and a copy taken at the moment of opening is a
+    // copy that is wrong the moment you use the entry.
+    readonly property bool menuPinned: Pinned.list.indexOf(win.menu.appId) !== -1
 
-    // Asked for is not the same as open. The list of windows arrives
-    // after the click that asks for it, and without kdotool — or when
-    // the query comes back with nothing — it never arrives: what
-    // opened was a heading with nothing under it, over a window that
-    // then went on swallowing clicks meant for the desktop.
-    readonly property bool listOpen: listShown
-        && Apps.windowsAppId === win.listAppId
-        && Apps.windows.length > 0
-
-    function openWindowList(id, name, xInWindow) {
-        if (listShown && listAppId === id) { closeWindowList(); return; }
-        listCleanup.stop();
-        listShown = true;
-        LauncherState.hide();
-        closeMenu();
-        listAppId = id;
-        listAppName = name;
-        listX = xInWindow;
-        Apps.loadWindows(id);
-    }
-    function closeWindowList() {
-        listShown = false;
-        listCleanup.restart();
-    }
-
-    Timer {
-        id: listCleanup
-        interval: 200
-        onTriggered: win.listAppId = ""
-    }
+    // Any panel is up: used for the input mask and for the click that
+    // dismisses them.
+    readonly property bool popupOpen: win.menu.open || win.windowList.open
 
     readonly property bool autoHide: Config.data.dockAutoHide ?? false
     // It won't hide while a menu is open or you're dragging.
@@ -127,7 +85,8 @@ PanelWindow {
 
     readonly property bool atTop: Config.data.dockPosition === "top"
     readonly property bool floating: Config.data.dockFloating ?? false
-    readonly property int edgeMargin: floating ? (Config.data.dockMargin ?? 10) : -1
+    readonly property int edgeMargin: floating
+        ? Config.number(Config.data.dockMargin, 10, 0, 400) : -1
 
     // The window always covers the screen, so a click anywhere can
     // dismiss a popup. What keeps it from stealing the desktop's clicks
@@ -196,7 +155,7 @@ PanelWindow {
         anchors.fill: parent
         enabled: win.popupOpen
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-        onClicked: { win.closeMenu(); win.closeWindowList(); }
+        onClicked: { win.menu.hide(); win.windowList.hide(); }
     }
 
     Rectangle {
@@ -263,14 +222,23 @@ PanelWindow {
             id: dockMouse
             anchors.fill: parent
             acceptedButtons: Qt.RightButton
-            // Not a toggle. Settings is an ordinary window and can
-            // end up behind something else, and closing what somebody
-            // cannot see is not what they meant by clicking here: with
-            // it open, this brings it to the front, exactly as its own
-            // icon in the dock does.
             onClicked: {
                 LauncherState.hide();
-                if (SettingsWindow.open) Apps.launch(Apps.settingsId);
+                const what = Config.data.dockRightClick ?? "settings";
+                if (what === "none" || what === "") return;
+                if (what !== "settings") {
+                    // Somebody else's application, by its id: started
+                    // the way everything else here is, so one that
+                    // wants a terminal gets one.
+                    Windows.raiseOrStart(what);
+                    return;
+                }
+                // Not a toggle. Settings is an ordinary window and can
+                // end up behind something else, and closing what
+                // somebody cannot see is not what they meant by
+                // clicking here: with it open, this brings it to the
+                // front, exactly as its own icon in the dock does.
+                if (SettingsWindow.open) Windows.raiseOrStart(Apps.settingsId);
                 else SettingsWindow.show();
             }
         }
@@ -349,8 +317,8 @@ PanelWindow {
             readonly property int trayLead: lead + count * step
                                             + (hasTray ? Theme.dockIconSpacing : 0)
             readonly property int trayIconsLead: trayLead + toggleStep
-            readonly property int count: Apps.dockItems.length
-            readonly property int pinnedCount: Apps.pinned.length
+            readonly property int count: Pinned.items.length
+            readonly property int pinnedCount: Pinned.pinnedCount
             width: Math.max(0, !hasTray
                 ? lead + count * step - Theme.dockIconSpacing
                 : trayIconsLead
@@ -390,11 +358,23 @@ PanelWindow {
                 color: "#20ffffff"
             }
 
+            // The drag is over before the list is told, and that
+            // order is the whole point. Reordering hands the Repeater
+            // a different list, which builds every icon again from
+            // scratch — and each new one reads this drag while working
+            // out where to sit. With it still set, they were all born
+            // somewhere else: slotOf() was still shifting them around
+            // the hole left by the icon being carried, and the one
+            // landing on the index that was being dragged was born
+            // holding a dragX of its own, which is zero, at the very
+            // left of the dock. Clearing it first and moving after,
+            // each one is built where it belongs and nothing has
+            // anywhere to travel from.
             function commitDrag() {
-                if (dragIndex >= 0 && dropIndex >= 0 && dragIndex !== dropIndex)
-                    Apps.move(dragIndex, dropIndex);
+                const from = dragIndex, to = dropIndex;
                 dragIndex = -1;
                 dropIndex = -1;
+                if (from >= 0 && to >= 0 && from !== to) Pinned.move(from, to);
             }
 
             LauncherButton {
@@ -465,7 +445,7 @@ PanelWindow {
             }
 
             Repeater {
-                model: Apps.dockItems
+                model: Pinned.items
                 DockItem {
                     appId: modelData
                     itemIndex: index
@@ -482,17 +462,17 @@ PanelWindow {
 
     AppMenu {
         id: dockMenu
-        appId: win.menuAppId
-        appName: win.menuAppName
+        appId: win.menu.appId
+        appName: win.menu.appName
         pinned: win.menuPinned
-        open: win.menuOpen
-        onCloseRequested: win.closeMenu()
+        open: win.menu.open
+        onCloseRequested: win.menu.hide()
 
         // Centred over its icon, without running off the window. The
         // stored position is relative to the icon row, so the pill's
         // own position is added here, when it is already laid out.
         x: Math.max(6, Math.min(win.width - width - 6,
-                                pill.x + row.x + win.menuX - width / 2))
+                                pill.x + row.x + win.menu.at - width / 2))
         // Above the pill, or below it when the dock is at the top:
         // unconditional, this fell off the top edge — nothing
         // visible, but the menu counted as open and the window
@@ -503,19 +483,19 @@ PanelWindow {
 
     Timer {
         id: hideTimer
-        interval: Config.data.dockHideDelay ?? 700
+        interval: Config.number(Config.data.dockHideDelay, 700, 100, 60000)
         onTriggered: win.hovering = false
     }
 
     WindowList {
         id: windowList
-        appId: win.listAppId
-        appName: win.listAppName
-        open: win.listOpen
-        onCloseRequested: win.closeWindowList()
+        appId: win.windowList.appId
+        appName: win.windowList.appName
+        open: win.windowList.open
+        onCloseRequested: win.windowList.hide()
 
         x: Math.max(6, Math.min(win.width - width - 6,
-                                pill.x + row.x + win.listX - width / 2))
+                                pill.x + row.x + win.windowList.at - width / 2))
         // Above the pill, or below it when the dock is at the top:
         // unconditional, this fell off the top edge — nothing
         // visible, but the menu counted as open and the window

@@ -46,9 +46,14 @@ the Meta key by default.
   <img src="assets/screenshots/launcher.png" width="560" alt="">
 </p>
 
+**Clipboard.** What you copied before, on **Meta+V** and in the
+launcher under its own category. Text, files and pictures. Nothing
+outlives the session and nothing reaches the disk, and whatever the
+program that copied it marked as a password is not kept at all.
+
 **Notifications.** A server of its own, shown on the island or as a
-card, with history, do not disturb, and silencing during a focus
-session.
+card, with history that outlasts the shell restarting, do not disturb,
+and silencing during a focus session.
 
 **Settings.** Right click the dock. Position, auto-hide, opacity,
 background blur, corner radius, icon shape and size, accent colour,
@@ -56,6 +61,9 @@ per-monitor placement, per-monitor brightness, night light, power
 profile and keeping the machine awake. Language: English, Spanish,
 Catalan, French, German, Italian, Portuguese and Japanese. Everything
 applies live.
+
+All of it is one JSON file you can edit by hand, and every key in it is
+written down in [docs/settings.md](docs/settings.md).
 
 ## Installing
 
@@ -137,6 +145,10 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 
 Everything under `assets/` — the name, the icon and the logotype — is
 **not** covered by the GPL. All rights are reserved by the author.
+
+The one exception is `assets/vendor/`, which holds the GitHub and Ko-fi
+marks used in the settings window to link to those two places. Those
+belong to their owners; see the note beside them.
 
 They may be used in forks made to contribute back to this project —
 see [CONTRIBUTING](CONTRIBUTING.md) — but not in an independent one.

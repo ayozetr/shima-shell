@@ -20,3 +20,9 @@ singleton Power 1.0 Power.qml
 singleton Paths 1.0 Paths.qml
 singleton Clipboard 1.0 Clipboard.qml
 singleton Games 1.0 Games.qml
+singleton Recent 1.0 Recent.qml
+singleton Menu 1.0 Menu.qml
+singleton Favorites 1.0 Favorites.qml
+singleton Windows 1.0 Windows.qml
+singleton Pinned 1.0 Pinned.qml
+singleton Shortcuts 1.0 Shortcuts.qml

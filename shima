@@ -23,7 +23,7 @@
 
 set -e
 
-VERSION=0.3.0
+VERSION=0.4.0
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
@@ -32,6 +32,9 @@ usage() {
 shima $VERSION — a dynamic island and dock for KDE Plasma on Wayland
 
   shima              start the shell
+  shima --settings   open the settings window, starting the shell
+                     first if it is not running. This is what the
+                     entry in the application menu does.
   shima --cleanup    give back the global shortcut and any key taken
                      from Plasma. Run this before uninstalling.
   shima --version    print the version
@@ -45,9 +48,13 @@ Anything else is passed through to Quickshell.
 USAGE
 }
 
+settings_only=0
 case ${1:-} in
     --help|-h) usage; exit 0 ;;
     --version|-V) echo "shima $VERSION"; exit 0 ;;
+    # Handled far below, once the paths are worked out: it needs to
+    # know where the shell it is talking to lives.
+    --settings) settings_only=1; shift ;;
 esac
 
 # ── Where the program is ──────────────────────────────────────────
@@ -178,8 +185,11 @@ SHIMA_CACHE_DIR=$cache
 SHIMA_STATE_DIR=$state
 SHIMA_RUNTIME_DIR=$runtime
 SHIMA_SHELL=$entry
+# So the settings window can say which version it is without the
+# number being written down in a second place.
+SHIMA_VERSION=$VERSION
 export SHIMA_DATA_DIR SHIMA_CONFIG_DIR SHIMA_CACHE_DIR SHIMA_STATE_DIR \
-       SHIMA_RUNTIME_DIR SHIMA_SHELL
+       SHIMA_RUNTIME_DIR SHIMA_SHELL SHIMA_VERSION
 
 # What our own windows say they are. Left alone, Quickshell calls them
 # org.quickshell, so the settings window wears Quickshell's cog in its
@@ -194,6 +204,28 @@ export QS_APP_ID
 # again below.
 if [ -x "$data/helper/shima-shortcuts" ] && have python3; then
     "$data/helper/shima-shortcuts" &
+fi
+
+# ── Opening the settings from outside ─────────────────────────────
+#
+# A shell that is already running is simply told. One that is not has
+# to be started first, and then told once it is up — which is why this
+# asks again rather than waiting a fixed time: a cold start takes
+# whatever it takes, and ten seconds is longer than it has ever needed.
+if [ "$settings_only" -eq 1 ]; then
+    if qs -p "$entry" ipc call settings open >/dev/null 2>&1; then
+        exit 0
+    fi
+    (
+        n=0
+        while [ "$n" -lt 40 ]; do
+            sleep 0.25
+            if qs -p "$entry" ipc call settings open >/dev/null 2>&1; then
+                exit 0
+            fi
+            n=$((n + 1))
+        done
+    ) &
 fi
 
 # Quickshell sometimes dies in the first seconds of starting. It is not

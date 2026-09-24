@@ -17,12 +17,23 @@ function source(file) {
 }
 
 // Everything from `function name(` to the brace that closes it.
+//
+// The braces have to be counted past everything that only looks like
+// code. A `"}"` inside a string used to close the function early and
+// hand the test half of it; a `/[{]/` left it looking unterminated;
+// a `// }` in a comment did the same as the string. None of that
+// broke anything on the day it was written, which is the problem:
+// the first person to put a brace in a comment would have got a
+// syntax error pointing at a line they never touched.
 function body(text, name) {
     const start = text.indexOf("function " + name + "(");
     if (start < 0) throw new Error("no such function: " + name);
 
     let depth = 0, seen = false;
     for (let i = start; i < text.length; i++) {
+        const skipped = skip(text, i);
+        if (skipped >= 0) { i = skipped; continue; }
+
         const c = text[i];
         if (c === "{") { depth++; seen = true; }
         else if (c === "}") {
@@ -33,10 +44,126 @@ function body(text, name) {
     throw new Error("unterminated function: " + name);
 }
 
+// Given a position, says whether what starts there is something to
+// step over — a string, a comment, a regular expression — and where
+// it ends. -1 means it is ordinary code and the caller should read it.
+function skip(text, i) {
+    const c = text[i], next = text[i + 1];
+
+    if (c === "/" && next === "/") {
+        const end = text.indexOf("\n", i);
+        return end < 0 ? text.length : end;
+    }
+    if (c === "/" && next === "*") {
+        const end = text.indexOf("*/", i + 2);
+        if (end < 0) throw new Error("unterminated comment");
+        return end + 1;
+    }
+    if (c === '"' || c === "'" || c === "`") return string(text, i);
+    if (c === "/" && opensRegex(text, i)) return regex(text, i);
+    return -1;
+}
+
+// Up to the closing quote. A backtick also has holes in it — `${...}`
+// — and those hold code, which can hold strings of its own.
+function string(text, i) {
+    const quote = text[i];
+    for (let j = i + 1; j < text.length; j++) {
+        const c = text[j];
+        if (c === "\\") { j++; continue; }
+        if (c === quote) return j;
+        if (quote === "`" && c === "$" && text[j + 1] === "{")
+            j = hole(text, j + 1);
+    }
+    throw new Error("unterminated string");
+}
+
+// From the `{` of a template hole to the `}` that closes it.
+function hole(text, i) {
+    let depth = 0;
+    for (let j = i; j < text.length; j++) {
+        const skipped = skip(text, j);
+        if (skipped >= 0) { j = skipped; continue; }
+        if (text[j] === "{") depth++;
+        else if (text[j] === "}" && --depth === 0) return j;
+    }
+    throw new Error("unterminated template hole");
+}
+
+// Up to the closing slash, and then its flags. A `/` inside brackets
+// is a character and not the end: /[/]/ is a valid expression.
+function regex(text, i) {
+    let inClass = false;
+    for (let j = i + 1; j < text.length; j++) {
+        const c = text[j];
+        if (c === "\\") { j++; continue; }
+        if (c === "[") inClass = true;
+        else if (c === "]") inClass = false;
+        else if (c === "\n") break;
+        else if (c === "/" && !inClass) {
+            while (j + 1 < text.length && /[a-z]/.test(text[j + 1])) j++;
+            return j;
+        }
+    }
+    throw new Error("unterminated regular expression");
+}
+
+// Whether the slash at `i` starts a regular expression rather than
+// dividing. After a value — a name, a number, a closing bracket — it
+// divides; after an operator, a comma, a bracket or `return`, it opens
+// an expression.
+const OPENS = ["return", "typeof", "case", "in", "of", "new", "delete",
+               "void", "instanceof", "do", "else", "yield", "await"];
+
+function opensRegex(text, i) {
+    let j = i - 1;
+    while (j >= 0 && /\s/.test(text[j])) j--;
+    if (j < 0) return true;
+
+    const c = text[j];
+    if (/[A-Za-z0-9_$]/.test(c)) {
+        let k = j;
+        while (k >= 0 && /[A-Za-z0-9_$]/.test(text[k])) k--;
+        return OPENS.indexOf(text.slice(k + 1, j + 1)) !== -1;
+    }
+    return ")]".indexOf(c) === -1;
+}
+
+// A property whose value is written out in the file — a list of
+// names, a table of icons — evaluated as it is written. Tests that
+// need one take the real thing this way instead of keeping a copy
+// beside it, which is a copy that goes stale without anyone noticing.
+function literal(file, name) {
+    const text = source(file);
+    const decl = new RegExp("property\\s+\\w+\\s+" + name + "\\s*:").exec(text);
+    if (!decl) throw new Error("no such property: " + name);
+
+    let i = decl.index + decl[0].length;
+    while (i < text.length && /[\s(]/.test(text[i])) i++;
+    const open = text[i];
+    if (open !== "[" && open !== "{") throw new Error(name + " is not written out");
+
+    const close = open === "[" ? "]" : "}";
+    let depth = 0;
+    for (let j = i; j < text.length; j++) {
+        const skipped = skip(text, j);
+        if (skipped >= 0) { j = skipped; continue; }
+        if (text[j] === open) depth++;
+        else if (text[j] === close && --depth === 0)
+            return new Function("return (" + text.slice(i, j + 1) + ");")();
+    }
+    throw new Error("unterminated property: " + name);
+}
+
 // The functions, plus whatever they lean on, in one scope. `refs` is
 // what the QML around them would have provided: another singleton, a
 // property, a constant. `root` is provided for free and ends up being
 // the functions themselves, since that is how they call each other.
+//
+// What comes back is that scope and not merely the functions, because
+// plenty of them answer by writing to `root` rather than by returning
+// — the menu, the recent list — and a test has to be able to read
+// what they wrote, and to put something there first.
 function load(file, names, refs) {
     const text = source(file);
     const parts = names.map(n => body(text, n));
@@ -47,9 +174,8 @@ function load(file, names, refs) {
 
     const make = new Function(...keys,
         parts.join("\n") + "\nreturn {" + names.join(", ") + "};");
-    const out = make(...keys.map(k => all[k]));
-    Object.assign(self, out);
-    return out;
+    Object.assign(self, make(...keys.map(k => all[k])));
+    return self;
 }
 
-module.exports = { source, body, load, root };
+module.exports = { source, body, literal, load, root };

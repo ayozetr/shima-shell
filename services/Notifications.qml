@@ -61,6 +61,13 @@ Singleton {
     FileView {
         id: historyFile
         path: root.historyPath
+        // The runtime directory is empty at the start of every
+        // session, so the first read of this always fails and used to
+        // put a warning in the log for it. Nothing is wrong: there is
+        // no history yet because there has been no session yet. The
+        // reading is done below, where a missing file is an answer and
+        // anything else is worth saying out loud.
+        printErrors: false
         onLoaded: {
             if (root.restored) return;
             root.restored = true;
@@ -78,6 +85,16 @@ Singleton {
                     e.actions = [];
                     e.actionCount = 0;
                     e.buttons = 0;
+                    // A picture the application sent along is held by
+                    // the shell as "image://qsimage/23/1", a number
+                    // handed out in order as the images arrive. The
+                    // count starts again with the shell, so that
+                    // address does not merely stop resolving: it comes
+                    // back pointing at somebody else's picture, and an
+                    // old message from one person would be wearing the
+                    // face of whoever wrote next. The application's
+                    // own icon is underneath it and is what shows.
+                    e.image = "";
                     out.push(e);
                     if (out.length >= root.historyLimit) break;
                 }
@@ -85,7 +102,12 @@ Singleton {
                 for (const e of out) if (e.key > root.serial) root.serial = e.key;
             } catch (e) { /* half-written by a shell that was killed */ }
         }
-        onLoadFailed: root.restored = true;
+        onLoadFailed: (error) => {
+            root.restored = true;
+            if (error !== FileViewError.FileNotFound)
+                console.warn("[shima] the notification history at "
+                           + root.historyPath + " could not be read");
+        }
     }
 
     property bool restored: false
@@ -103,7 +125,8 @@ Singleton {
 
     onItemsChanged: if (root.restored) saveHistory.restart()
 
-    readonly property int historyLimit: Config.data.notificationHistory ?? 50
+    readonly property int historyLimit:
+        Config.number(Config.data.notificationHistory, 50, 1, 500)
     readonly property int unread: {
         let n = 0;
         for (const it of root.items) if (!it.read) n++;
@@ -329,7 +352,7 @@ Singleton {
         const n = root.live(entry.id);
         const asked = n ? n.expireTimeout : -1;
         if (asked > 0) return Math.max(2.5, Math.min(10, asked / 1000));
-        return Config.data.notificationPeekSeconds ?? 5;
+        return Config.number(Config.data.notificationPeekSeconds, 5, 1, 120);
     }
 
     // ── Relative time ────────────────────────────────────────────
@@ -339,9 +362,23 @@ Singleton {
     // without anything else changing.
     property int tick: 0
 
+    // How many lists of notifications are on screen — there can be one
+    // per island. The tick woke the process every thirty seconds
+    // whatever was happening, and put every entry in the history
+    // through the sum again, for labels that are only drawn in one
+    // place and are almost never on screen.
+    property int watchers: 0
+
+    function watch(on) {
+        root.watchers = Math.max(0, root.watchers + (on ? 1 : -1));
+        // Coming back to a list the tick has not been running for: the
+        // times on it are as old as whenever it stopped.
+        if (on) root.tick++;
+    }
+
     Timer {
         interval: 30000
-        running: true
+        running: root.watchers > 0
         repeat: true
         onTriggered: root.tick++
     }

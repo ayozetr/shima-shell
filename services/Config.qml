@@ -142,11 +142,17 @@ Singleton {
             property real   weatherLat:        0
             property real   weatherLon:        0
             property string weatherPlace:      ""
-            // Forecast model. The default is the UK Met Office, which
-            // is what feeds BBC Weather and therefore Plasma's widget:
-            // picking anything else shows a different temperature than
-            // the one you are used to seeing on the panel.
-            property string weatherModel:      "ukmo_seamless"
+            // Forecast model. It used to default to the UK Met
+            // Office, the reasoning being that it feeds BBC Weather
+            // and therefore Plasma's widget — but with the provider
+            // set to BBC, which is also the default, the model's
+            // temperature is never read: the number comes from BBC and
+            // all the model decides is the icon and whether it is day.
+            // So that default bought nothing and cost accuracy where
+            // the global model is weak. Open-Meteo's own pick per
+            // location does better; the Met Office is still there for
+            // anyone who wants the panel's own source.
+            property string weatherModel:      "best_match"
 
             // bbc reads the very feed Plasma's weather widget uses, so
             // the temperature matches the panel instead of merely
@@ -168,6 +174,15 @@ Singleton {
             // reading it back returns empty.
             property string islandScreens: ""
             property string dockScreens:   ""
+
+            // What a right click on the dock's background opens.
+            // "settings" is ours, "none" is nothing at all, and
+            // anything else is the id of an application — the name of
+            // its .desktop file without the extension. The settings
+            // window offers the ones it finds installed from a list it
+            // knows; this takes any of them, which is the way out when
+            // yours is not on that list.
+            property string dockRightClick:   "settings"
 
             // ── Color ──────────────────────────────────────────
             property string accent:           "#a78bfa"
@@ -193,6 +208,26 @@ Singleton {
     Process {
         id: rescue
         command: ["sh", "-c", "cp -f -- \"$1\" \"$1.bak\"", "shima", root.path]
+    }
+
+    // A number out of the file, held inside what it can usefully be.
+    //
+    // `?? default` only catches a key that is not there. A file edited
+    // by hand can say 0, or -5, or "banana", and every one of those
+    // went straight into a geometry or a timer: an island nought
+    // pixels wide is an island nobody can point at, and the mode dots
+    // and the way back to the settings go with it. A pomodoro of nought
+    // minutes ends the instant it starts and chains into the next,
+    // which is a notification a second, for ever.
+    //
+    // The bounds are not opinions about what looks good — the settings
+    // window decides that with its sliders. They are the edges past
+    // which the shell stops working.
+    function number(value, fallback, min, max) {
+        if (value === undefined || value === null || value === "") return fallback;
+        const n = Number(value);
+        if (!isFinite(n)) return fallback;
+        return Math.max(min, Math.min(max, n));
     }
 
     function save() { file.writeAdapter(); }

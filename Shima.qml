@@ -35,6 +35,18 @@ ShellRoot {
         Audio.ready;
         Weather.ready;
         Apps.revision;
+        // The window sweep and the dock's own row. Both used to live
+        // inside Apps and were woken by the line above; now that they
+        // are their own, nothing would touch them until something
+        // drew a dock icon — and the sweep is what says which icons
+        // there are, so that is a shell that starts by watching
+        // nothing at all.
+        Windows.probeDone;
+        Pinned.items.length;
+        // Reading KDE's menu takes some 45 ms, and the launcher's
+        // sidebar is built out of it: done on the first open, the
+        // categories arrive after the window does.
+        Menu.hasMenu;
         Brightness.available;
         NightLight.available;
         // The notification server has to be up before anything is
@@ -46,6 +58,11 @@ ShellRoot {
         // so a menu opened before that lands would hide entries that
         // do work.
         Session.canShutdown;
+        // Nothing watches the clipboard until this singleton exists,
+        // so left alone it only started recording when something first
+        // read it — opening the launcher, usually, minutes in. What
+        // you copied before that was gone.
+        Clipboard.available;
         // The tray needs to register as a host and wait for the items
         // to answer; woken late it reports an empty tray for seconds.
         SystemTray.items.values.length;

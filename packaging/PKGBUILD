@@ -1,7 +1,7 @@
 # Maintainer: ayozetr <ayozetr@users.noreply.github.com>
 
 pkgname=shima-shell
-pkgver=0.3.0
+pkgver=0.4.0
 pkgrel=1
 pkgdesc='Dynamic island and dock for KDE Plasma on Wayland'
 arch=('any')
@@ -22,6 +22,11 @@ depends=(
     'wireplumber'
     'sqlite'
     'curl'
+    # The clipboard is read and written with these, and without them
+    # both the history and the launcher's copy button are gone.
+    'wl-clipboard'
+    # Opening a place from the launcher.
+    'xdg-utils'
     # Not in the official repositories, but window management depends
     # entirely on it: focus, minimise and the running dots on the dock.
     # KWin exposes no protocol for listing windows, so there is no
@@ -30,12 +35,19 @@ depends=(
 )
 
 # Each of these switches off one feature and nothing else.
+# Everything here is reached by name at runtime and everything here is
+# optional in the sense that its absence costs one feature, not the
+# shell. What is not listed anywhere, because listing it would be odd,
+# is Plasma itself: this replaces its panels and talks to KWin,
+# KGlobalAccel and its settings modules throughout.
 optdepends=(
     'cava: the audio visualiser'
     'fd: faster file search in the launcher'
-    'libnotify: sending test notifications from the settings'
+    'libnotify: the pomodoro telling you a session is over, and test notifications'
     'power-profiles-daemon: power profile switching'
     'kmenuedit: editing an application entry from the right-click menu'
+    'systemsettings: opening a settings page from the control centre'
+    'qt6-tools: handing a copied result to Klipper, where there is one'
 )
 
 install="$pkgname.install"
@@ -58,13 +70,19 @@ package() {
     done
     install -Dm644 ./*.qml -t "$share"
 
+    # What the settings window draws: our own logotype and the two
+    # marks it links with. Nothing else from assets/: the rest is the
+    # brand work.
+    install -Dm644 assets/vendor/*.svg -t "$share/assets/vendor"
+    install -Dm644 assets/logo-white.svg -t "$share/assets"
+
     install -Dm755 helper/shima-shortcuts helper/shima-games \
         -t "$share/helper"
 
     # Found through /usr/bin/../share/shima by the launcher itself.
     install -Dm755 shima "$pkgdir/usr/bin/shima"
 
-    install -Dm644 packaging/shima.desktop \
+    install -Dm644 packaging/shima.desktop packaging/shima-settings.desktop \
         -t "$pkgdir/usr/share/applications"
 
     # Icons, where the freedesktop specification says they go: that is
@@ -81,5 +99,6 @@ package() {
         "$icons/symbolic/apps/shima-symbolic.svg"
 
     install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
-    install -Dm644 README.md -t "$pkgdir/usr/share/doc/$pkgname"
+    install -Dm644 README.md docs/settings.md \
+        -t "$pkgdir/usr/share/doc/$pkgname"
 }

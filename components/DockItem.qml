@@ -16,9 +16,9 @@ Item {
     // The comma ties this binding to revision: without it, it never
     // re-evaluates once DesktopEntries finishes scanning.
     readonly property var entry: (Apps.revision, Apps.entryFor(root.appId))
-    readonly property bool running: (Apps.revision, Apps.isRunning(root.appId))
+    readonly property bool running: (Apps.revision, Windows.isRunning(root.appId))
     // Ones that are merely open sit behind and don't reorder.
-    readonly property bool isPinned: Apps.pinned.indexOf(root.appId) !== -1
+    readonly property bool isPinned: Pinned.list.indexOf(root.appId) !== -1
 
     readonly property bool dragging: dock && dock.dragIndex === itemIndex
     property real dragX: 0
@@ -167,7 +167,7 @@ Item {
                     // a popup opens, so window coordinates taken now
                     // would point somewhere else by the time it shows.
                     const c = root.mapToItem(root.dock, root.width / 2, 0);
-                    root.dockWindow.openWindowList(root.appId,
+                    root.dockWindow.windowList.show(root.appId,
                         root.entry ? root.entry.name : root.appId, c.x);
                 }
                 return;
@@ -178,9 +178,8 @@ Item {
                 // icon's centre in those coordinates.
                 if (root.dockWindow && root.dock) {
                     const c = root.mapToItem(root.dock, root.width / 2, 0);
-                    root.dockWindow.openMenu(root.appId,
-                        root.entry ? root.entry.name : root.appId,
-                        root.isPinned, c.x);
+                    root.dockWindow.menu.show(root.appId,
+                        root.entry ? root.entry.name : root.appId, c.x);
                 }
                 return;
             }
@@ -188,7 +187,7 @@ Item {
                 // Launching from the dock puts the launcher away, the
                 // same as launching from inside it does.
                 LauncherState.hide();
-                Apps.launch(root.appId);
+                Windows.raiseOrStart(root.appId);
             }
         }
 

@@ -56,7 +56,7 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onClicked: {
             // Any open icon menu goes away with it.
-            if (root.dockWindow) root.dockWindow.closeMenu();
+            if (root.dockWindow) root.dockWindow.menu.hide();
             LauncherState.toggle();
         }
     }

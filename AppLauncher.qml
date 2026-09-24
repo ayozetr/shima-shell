@@ -57,38 +57,29 @@ PanelWindow {
         }
     }
 
-    // What the grid shows. A binding here handed it a brand new array
-    // every time anything it reads moved, and a new array means the
-    // grid throws away every tile and builds it again — an icon takes
-    // a frame to load, so the whole grid blinks. Same trap the dock's
-    // list already documents, and the same answer: work out the list,
-    // and only put it in when it differs.
-    property var apps: []
-
-    function refreshApps() {
-        const next = LauncherState.open
-            ? Apps.listApps(LauncherState.category, LauncherState.query)
-            : [];
-        if (next.length === win.apps.length) {
-            let same = true;
-            for (let i = 0; i < next.length; i++) {
-                if (next[i].id !== win.apps[i].id) { same = false; break; }
-            }
-            if (same) return;
-        }
-        win.apps = next;
-    }
-
-    Connections {
-        target: Apps
-        function onRevisionChanged() { win.refreshApps(); }
-    }
+    // Worked out once in LauncherState, because there is one of these
+    // windows per screen and they all show the same thing: done here,
+    // every keystroke walked the catalogue once per monitor.
+    readonly property var apps: LauncherState.apps
+    readonly property var clips: LauncherState.clips
 
     Connections {
         target: LauncherState
-        function onOpenChanged() { win.refreshApps(); win.selected = -1; }
-        function onCategoryChanged() { win.refreshApps(); win.selected = -1; }
-        function onQueryChanged() { win.refreshApps(); win.selected = -1; }
+        function onOpenChanged() {
+            win.selectedKey = "";
+            // And the menu for an application goes with it. Left
+            // standing, it came back on its own the next time the
+            // launcher opened, over whatever you had asked for.
+            if (!LauncherState.open) win.closeMenu();
+            // What you last searched for is not a thing to keep. The
+            // state cleared its own copy on opening, but the box holds
+            // its own text and nothing ever told it: the words were
+            // still there while the view showed everything, which is
+            // two answers to the same question.
+            if (LauncherState.open) search.text = "";
+        }
+        function onCategoryChanged() { win.selectedKey = ""; }
+        function onQueryChanged() { win.markFirst(); }
     }
 
     // ── Moving without the mouse ─────────────────────────────────
@@ -102,24 +93,73 @@ PanelWindow {
     // sideways in a grid is a launcher you cannot correct a typo in.
     // In a grid, one step is the next cell along and then the row
     // below, which is the order the eye reads them in anyway.
-    property int selected: -1
+    //
+    // What is marked is held by what it is and not by where it sits.
+    // These lists change on their own — an application closes and the
+    // sweep takes its icon out, something is copied and the clipboard
+    // grows a row on top — and a mark that was the number three then
+    // stayed on the number three, which by now is a different thing.
+    // Return opened it.
+    property string selectedKey: ""
 
+    // Whichever list is on screen, as one. The search view holds two
+    // sections, the applications and then the files, and they are
+    // walked as a single run.
+    readonly property var navItems: {
+        if (clipView.visible) return win.clips;
+        if (searchView.visible) return win.apps.concat(Search.files);
+        if (grid.visible) return win.apps;
+        return [];
+    }
 
-    readonly property int navCount: {
-        if (clipView.visible) return win.clips.length;
-        // The search view holds two sections, the applications and
-        // then the files, and they are walked as one list.
-        if (searchView.visible) return win.apps.length + Search.files.length;
-        if (grid.visible) return win.apps.length;
-        return 0;
+    readonly property int navCount: win.navItems.length
+
+    // A clipboard entry is known by its mark and everything else by
+    // its id; an entry made up on the spot for a game is a new object
+    // each time, so the objects themselves cannot be compared.
+    function navKeyOf(item) {
+        if (!item) return "";
+        return String(item.mark !== undefined ? item.mark : (item.id || ""));
+    }
+
+    // Worked out from the mark rather than stored, so a list that
+    // changes underneath moves it along or, if what was marked is
+    // gone, drops it.
+    readonly property int selected: {
+        if (win.selectedKey === "") return -1;
+        const items = win.navItems;
+        for (let i = 0; i < items.length; i++)
+            if (win.navKeyOf(items[i]) === win.selectedKey) return i;
+        return -1;
+    }
+
+    // Searching marks the first answer straight away, so return opens
+    // it without a trip through the arrows: type "spot", see Spotify
+    // marked, press return. Not when you are only browsing a category
+    // — there the mark would be a promise that the next return does
+    // something, made to somebody who is reading.
+    function markFirst() {
+        if (LauncherState.query === "") { win.selectedKey = ""; return; }
+        const items = win.navItems;
+        win.selectedKey = items.length ? win.navKeyOf(items[0]) : "";
+    }
+
+    // The files arrive after the applications, and a search that found
+    // nothing among the applications has nothing to mark until they
+    // do. Only while nothing is marked, so this cannot pull the mark
+    // back to the top while you are walking the list.
+    onNavItemsChanged: {
+        if (LauncherState.query !== "" && win.selected < 0) win.markFirst();
     }
 
     function navMove(by) {
-        if (win.navCount === 0) return;
-        const from = win.selected < 0 ? (by > 0 ? -1 : win.navCount) : win.selected;
-        win.selected = Math.max(0, Math.min(win.navCount - 1, from + by));
+        const items = win.navItems;
+        if (items.length === 0) return;
+        const from = win.selected < 0 ? (by > 0 ? -1 : items.length) : win.selected;
+        const at = Math.max(0, Math.min(items.length - 1, from + by));
+        win.selectedKey = win.navKeyOf(items[at]);
         if (grid.visible)
-            grid.positionViewAtIndex(win.selected, GridView.Contain);
+            grid.positionViewAtIndex(at, GridView.Contain);
     }
 
     // What return does. False means nothing was marked, and the caller
@@ -140,17 +180,6 @@ PanelWindow {
         return true;
     }
 
-    Component.onCompleted: win.refreshApps()
-
-    // The search box filters the clipboard too, so what is on screen
-    // is worked out here rather than in the view.
-    readonly property var clips: {
-        const q = LauncherState.query.trim();
-        const out = [];
-        for (const e of Clipboard.entries)
-            if (Clipboard.matches(e, q)) out.push(e);
-        return out;
-    }
 
     // ── The per-application menu ───────────────────────────────
     //
@@ -167,7 +196,7 @@ PanelWindow {
     function openMenu(id, name, x, y) {
         win.menuAppId = id;
         win.menuAppName = name;
-        win.menuPinned = Apps.pinned.indexOf(id) !== -1;
+        win.menuPinned = Pinned.list.indexOf(id) !== -1;
         win.menuX = x;
         win.menuY = y;
         win.menuShown = true;
@@ -191,7 +220,7 @@ PanelWindow {
         // however much higher you asked for.
         anchors.bottomMargin: Theme.dockIconSize + Theme.dockDotLane
                               + Theme.dockPadding * 2 + 26
-                              + (Config.data.launcherLift ?? 0)
+                              + Config.number(Config.data.launcherLift, 0, 0, 1000)
         width: 660
         height: 480
         radius: 18
@@ -312,12 +341,12 @@ PanelWindow {
             spacing: 2
 
             Repeater {
-                model: Apps.categories
+                model: Menu.categories
 
                 Item {
                     required property var modelData
                     readonly property int count:
-                        Apps.categoryCounts[modelData.id] || 0
+                        Menu.categoryCounts[modelData.id] || 0
                     readonly property bool current: LauncherState.category === modelData.id
 
                     // Favourites, frequent, places and the clipboard
@@ -602,15 +631,15 @@ PanelWindow {
 
                 Heading {
                     text: I18n.t.recentApps
-                    visible: Apps.recentApps.length > 0
+                    visible: Recent.apps.length > 0
                 }
-                Tiles { model: Apps.recentApps }
+                Tiles { model: Recent.apps }
 
                 Heading {
                     text: I18n.t.recentFiles
-                    visible: Apps.recentFiles.length > 0
+                    visible: Recent.files.length > 0
                 }
-                Tiles { model: Apps.recentFiles }
+                Tiles { model: Recent.files }
             }
         }
 
@@ -840,7 +869,7 @@ PanelWindow {
                 reorderable: LauncherState.category === "favorites"
                              && LauncherState.query === ""
                 onLaunched: LauncherState.hide()
-                onReordered: (from, to) => Apps.moveFavorite(from, to)
+                onReordered: (from, to) => Favorites.move(from, to)
             }
         }
 

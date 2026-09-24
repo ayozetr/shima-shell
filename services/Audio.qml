@@ -113,12 +113,34 @@ Singleton {
     // Real outputs only: isStream filters out the per-application
     // streams, which are nodes too but not somewhere you can send
     // sound.
-    readonly property var outputs: {
+    // Worked out and kept, not bound. As a binding it handed back a
+    // new array every time any PipeWire node changed — and nodes come
+    // and go whenever any program opens or closes a stream of sound,
+    // not only when a speaker is plugged in. A new array rebuilds the
+    // output picker's rows and re-evaluates the tracker that follows
+    // them, for a list that had not changed.
+    property var outputs: []
+
+    function refreshOutputs() {
         const out = [];
         for (const n of Pipewire.nodes.values)
             if (n.isSink && !n.isStream) out.push(n);
-        return out;
+
+        if (out.length === root.outputs.length) {
+            let same = true;
+            for (let i = 0; i < out.length; i++)
+                if (out[i] !== root.outputs[i]) { same = false; break; }
+            if (same) return;
+        }
+        root.outputs = out;
     }
+
+    Connections {
+        target: Pipewire.nodes
+        function onValuesChanged() { root.refreshOutputs(); }
+    }
+
+    Component.onCompleted: root.refreshOutputs()
 
     function labelFor(node) {
         if (!node) return "";
