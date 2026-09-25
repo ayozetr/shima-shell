@@ -82,9 +82,13 @@ Singleton {
 
     function finishFocus() {
         root.completed++;
-        const long = root.roundsBeforeLong > 0
-                     && root.completed % root.roundsBeforeLong === 0;
-        root.beginPhase(long ? "longBreak" : "break");
+        // Not `long`, which is a word JavaScript keeps for itself. Qt
+        // 6.11 lets it through and 6.10 does not, so this file parsed
+        // here and failed to parse on Ubuntu — where the whole shell
+        // then refused to start, over one word in one line.
+        const earned = root.roundsBeforeLong > 0
+                       && root.completed % root.roundsBeforeLong === 0;
+        root.beginPhase(earned ? "longBreak" : "break");
     }
 
     Timer {

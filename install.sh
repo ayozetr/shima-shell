@@ -38,7 +38,6 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/shima"
 
 ACTION=install
 PURGE=
-AUTOSTART_WANTED=
 ASSUME_YES=
 SKIP_DEPS=
 TMPDIR_OWNED=
@@ -51,7 +50,6 @@ usage() {
     cat <<USAGE
 Shima Shell installer
 
-  --autostart     start Shima with the session
   --yes           do not ask before installing packages
   --skip-deps     install Shima only, touch no packages
   --uninstall     remove it again (settings are kept)
@@ -676,10 +674,21 @@ do_install() {
     install -Dm644 "$SRC/packaging/shima-symbolic.svg" \
         "$ICONS/symbolic/apps/shima-symbolic.svg"
 
-    if [ -n "$AUTOSTART_WANTED" ]; then
+    # Asked, not left to a flag. It used to need --autostart, which is
+    # a word you can only pass if you downloaded the script first, and
+    # the way in that this README gives is a pipe into sh. A shell that
+    # takes the panels over and then does not come back after a restart
+    # leaves a bare desktop and no clue why. `prompt` reads the
+    # terminal rather than standard input, so the question works
+    # through the pipe as well; with no terminal at all it is a no, and
+    # the settings window has the same switch.
+    if [ -e "$AUTOSTART" ]; then
+        say "Autostart was already on."
+    elif ask_human "Start Shima when you log in?"; then
         mkdir -p "$(dirname "$AUTOSTART")"
         cp "$DESKTOP" "$AUTOSTART"
         say "Autostart enabled."
+        AUTOSTART_DONE=1
     fi
 
     say ""
@@ -691,7 +700,8 @@ do_install() {
     esac
     say ""
     say "Shima replaces the Plasma panels; you may want to remove yours."
-    [ -n "$AUTOSTART_WANTED" ] || say "Run with --autostart to start it with the session."
+    [ -n "${AUTOSTART_DONE:-}" ] || [ -e "$AUTOSTART" ] \
+        || say "Settings · General · Start with the system turns it on later."
 }
 
 # ── Removing ─────────────────────────────────────────────────────
@@ -760,7 +770,6 @@ do_uninstall() {
 # ── Arguments ────────────────────────────────────────────────────
 while [ $# -gt 0 ]; do
     case $1 in
-        --autostart) AUTOSTART_WANTED=1 ;;
         --yes|-y)    ASSUME_YES=1 ;;
         --skip-deps) SKIP_DEPS=1 ;;
         --uninstall) ACTION=uninstall ;;

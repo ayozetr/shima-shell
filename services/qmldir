@@ -26,3 +26,4 @@ singleton Favorites 1.0 Favorites.qml
 singleton Windows 1.0 Windows.qml
 singleton Pinned 1.0 Pinned.qml
 singleton Shortcuts 1.0 Shortcuts.qml
+singleton Autostart 1.0 Autostart.qml

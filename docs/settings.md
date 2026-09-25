@@ -148,3 +148,16 @@ lists rather than settings:
 - `~/.local/state/shima/favorites.json` — the launcher's favourites
 
 Both are plain lists of `.desktop` ids and can be edited the same way.
+
+One switch in the settings window is not a setting either. **Start with
+the system**, under General, is a desktop file:
+
+```
+~/.config/autostart/shima.desktop
+```
+
+The session starts whatever it finds there, so that file is the only
+thing that decides it — the switch reads it every time the page opens
+and writes or deletes it when you touch it. Its `Exec` carries the full
+path of the launcher rather than `shima`, because a login session
+builds its `PATH` before Shima is installed.

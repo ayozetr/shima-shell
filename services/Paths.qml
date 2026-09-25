@@ -64,4 +64,16 @@ Singleton {
     // we may write. Only needed to find files that ship with it.
     readonly property string dataDir:
         root.env("SHIMA_DATA_DIR", "")
+
+    // The launcher that started this, as an absolute path. Said by the
+    // launcher itself, because an autostart entry that reads
+    // `Exec=shima` only works if the session's PATH happens to carry
+    // the directory it was installed into — and a login session builds
+    // its PATH before anybody installs anything.
+    readonly property string launcher: root.env("SHIMA_LAUNCHER", "")
+
+    // Where a desktop file has to sit to be started with the session.
+    readonly property string autostartFile:
+        root.env("XDG_CONFIG_HOME", root.home + "/.config")
+        + "/autostart/shima.desktop"
 }

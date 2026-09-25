@@ -148,6 +148,10 @@ var strings = {
     secLocation: "LOCATION",
     secColour: "COLOUR",
     secLanguage: "LANGUAGE",
+    secSession: "SESSION",
+    autostart: "Start with the system",
+    autostartHint: "Shima opens on its own when you log in",
+    autostartNoPath: "Only from the installed launcher",
 
     notificationsEnabled: "Notification server",
     notificationsEnabledHint: "Shima takes over as soon as Plasma releases the service",

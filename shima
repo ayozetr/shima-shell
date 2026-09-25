@@ -179,6 +179,19 @@ if [ -z "${SHIMA_QUIET:-}" ]; then
 fi
 
 # ── Off we go ─────────────────────────────────────────────────────
+# Where this script lives is also where the installer put kdotool, and
+# the shell looks for it on PATH like any other program. A session
+# whose PATH was built before ~/.local/bin existed does not have it —
+# which is most of them, since the directory is created by the install
+# — and the shell then falls back to reading the process list. That
+# fallback answers with process names instead of windows: the settings
+# window never shows up in the dock, and the launcher's own `shima`
+# process does, as an app that is open and cannot be closed.
+case ":$PATH:" in
+    *":$here:"*) ;;
+    *) PATH=$here:$PATH; export PATH ;;
+esac
+
 SHIMA_DATA_DIR=$data
 SHIMA_CONFIG_DIR=$config
 SHIMA_CACHE_DIR=$cache
@@ -188,8 +201,12 @@ SHIMA_SHELL=$entry
 # So the settings window can say which version it is without the
 # number being written down in a second place.
 SHIMA_VERSION=$VERSION
+# So the settings window can write an autostart entry that points at
+# this very launcher, wherever it was installed, instead of guessing a
+# name and hoping it is on the session's PATH.
+SHIMA_LAUNCHER=$self
 export SHIMA_DATA_DIR SHIMA_CONFIG_DIR SHIMA_CACHE_DIR SHIMA_STATE_DIR \
-       SHIMA_RUNTIME_DIR SHIMA_SHELL SHIMA_VERSION
+       SHIMA_RUNTIME_DIR SHIMA_SHELL SHIMA_VERSION SHIMA_LAUNCHER
 
 # What our own windows say they are. Left alone, Quickshell calls them
 # org.quickshell, so the settings window wears Quickshell's cog in its

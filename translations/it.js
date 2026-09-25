@@ -157,6 +157,10 @@ var strings = {
     secLocation: "LOCALITÀ",
     secColour: "COLORE",
     secLanguage: "LINGUA",
+    secSession: "SESSIONE",
+    autostart: "Avviare con il sistema",
+    autostartHint: "Shima si apre da sola all'accesso",
+    autostartNoPath: "Solo dall'avviatore installato",
 
     // ── Tray ──
     notificationsEnabled: "Server di notifiche",

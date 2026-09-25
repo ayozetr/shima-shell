@@ -148,6 +148,10 @@ var strings = {
     secLocation: "場所",
     secColour: "色",
     secLanguage: "言語",
+    secSession: "セッション",
+    autostart: "システムと一緒に起動",
+    autostartHint: "ログイン時に Shima が自動で開きます",
+    autostartNoPath: "インストール済みのランチャーからのみ",
 
     notificationsEnabled: "通知サーバー",
     notificationsEnabledHint: "Plasma がサービスを解放するとすぐに Shima が引き継ぎます",

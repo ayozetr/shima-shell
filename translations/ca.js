@@ -157,6 +157,10 @@ var strings = {
     secLocation: "UBICACIÓ",
     secColour: "COLOR",
     secLanguage: "IDIOMA",
+    secSession: "SESSIÓ",
+    autostart: "Arrencar amb el sistema",
+    autostartHint: "Shima s'obre tota sola en iniciar la sessió",
+    autostartNoPath: "Només des del llançador instal·lat",
 
     // ── Tray ──
     notificationsEnabled: "Servidor de notificacions",
