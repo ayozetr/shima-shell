@@ -37,8 +37,8 @@ STATE="${XDG_STATE_HOME:-$HOME/.local/state}/shima"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/shima"
 
 ACTION=install
-AUTOSTART_WANTED=
 PURGE=
+AUTOSTART_WANTED=
 ASSUME_YES=
 SKIP_DEPS=
 TMPDIR_OWNED=
@@ -68,20 +68,40 @@ USAGE
 # stdin is the script itself here, so a plain `read` would swallow the
 # rest of it. /dev/tty is the actual terminal. Without one there is
 # nobody to ask, and nothing gets installed.
-ask() {
-    [ -n "$ASSUME_YES" ] && return 0
+prompt() {
     [ -r /dev/tty ] || return 1
     printf '%s [y/N] ' "$1" > /dev/tty
     read -r reply < /dev/tty || return 1
     case $reply in [yY]|[yY][eE][sS]|[sS]|[sS][iI]) return 0 ;; *) return 1 ;; esac
 }
 
+ask() {
+    [ -n "$ASSUME_YES" ] && return 0
+    prompt "$1"
+}
+
+# The same question, except that --yes does not answer it. Installing a
+# package because a flag said yes to everything is one thing; putting
+# somebody else's repository on a machine, where it stays and serves
+# every update from here on, is another, and nobody should find that
+# done to them by a line they pasted. Piped with no terminal it is a no
+# as well, which is what running this through curl looks like.
+ask_human() {
+    prompt "$1"
+}
+
 # ── Which distribution ───────────────────────────────────────────
 detect_os() {
-    ID=""; ID_LIKE=""
+    ID=""; ID_LIKE=""; VERSION_ID=""; VERSION_CODENAME=""; UBUNTU_CODENAME=""
     [ -r /etc/os-release ] && . /etc/os-release 2>/dev/null || true
     OS_ID="${ID:-unknown}"
     OS_LIKE="${ID_LIKE:-}"
+    # openSUSE needs it: its repositories are published per version.
+    OS_VERSION="${VERSION_ID:-}"
+    # And Ubuntu needs the series name. Mint carries both: its own
+    # (wilma, xia) and the Ubuntu it is built on, which is the one a
+    # PPA is published for.
+    OS_SERIES="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}"
 
     if   have pacman;  then PM=pacman
     elif have apt-get; then PM=apt
@@ -136,30 +156,241 @@ pm_install() {
         zypper) sudo_run zypper --non-interactive install "$@" ;;
         xbps)   sudo_run xbps-install -y "$@" ;;
         emerge) sudo_run emerge --ask=n "$@" ;;
-        nix)    nix-env -iA "$@" ;;
+        # No nix here on purpose: `nix-env -i` takes an attribute path
+        # (`nixpkgs.python3`) and not a package name, and the names
+        # this script deals in are the ones other distributions use.
+        # Quickshell is installed by its own function, which knows the
+        # attribute; everything else is printed for you to declare.
         *)      return 1 ;;
     esac
 }
 
 # ── Quickshell: a package everywhere, a different one each time ──
+# Where the Open Build Service publishes for this system. Checked
+# against what the project actually has: Tumbleweed, Slowroll and the
+# 16.x line. There is nothing for Leap 15, which is why that case says
+# so instead of handing over a URL that answers 404.
+obs_target() {
+    case "$OS_ID" in
+        opensuse-tumbleweed|tumbleweed) echo "openSUSE_Tumbleweed" ;;
+        opensuse-slowroll)              echo "openSUSE_Slowroll" ;;
+        *) case "$OS_VERSION" in
+               16.*) echo "$OS_VERSION" ;;
+               *)    echo "" ;;
+           esac ;;
+    esac
+}
+
+# Printed, a line at a time, when there is no Quickshell. Some of these
+# are what install_quickshell() will run for you; the rest are yours to
+# run, and say why below.
 quickshell_hint() {
     case "$OS_ID" in
         arch|cachyos|endeavouros|manjaro|garuda|artix)
-            echo "sudo pacman -S quickshell" ;;
+            say "  sudo pacman -S quickshell" ;;
         fedora|nobara|bazzite)
-            echo "sudo dnf copr enable errornointernet/quickshell && sudo dnf install quickshell" ;;
-        ubuntu|linuxmint|pop|zorin|elementary)
-            echo "sudo add-apt-repository ppa:avengemedia/danklinux && sudo apt update && sudo apt install quickshell" ;;
+            say "  sudo dnf copr enable errornointernet/quickshell && sudo dnf install quickshell" ;;
+        ubuntu|linuxmint|pop|zorin|elementary|neon)
+            ppa_has_quickshell
+            case $? in
+                1) say "  There is no build for ${OS_SERIES:-this release}: the repository"
+                   say "  that carries Quickshell for Ubuntu publishes for the newest"
+                   say "  series only, and this is not one of them."
+                   say "  See https://quickshell.org/docs/master/guide/install-setup/" ;;
+                *) say "  sudo add-apt-repository ppa:avengemedia/danklinux && sudo apt update && sudo apt install quickshell" ;;
+            esac ;;
         debian)
-            echo "sudo apt install quickshell   (needs testing or unstable)" ;;
+            # Not in trixie itself: only in its backports, and in the
+            # unstable lines. Checked against sources.debian.org, which
+            # is the one that answers by suite — packages.debian.org
+            # replies 200 for a page that says nothing of the sort.
+            if [ "$OS_SERIES" = trixie ]; then
+                say "  sudo apt install -t trixie-backports quickshell"
+                say "  (it is in backports, not in trixie itself; the"
+                say "   installer can enable them for you)"
+            else
+                say "  sudo apt install quickshell" ;
+            fi ;;
         opensuse*|suse|tumbleweed)
-            echo "add the home:AvengeMedia:danklinux repository from the Open Build Service, then: sudo zypper install quickshell" ;;
+            target=$(obs_target)
+            if [ -n "$target" ]; then
+                say "  sudo zypper addrepo https://download.opensuse.org/repositories/home:/AvengeMedia:/danklinux/$target/home:AvengeMedia:danklinux.repo"
+                say "  sudo zypper --gpg-auto-import-keys refresh && sudo zypper install quickshell"
+                say ""
+                say "  That repository belongs to somebody else, and adding it means"
+                say "  trusting its key for everything it ships from here on."
+            else
+                say "  There is no build for this version of openSUSE: the repository"
+                say "  publishes for Tumbleweed, Slowroll and the 16.x line only."
+                say "  See https://quickshell.org/docs/master/guide/install-setup/"
+            fi ;;
         nixos)
-            echo "nix profile install nixpkgs#quickshell" ;;
+            say "  nix profile install nixpkgs#quickshell" ;;
         gentoo)
-            echo "enable the GURU overlay, then: sudo emerge gui-apps/quickshell" ;;
+            say "  sudo eselect repository enable guru"
+            say "  sudo emaint sync -r guru"
+            say "  sudo emerge gui-apps/quickshell"
+            say ""
+            say "  GURU is a testing overlay, so the last one may also want a line"
+            say "  in /etc/portage/package.accept_keywords. That is your system's"
+            say "  policy and not something this script should be writing."
+            ;;
         *)
-            echo "see https://quickshell.org/docs/master/guide/install-setup/" ;;
+            say "  see https://quickshell.org/docs/master/guide/install-setup/" ;;
+    esac
+}
+
+# Whether that repository has anything for this release, asked of
+# Launchpad before anybody is invited to trust it.
+#
+# It matters: the repository builds for the newest series only —
+# questing, resolute, stonking when this was written — and not for the
+# long-term ones, which is what most Ubuntu machines run. Adding a
+# stranger's repository and then finding it has nothing for you is the
+# worst of both: the trust is given and nothing comes back. Asking
+# costs one request and ages better than a list written in here.
+#
+# Answers: 0 it has it, 1 it does not, 2 could not find out.
+PPA_ASKED=
+PPA_ANSWER=2
+ppa_has_quickshell() {
+    [ -n "$PPA_ASKED" ] && return "$PPA_ANSWER"
+    PPA_ASKED=1
+    ppa_ask_launchpad
+    PPA_ANSWER=$?
+    return "$PPA_ANSWER"
+}
+
+ppa_ask_launchpad() {
+    [ -n "$OS_SERIES" ] || return 2
+    have curl || return 2
+    api="https://api.launchpad.net/devel/~avengemedia/+archive/ubuntu/danklinux"
+    api="$api?ws.op=getPublishedBinaries&binary_name=quickshell"
+    api="$api&exact_match=true&status=Published"
+    out=$(curl -fsS --max-time 15 "$api" 2>/dev/null) || return 2
+    case $out in
+        *"/ubuntu/$OS_SERIES/"*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Ubuntu does not carry Quickshell, and the way in is one person's
+# repository. Adding it is not the same kind of act as installing a
+# package, so it gets a question of its own that --yes cannot answer,
+# and it says what is being agreed to and how to undo it.
+add_ppa_quickshell() {
+    ppa="ppa:avengemedia/danklinux"
+
+    ppa_has_quickshell
+    case $? in
+        1)  err ""
+            err "That repository has no build for ${OS_SERIES:-this release}."
+            err "It publishes for the newest Ubuntu series only, so adding it"
+            err "here would leave you trusting it for nothing in return."
+            err "Build Quickshell from source, or use a release it covers:"
+            err "  https://quickshell.org/docs/master/guide/install-setup/"
+            return 1 ;;
+        2)  say ""
+            say "Could not check whether that repository has a build for"
+            say "${OS_SERIES:-this release}; carrying on so you can decide." ;;
+    esac
+    say ""
+    say "Quickshell is not in Ubuntu's own archive. The way in is $ppa,"
+    say "which belongs to somebody else: adding it means trusting its key"
+    say "for everything it ships, in this install and in every update after"
+    say "it, for the whole system."
+    say ""
+    say "It stays until you take it out:"
+    say "  sudo add-apt-repository --remove $ppa"
+    say ""
+    ask_human "Add that repository?" || {
+        err "Not added. Install Quickshell yourself and run this again."
+        return 1
+    }
+
+    # On a minimal install the command that adds repositories is itself
+    # a package.
+    have add-apt-repository || pm_install software-properties-common || return 1
+    sudo_run add-apt-repository -y "$ppa" || return 1
+    sudo_run apt-get update || return 1
+    pm_install quickshell
+}
+
+# Fedora has it in a COPR, which is Fedora's own service for builds
+# that are not in the distribution — and enabling one is a subcommand
+# that may not be installed. Since dnf5 it lives in dnf5-plugins, and
+# before that in dnf-plugins-core, the same way `add-apt-repository`
+# is a package of its own on Ubuntu. Without it `dnf copr` answers
+# "unknown command" and the install stops for a reason nobody would
+# guess from the message.
+fedora_install_quickshell() {
+    if ! dnf copr --help >/dev/null 2>&1; then
+        say ""
+        say "The command that enables a COPR is not installed. Adding it."
+        if dnf --version 2>/dev/null | grep -q '^dnf5'; then
+            pm_install dnf5-plugins || return 1
+        else
+            pm_install dnf-plugins-core || return 1
+        fi
+    fi
+    sudo_run dnf copr enable -y errornointernet/quickshell || return 1
+    pm_install quickshell
+}
+
+# Debian carries Quickshell, but not in stable: trixie has it only in
+# backports. Those are Debian's own — not a stranger's repository — so
+# this asks the ordinary question rather than the one --yes cannot
+# answer, and only when the package cannot be had as things stand.
+debian_install_quickshell() {
+    if apt-cache policy quickshell 2>/dev/null | grep -qE 'Candidate: [0-9]'; then
+        pm_install quickshell
+        return
+    fi
+
+    [ "$OS_SERIES" = trixie ] || { pm_install quickshell; return; }
+
+    say ""
+    say "Quickshell is not in trixie itself, only in trixie-backports."
+    say "Those are Debian's own packages, built for this release."
+    say ""
+    ask "Enable trixie-backports and install it from there?" || {
+        err "Then install it yourself with:"
+        err "  sudo apt install -t trixie-backports quickshell"
+        return 1
+    }
+
+    list=/etc/apt/sources.list.d/shima-backports.list
+    printf 'deb http://deb.debian.org/debian trixie-backports main\n' \
+        | sudo_run tee "$list" >/dev/null || return 1
+    sudo_run apt-get update || return 1
+    sudo_run apt-get install -y -t trixie-backports quickshell
+}
+
+# nixpkgs is the distribution's own, so there is nobody new to trust
+# here. The first spelling is the one Quickshell documents and needs
+# flakes turned on; the second works without them.
+nix_install_quickshell() {
+    nix profile install nixpkgs#quickshell 2>/dev/null && return 0
+    nix-env -iA nixpkgs.quickshell
+}
+
+# Whether the case below is one this script can actually carry out.
+# Asked before offering, so nobody is invited to try something that
+# answers "could not" the moment they say yes.
+can_install_quickshell() {
+    case "$OS_ID" in
+        arch|cachyos|endeavouros|manjaro|garuda|artix) return 0 ;;
+        fedora|nobara|bazzite)                         return 0 ;;
+        debian)                                        return 0 ;;
+        # Only where that repository has something for this series.
+        # Unknown counts as yes: without an answer it is the person in
+        # front of the machine who should decide, not us.
+        ubuntu|linuxmint|pop|zorin|elementary|neon)
+            ppa_has_quickshell
+            [ $? -eq 1 ] && return 1
+            return 0 ;;
+        nixos)                                         return 0 ;;
+        *)                                             return 1 ;;
     esac
 }
 
@@ -168,9 +399,16 @@ install_quickshell() {
         arch|cachyos|endeavouros|manjaro|garuda|artix)
             pm_install quickshell ;;
         fedora|nobara|bazzite)
-            sudo_run dnf copr enable -y errornointernet/quickshell && pm_install quickshell ;;
+            fedora_install_quickshell ;;
         debian)
-            pm_install quickshell ;;
+            debian_install_quickshell ;;
+        ubuntu|linuxmint|pop|zorin|elementary|neon)
+            add_ppa_quickshell ;;
+        nixos)
+            nix_install_quickshell ;;
+        # openSUSE and Gentoo are printed and not run: the first needs a
+        # repository that is not published for every version, and the
+        # second needs an overlay plus a keyword of your own choosing.
         *)
             return 1 ;;
     esac
@@ -266,7 +504,9 @@ fetch_sources() {
     [ -f "$SRC/Shima.qml" ] || { err "the download does not look like Shima"; exit 1; }
 }
 
-cleanup() { [ -n "$TMPDIR_OWNED" ] && rm -rf "$TMPDIR_OWNED"; }
+cleanup() {
+    case $TMPDIR_OWNED in ?*) rm -rf "$TMPDIR_OWNED" ;; esac
+}
 trap cleanup EXIT INT TERM
 
 # ── What is needed ───────────────────────────────────────────────
@@ -288,15 +528,20 @@ ensure_deps() {
     if ! have qs; then
         say ""
         say "Quickshell is missing, and Shima is a Quickshell configuration:"
-        say "  $(quickshell_hint)"
+        quickshell_hint
         say ""
-        if ask "Try to install it now?"; then
-            install_quickshell || {
-                err "Could not install it automatically. Run the line above and start again."
+        if can_install_quickshell; then
+            if ask "Try to install it now?"; then
+                install_quickshell || {
+                    err "Did not get it installed. Use the lines above and start again."
+                    exit 1
+                }
+            else
+                err "Install Quickshell and run this again."
                 exit 1
-            }
+            fi
         else
-            err "Install Quickshell and run this again."
+            err "Install Quickshell with the lines above and run this again."
             exit 1
         fi
         have qs || { err "Quickshell still is not on PATH."; exit 1; }
@@ -317,7 +562,16 @@ ensure_deps() {
     if [ -n "$missing" ]; then
         say ""
         say "These are needed and missing:$missing"
-        if [ -n "$PM" ] && ask "Install them?"; then
+        # NixOS is left to declare its own. `nix-env -i` wants an
+        # attribute path and not a package name, and the names above
+        # are the ones apt and pacman use: handing them over would fail
+        # on every one. Somebody running NixOS puts them in their
+        # configuration anyway, which is the whole point of it.
+        if [ "$OS_ID" = nixos ]; then
+            say ""
+            say "Add them to your configuration; this will not install them"
+            say "for you, since the names above are not the ones nixpkgs uses."
+        elif [ -n "$PM" ] && ask "Install them?"; then
             pm_install $missing || err "Some could not be installed; carrying on."
         else
             say "Skipped. The global shortcut, the clipboard and some"
@@ -350,7 +604,7 @@ ensure_deps() {
         say ""
         say "Optional, each turns off one thing:$opt"
         say "  cava  the audio visualiser        fd  faster file search"
-        if [ -n "$PM" ] && ask "Install these too?"; then
+        if [ "$OS_ID" != nixos ] && [ -n "$PM" ] && ask "Install these too?"; then
             pm_install $opt || true
         fi
     fi
@@ -358,10 +612,28 @@ ensure_deps() {
 }
 
 # ── Installing ───────────────────────────────────────────────────
+#
+# The .desktop files ship with `Exec=shima`, which has to become the
+# path this install used. Written with awk and not sed: the path is
+# data, and sed would read a `|`, a `&` or a backslash in it as
+# syntax. A path with a space in it also has to be quoted, or the
+# line is not a valid Exec.
+desktop_to() {
+    quoted=$BIN
+    case $BIN in *" "*) quoted="\"$BIN\"" ;; esac
+    awk -v bin="$quoted" '
+        /^Exec=shima$/  { print "Exec=" bin; next }
+        /^Exec=shima /  { print "Exec=" bin substr($0, 11); next }
+                        { print }
+    ' "$1" > "$2"
+}
+
 do_install() {
     detect_os
-    fetch_sources
+    # Before fetching anything: being told this is not a Plasma session
+    # is worth knowing before a download, not after one.
     check_desktop
+    fetch_sources
     ensure_deps
 
     rm -rf "$SHARE"
@@ -371,6 +643,10 @@ do_install() {
     for dir in components services translations helper; do
         [ -d "$SRC/$dir" ] && cp -r "$SRC/$dir" "$SHARE/"
     done
+    # Python leaves this behind next to a script it has imported, and
+    # a copy of the tree carries it along: bytecode compiled for
+    # somebody else's Python, on your disk, for nothing.
+    rm -rf "$SHARE/helper/__pycache__"
     # What the settings window draws: our own logotype and the two
     # marks it links with. Only those: the rest of assets/ is the brand
     # work and has no business on anybody's disk.
@@ -378,15 +654,19 @@ do_install() {
     cp -r "$SRC/assets/vendor" "$SHARE/assets/" 2>/dev/null || true
     cp "$SRC/assets/logo-white.svg" "$SHARE/assets/" 2>/dev/null || true
     cp "$SRC/LICENSE" "$SRC/README.md" "$SHARE/" 2>/dev/null || true
+    # What every setting means. The README points at it, and the
+    # package installs it, so this had no business being the one way
+    # in that leaves you without it.
+    mkdir -p "$SHARE/docs"
+    cp "$SRC/docs/settings.md" "$SHARE/docs/" 2>/dev/null || true
     chmod +x "$SHARE/helper/shima-shortcuts" "$SHARE/helper/shima-games" \
         2>/dev/null || true
 
     cp "$SRC/shima" "$BIN"
     chmod +x "$BIN"
 
-    sed "s|^Exec=shima$|Exec=$BIN|" "$SRC/packaging/shima.desktop" > "$DESKTOP"
-    sed "s|^Exec=shima |Exec=$BIN |" \
-        "$SRC/packaging/shima-settings.desktop" > "$DESKTOP_SETTINGS"
+    desktop_to "$SRC/packaging/shima.desktop" "$DESKTOP"
+    desktop_to "$SRC/packaging/shima-settings.desktop" "$DESKTOP_SETTINGS"
 
     # Icons where the freedesktop specification expects them, so that
     # the Icon=shima line in the .desktop file resolves.
@@ -415,14 +695,37 @@ do_install() {
 }
 
 # ── Removing ─────────────────────────────────────────────────────
+# Whether the Shima that is running is the one being removed. The
+# shell says where it was started from, so it can be asked rather than
+# guessed. This matters because everything below — stopping it, handing
+# Plasma its keys back — is done to the session and not to a directory:
+# removing a copy installed under another prefix used to take down the
+# one you were using and leave you without your shortcuts. Found by
+# doing exactly that.
+running_is_ours() {
+    for pid in $(pgrep -x qs 2>/dev/null); do
+        dir=$(tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null \
+              | sed -n 's/^SHIMA_DATA_DIR=//p' | head -1)
+        [ -n "$dir" ] && [ "$dir" = "$SHARE" ] && return 0
+    done
+    return 1
+}
+
 do_uninstall() {
+    mine=no
+    running_is_ours && mine=yes
+
     # While the program still exists: give back the global shortcut and
     # any key taken off Plasma. Afterwards there is nothing left to do
-    # it with, and the Meta key would stay gone.
-    if [ -x "$SHARE/helper/shima-shortcuts" ]; then
-        "$SHARE/helper/shima-shortcuts" --cleanup || true
-    elif [ -x "$BIN" ]; then
-        "$BIN" --cleanup || true
+    # it with, and the Meta key would stay gone. Only for the one that
+    # is running, though: the keys belong to the session, and a copy
+    # being deleted elsewhere has no business handing them back.
+    if [ "$mine" = yes ]; then
+        if [ -x "$SHARE/helper/shima-shortcuts" ]; then
+            "$SHARE/helper/shima-shortcuts" --cleanup || true
+        elif [ -x "$BIN" ]; then
+            "$BIN" --cleanup || true
+        fi
     fi
 
     # The launcher before the shell, and not the other way round: it
@@ -434,10 +737,13 @@ do_uninstall() {
     # on the machine, which on a desktop running a second configuration
     # is somebody else's shell. The entry point is a path inside this
     # user's cache directory, so naming it is enough.
-    pkill -x shima 2>/dev/null || true
-    pkill -f "$CACHE/shell.qml" 2>/dev/null || true
+    if [ "$mine" = yes ]; then
+        pkill -x shima 2>/dev/null || true
+        pkill -f "$CACHE/shell.qml" 2>/dev/null || true
+        rm -rf "$CACHE"
+    fi
 
-    rm -rf "$SHARE" "$CACHE"
+    rm -rf "$SHARE"
     rm -f "$BIN" "$DESKTOP" "$DESKTOP_SETTINGS" "$AUTOSTART"
     rm -f "$ICONS/scalable/apps/shima.svg" "$ICONS/16x16/apps/shima.svg" \
           "$ICONS/22x22/apps/shima.svg" "$ICONS/symbolic/apps/shima-symbolic.svg"
