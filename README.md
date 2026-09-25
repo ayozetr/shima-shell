@@ -82,6 +82,13 @@ curl -fsSL https://raw.githubusercontent.com/ayozetr/shima-shell/main/install.sh
 One command. It works out what your distribution needs, asks before
 installing anything, and puts Shima in `~/.local`.
 
+Debian installs KDE without curl, and it is not the only one. The same
+line with wget:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/ayozetr/shima-shell/main/install.sh | sh
+```
+
 It asks whether to start Shima when you log in. If you say no there,
 the switch is in Settings · General · Start with the system.
 

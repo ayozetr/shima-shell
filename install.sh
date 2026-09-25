@@ -67,9 +67,18 @@ USAGE
 # rest of it. /dev/tty is the actual terminal. Without one there is
 # nobody to ask, and nothing gets installed.
 prompt() {
-    [ -r /dev/tty ] || return 1
-    printf '%s [y/N] ' "$1" > /dev/tty
-    read -r reply < /dev/tty || return 1
+    # A container has a /dev/tty that passes `[ -r ]` and then opens
+    # with "No such device or address". The question answered itself
+    # with a no, which was right, and printed two lines of shell error
+    # on the way, which was not.
+    # Wrapped in braces, and not just redirected: what fails here is
+    # the redirection itself, and the shell reports that on its own
+    # behalf before the command ever runs. dash says "cannot create
+    # /dev/tty: No such device or address"; only the block's stderr
+    # catches it.
+    { : > /dev/tty; } 2>/dev/null || return 1
+    { printf '%s [y/N] ' "$1" > /dev/tty; } 2>/dev/null || return 1
+    { read -r reply < /dev/tty; } 2>/dev/null || return 1
     case $reply in [yY]|[yY][eE][sS]|[sS]|[sS][iI]) return 0 ;; *) return 1 ;; esac
 }
 
@@ -410,7 +419,25 @@ debian_install_quickshell() {
     list=/etc/apt/sources.list.d/shima-backports.list
     printf 'deb http://deb.debian.org/debian trixie-backports main\n' \
         | sudo_run tee "$list" >/dev/null || return 1
-    sudo_run apt-get update || return 1
+
+    # Only this list is refreshed, and the rest of the machine's
+    # sources are left alone.
+    #
+    # Not politeness: a Debian installed from a DVD keeps the disc in
+    # sources.list, and once the disc is gone a plain `apt-get update`
+    # ends in an error about it at best — and on the machine this was
+    # found on, it span at full tilt and never came back. Nothing to do
+    # with Quickshell, and fatal to installing it. Pointing apt at the
+    # one file we just wrote sidesteps the disc entirely and is quicker
+    # besides.
+    #
+    # It is still allowed to complain: what decides is whether the
+    # install works.
+    sudo_run apt-get update \
+        -o Dir::Etc::sourcelist="$list" \
+        -o Dir::Etc::sourceparts=- \
+        -o APT::Get::List-Cleanup=0 \
+        || say "(apt had something to complain about; carrying on)"
     sudo_run apt-get install -y -t trixie-backports quickshell
 }
 
@@ -486,6 +513,16 @@ install_kdotool() {
     if have paru; then paru -S --needed --noconfirm kdotool-bin && return 0; fi
     if have yay;  then yay  -S --needed --noconfirm kdotool-bin && return 0; fi
 
+    # NixOS has it packaged, and the released binary would not run
+    # there anyway: it asks for an interpreter at a path that does not
+    # exist on that system. Tried before the download for that reason,
+    # not as a preference.
+    if [ "$OS_ID" = nixos ]; then
+        nix profile install nixpkgs#kdotool 2>/dev/null && return 0
+        nix-env -iA nixpkgs.kdotool && return 0
+        return 1
+    fi
+
     arch=$(uname -m)
     if [ "$arch" = "x86_64" ] && have curl && have tar && have sha256sum; then
         say "Fetching kdotool $KDOTOOL_VERSION from its releases..."
@@ -544,7 +581,17 @@ fetch_sources() {
     elif have curl && have tar; then
         curl -fsSL "$REPO/archive/refs/heads/$BRANCH.tar.gz" | tar -xz -C "$SRC" \
             || { err "download failed"; exit 1; }
-        SRC=$(find "$SRC" -maxdepth 1 -type d -name 'shima-*' | head -1)
+        # The tarball unpacks into shima-<branch>, with any slash in
+        # the branch turned into a dash. Found with the shell's own
+        # glob and not with `find`: findutils is not on a minimal
+        # openSUSE, and there this line printed "find: command not
+        # found", left the variable empty, and the check below then
+        # blamed the download for a directory nobody had looked in.
+        for d in "$SRC"/shima-*; do
+            [ -d "$d" ] || continue
+            SRC=$d
+            break
+        done
     else
         err "git or curl is needed to fetch the sources"
         exit 1
@@ -773,8 +820,30 @@ desktop_to() {
     ' "$1" > "$2"
 }
 
+# What this script cannot work without, checked before it writes
+# anything rather than found halfway through.
+#
+# Every desktop has these. A container or a stripped-down system may
+# not, and what happened then was worse than not running at all: a
+# missing findutils ended in "the download does not look like Shima",
+# which is a lie about a download that had gone perfectly, and a
+# missing awk left the desktop files with the wrong Exec and said so
+# in a line of shell error nobody should have to read.
+require_tools() {
+    missing=
+    for t in awk sed grep tr mktemp cp chmod ln install; do
+        have "$t" || missing="$missing $t"
+    done
+    [ -z "$missing" ] || {
+        err "these are needed and not installed:$missing"
+        err "install them and run this again."
+        exit 1
+    }
+}
+
 do_install() {
     detect_os
+    require_tools
     # Before fetching anything: being told this is not a Plasma session
     # is worth knowing before a download, not after one.
     check_desktop
