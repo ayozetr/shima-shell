@@ -533,7 +533,18 @@ Singleton {
 
             // Anything still counted as running keeps its place, even
             // if this sweep did not see it.
+            //
+            // Unless it has been pinned since. On a first run the dock
+            // inherits Plasma's pins, and that arrives after the first
+            // sweep has already filed whatever was open as an extra:
+            // Konsole was running, was not pinned yet, and went in as
+            // one. From then on this loop put it back on every sweep,
+            // so it sat in the dock twice — pinned, and again as an
+            // application that is open. Seen on a fresh Fedora, and
+            // only ever on a first run, which is why a restart made it
+            // go away and the next person to install it saw it again.
             for (const id of root.runningExtra) {
+                if (Pinned.list.indexOf(id) !== -1) continue;
                 if (extra.indexOf(id) === -1 && out[id] === true)
                     extra.push(id);
             }

@@ -158,6 +158,56 @@ function is(what, got, want) {
     is("unchecking one of two leaves the other", store.islandScreens, "DP-1");
 }
 
+// ── An application that was open before it was pinned ────────────
+{
+    const entries = {
+        "org.kde.konsole": {
+            id: "org.kde.konsole", execString: "konsole",
+            startupClass: "konsole", name: "Konsole",
+            icon: "utilities-terminal"
+        }
+    };
+    const w = load("services/Windows.qml",
+                   ["sweepDone", "idForClass", "candidatesFor",
+                    "matchesProcess", "sameState"],
+                   { Apps: { settingsClass: "shima", settingsId: "shima:settings",
+                             steamGames: {}, rescanSteam: () => {},
+                             entryFor: (id) => entries[id] || null },
+                     Pinned: { list: ["org.kde.konsole"] },
+                     Config: { data: { showRunning: true } },
+                     Games: { byClass: {} } });
+    w.neverShow = ["plasmashell", "quickshell"];
+    w.launchers = [];
+    w.procIndex = { "org.kde.konsole": "org.kde.konsole",
+                    "konsole": "org.kde.konsole" };
+    w.runningIds = {};
+    w.misses = {};
+    w.steamAsked = {};
+    // What a first sweep leaves behind: the dock inherits Plasma's pins
+    // after it has already seen what was open, so whatever was running
+    // went in as an application that is merely open.
+    w.runningExtra = ["org.kde.konsole"];
+
+    w.sweepDone("org.kde.konsole\nplasmashell\n");
+
+    is("an application pinned since the last sweep is not listed twice",
+       w.runningExtra.indexOf("org.kde.konsole"), -1);
+    is("and it still counts as running",
+       w.runningIds["org.kde.konsole"], true);
+
+    // The ordinary case is untouched: something open that nobody
+    // pinned keeps its place in the dock.
+    entries["org.kde.kate"] = { id: "org.kde.kate", execString: "kate",
+                                name: "Kate", icon: "kate" };
+    w.procIndex["org.kde.kate"] = "org.kde.kate";
+    w.runningExtra = ["org.kde.kate"];
+    w.runningIds = {};
+    w.misses = {};
+    w.sweepDone("org.kde.konsole\norg.kde.kate\n");
+    is("and one that is only open stays",
+       w.runningExtra.indexOf("org.kde.kate") !== -1, true);
+}
+
 // ── Numbers out of the settings file ─────────────────────────────
 {
     const { number } = load("services/Config.qml", ["number"]);
