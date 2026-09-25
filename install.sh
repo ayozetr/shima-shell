@@ -145,6 +145,56 @@ pkg_for() {
     esac
 }
 
+# How many updates the system has waiting, or nothing if the question
+# cannot be asked. Only used to explain a failure, never to nag: a
+# machine that is behind is nobody's business until something breaks
+# because of it.
+#
+# The reason it is worth asking at all: a freshly installed Fedora put
+# 1075 updates behind it, and `dnf install quickshell` then died on a
+# file conflict between the kmime it shipped with and the kf6-kmime the
+# transaction wanted. Nothing to do with Quickshell, the COPR or this
+# script — and nothing in the error says "your system is behind", which
+# is the one thing that would have saved the afternoon.
+pending_updates() {
+    case $PM in
+        dnf)    dnf -q check-upgrade 2>/dev/null | grep -c . ;;
+        apt)    apt list --upgradable 2>/dev/null | tail -n +2 | grep -c . ;;
+        zypper) zypper --quiet list-updates 2>/dev/null | grep -c '^v ' ;;
+        pacman) pacman -Qu 2>/dev/null | grep -c . ;;
+        *)      printf '0\n' ;;
+    esac
+}
+
+pm_update_all() {
+    case $PM in
+        dnf)    sudo_run dnf upgrade -y ;;
+        apt)    sudo_run apt-get update && sudo_run apt-get upgrade -y ;;
+        zypper) sudo_run zypper --non-interactive update ;;
+        pacman) sudo_run pacman -Syu --noconfirm ;;
+        *)      return 1 ;;
+    esac
+}
+
+# Offered once, after an install has already failed, and only when
+# there is something to update and a way to do it.
+offer_update_retry() {
+    case $PM in dnf|apt|zypper|pacman) ;; *) return 1 ;; esac
+    n=$(pending_updates 2>/dev/null)
+    case $n in ''|*[!0-9]*) return 1 ;; esac
+    [ "$n" -gt 0 ] || return 1
+
+    say ""
+    say "Your system has $n updates waiting. A package that will not"
+    say "install, or a conflict between two files, is usually that and"
+    say "not the package you asked for."
+    ask "Update the system and try again?" || return 1
+    pm_update_all || return 1
+    say ""
+    say "Updated. Trying again."
+    return 0
+}
+
 pm_install() {
     [ $# -gt 0 ] || return 0
     case $PM in
@@ -531,8 +581,18 @@ ensure_deps() {
         if can_install_quickshell; then
             if ask "Try to install it now?"; then
                 install_quickshell || {
-                    err "Did not get it installed. Use the lines above and start again."
-                    exit 1
+                    # One retry, and only behind a question. The first
+                    # failure has already printed whatever the package
+                    # manager had to say.
+                    if offer_update_retry; then
+                        install_quickshell || {
+                            err "Still not installed. Use the lines above and start again."
+                            exit 1
+                        }
+                    else
+                        err "Did not get it installed. Use the lines above and start again."
+                        exit 1
+                    fi
                 }
             else
                 err "Install Quickshell and run this again."
@@ -607,6 +667,93 @@ ensure_deps() {
         fi
     fi
 
+}
+
+# ── Putting the launcher within reach ────────────────────────────
+#
+# The launcher goes in $PREFIX/bin, which is ~/.local/bin unless told
+# otherwise, and that is on nobody's PATH until the shell that reads
+# the profile starts again. Ubuntu's own ~/.profile adds it — but only
+# `if [ -d "$HOME/.local/bin" ]`, and until this install ran, it was
+# not. So the answer there is not another line in the file: it is that
+# the next login already fixes it, and saying so beats writing a
+# duplicate into somebody's profile.
+#
+# The same directory gets written three ways in profiles — spelled
+# out, with a tilde, with $HOME — and any of the three means it is
+# already handled.
+path_is_written() {
+    bin=$PREFIX/bin
+    tilde=$(printf '%s' "$bin" | sed "s|^$HOME|~|")
+    home=$(printf '%s' "$bin" | sed "s|^$HOME|\$HOME|")
+    for f in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bash_login" \
+             "$HOME/.bashrc" "${ZDOTDIR:-$HOME}/.zshrc" \
+             "${ZDOTDIR:-$HOME}/.zprofile" \
+             "${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish" \
+             "${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/shima.fish"; do
+        [ -r "$f" ] || continue
+        if grep -qF -- "$bin" "$f" 2>/dev/null \
+           || grep -qF -- "$tilde" "$f" 2>/dev/null \
+           || grep -qF -- "$home" "$f" 2>/dev/null; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Where a line like that belongs depends on the shell they log into,
+# and fish does not speak the same language as the rest.
+path_file() {
+    case $(basename "${SHELL:-sh}") in
+        fish) printf '%s\n' \
+              "${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/shima.fish" ;;
+        zsh)  printf '%s\n' "${ZDOTDIR:-$HOME}/.zshrc" ;;
+        *)    printf '%s\n' "$HOME/.profile" ;;
+    esac
+}
+
+offer_path() {
+    say "Start it with: $BIN"
+    if path_is_written; then
+        say "($PREFIX/bin is not on this PATH, but your profile already"
+        say " adds it, so typing shima will work after your next login)"
+        return 0
+    fi
+
+    say "($PREFIX/bin is not in your PATH, so typing shima on its own"
+    say " will not find it)"
+    file=$(path_file)
+    ask_human "Add $PREFIX/bin to your PATH?" || {
+        say "Left alone. The full path above works either way."
+        return 0
+    }
+
+    mkdir -p "$(dirname "$file")" || return 1
+    case $file in
+        *.fish)
+            cat >> "$file" <<EOF
+
+# Added by the Shima installer: the launcher lives here.
+if not contains $PREFIX/bin \$PATH
+    set -gx PATH $PREFIX/bin \$PATH
+end
+EOF
+            ;;
+        *)
+            cat >> "$file" <<EOF
+
+# Added by the Shima installer: the launcher lives here.
+case ":\$PATH:" in
+    *":$PREFIX/bin:"*) ;;
+    *) PATH="$PREFIX/bin:\$PATH" ;;
+esac
+export PATH
+EOF
+            ;;
+    esac
+    say "Added to $file. It counts from the next shell you open."
+    say "Uninstalling does not take it out: the directory is yours and"
+    say "may well hold other things."
 }
 
 # ── Installing ───────────────────────────────────────────────────
@@ -697,8 +844,7 @@ do_install() {
     say "Installed to $SHARE"
     case ":$PATH:" in
         *":$PREFIX/bin:"*) say "Start it with: shima" ;;
-        *) say "Start it with: $BIN"
-           say "($PREFIX/bin is not in your PATH)" ;;
+        *) offer_path ;;
     esac
     say ""
     say "Shima replaces the Plasma panels; you may want to remove yours."
