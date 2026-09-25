@@ -288,7 +288,29 @@ while :; do
     ran=$(( $(date +%s) - began ))
     attempt=$((attempt + 1))
 
-    if [ "$ran" -ge 15 ] || [ "$attempt" -ge 3 ]; then
+    # A crash and a stop are not the same thing, and this used to treat
+    # them alike: anything that died after fifteen seconds was left
+    # dead. For a shell that has put the Plasma panels away that means
+    # a bare desktop, and no way back for anyone who does not know the
+    # name of the command to type. Seen for real on Debian 13, where
+    # opening the settings window takes the whole shell down: the dock
+    # and the island went with it and did not come back.
+    #
+    # A crash says so in the status — killed by a signal, or the 255
+    # Quickshell exits with after catching one — so those are started
+    # again however long they had been running. Capped, in case it is
+    # crashing in a loop; a clean stop keeps the old rule, because
+    # something that exited on purpose should stay exited.
+    crashed=0
+    case $status in
+        6|11|255|134|136|139) crashed=1 ;;
+        *) [ "$status" -gt 128 ] && crashed=1 ;;
+    esac
+
+    if [ "$crashed" -eq 1 ]; then limit=5; else limit=3; fi
+
+    if [ "$attempt" -ge "$limit" ] \
+       || { [ "$crashed" -eq 0 ] && [ "$ran" -ge 15 ]; }; then
         echo "shima: the shell stopped (status $status, after ${ran}s)" >&2
         exit "$status"
     fi
