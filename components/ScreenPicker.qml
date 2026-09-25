@@ -57,8 +57,20 @@ Column {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 1
 
+                // The model as the monitor states it — "ASUS VG32VQR"
+                // — with the connector underneath. A screen that does
+                // not state one gets a description built by the
+                // compositor out of the connector and a translated
+                // word for unknown: the virtual output of a VM comes
+                // through as "Virtual-1-desconocida". If the model
+                // starts with the connector it is that description and
+                // not a name, so the connector alone reads better.
+                readonly property bool named:
+                    modelData.model && modelData.model !== modelData.name
+                    && modelData.model.indexOf(modelData.name) !== 0
+
                 Text {
-                    text: modelData.model || modelData.name
+                    text: parent.named ? modelData.model : modelData.name
                     color: Theme.textPrimary
                     font.pixelSize: 12
                 }
@@ -72,7 +84,10 @@ Column {
                         // the monitor is a 2560.
                         const w = Math.round(modelData.width * k / 10) * 10;
                         const h = Math.round(modelData.height * k / 10) * 10;
-                        let t = modelData.name + " · " + w + "×" + h;
+                        // The connector goes here only when it is
+                        // not already the line above.
+                        let t = parent.named ? modelData.name + " · " : "";
+                        t += w + "×" + h;
                         if (Math.abs(k - 1) > 0.01)
                             t += "  ·  " + Math.round(k * 100) + "%";
                         return t;

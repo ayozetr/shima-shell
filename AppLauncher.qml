@@ -38,8 +38,6 @@ PanelWindow {
     visible: LauncherState.open
              && Config.onScreen(Config.data.dockScreens, win.screenName)
 
-    BackgroundEffect.blurRegion: Region { item: panel; radius: 18 }
-
     // The window still covers the screen, so the panel stays where it
     // was and a click anywhere closes it — but the dock's strip is cut
     // out of what takes the mouse, or it would swallow every click
@@ -381,16 +379,26 @@ PanelWindow {
                             : (cm.containsMouse ? "#14ffffff" : "transparent")
                         Behavior on color { ColorAnimation { duration: 120 } }
 
+                        // Held on both sides, because the name on the
+                        // left is whatever KDE's menu calls the
+                        // category and the sidebar is a fixed width.
+                        // Unbound on the right it ran under the count
+                        // and out of the pill — "Ciencia y matemáticas"
+                        // is the one that gives it away in Spanish.
                         Text {
                             anchors.left: parent.left
                             anchors.leftMargin: 10
+                            anchors.right: tally.visible ? tally.left : glyph.left
+                            anchors.rightMargin: 6
                             anchors.verticalCenter: parent.verticalCenter
                             text: modelData.label
                             color: current ? Theme.textPrimary : Theme.textSecondary
                             font.pixelSize: 12
+                            elide: Text.ElideRight
                         }
 
                         Text {
+                            id: tally
                             anchors.right: parent.right
                             anchors.rightMargin: 10
                             anchors.verticalCenter: parent.verticalCenter
@@ -401,6 +409,7 @@ PanelWindow {
                         }
 
                         CategoryGlyph {
+                            id: glyph
                             anchors.right: parent.right
                             anchors.rightMargin: 10
                             anchors.verticalCenter: parent.verticalCenter

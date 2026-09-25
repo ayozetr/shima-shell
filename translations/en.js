@@ -181,7 +181,7 @@ var strings = {
     hideDelay: "Delay before hiding",
     opacity: "Opacity",
     blur: "Background blur",
-    blurHint: "Uses KWin's ext_background_effect",
+    blurHint: "Uses ext_background_effect: needs Plasma 6.7 or newer",
     blurIslandHint: "Only shows if you lower the opacity",
     cornerRadius: "Corner radius",
 

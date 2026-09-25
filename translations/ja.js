@@ -181,7 +181,7 @@ var strings = {
     hideDelay: "隠すまでの遅延",
     opacity: "透明度",
     blur: "背景のぼかし",
-    blurHint: "KWin の ext_background_effect を使用します",
+    blurHint: "ext_background_effect を使用します。Plasma 6.7 以降が必要です",
     blurIslandHint: "透明度を下げた場合にのみ表示されます",
     cornerRadius: "角の丸み",
 

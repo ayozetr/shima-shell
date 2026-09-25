@@ -98,7 +98,8 @@ function is(what, got, want) {
 // ── Which screens something is pinned to ─────────────────────────
 {
     const screens = [{ name: "DP-1" }, { name: "HDMI-A-1" }];
-    const cfg = load("services/Config.qml", ["screenList", "onScreen"],
+    const cfg = load("services/Config.qml",
+                     ["screenList", "nowhere", "onScreen"],
                      { Quickshell: { screens: screens } });
 
     is("an empty list means every screen", cfg.onScreen("", "DP-1"), true);
@@ -111,6 +112,50 @@ function is(what, got, want) {
        cfg.onScreen("DP-99", "DP-1"), true);
     is("several, separated by commas",
        cfg.onScreen("DP-1, HDMI-A-1", "HDMI-A-1"), true);
+
+    // "none" is the only value that is not a screen name, and the only
+    // way to say nowhere: empty already means everywhere.
+    is("nowhere means nowhere", cfg.onScreen("none", "DP-1"), false);
+    is("and on the other one either", cfg.onScreen("none", "HDMI-A-1"), false);
+    is("however it was typed", cfg.onScreen("  None ", "DP-1"), false);
+}
+
+// ── Checking and unchecking a screen ─────────────────────────────
+{
+    const screens = [{ name: "DP-1" }, { name: "HDMI-A-1" }];
+    const store = {};
+    const cfg = load("services/Config.qml",
+                     ["screenList", "nowhere", "onScreen", "toggleScreen"],
+                     { Quickshell: { screens: screens }, cfg: store });
+    cfg.save = () => {};
+    const all = ["DP-1", "HDMI-A-1"];
+
+    // The one he found: pinned to one screen, unchecked there, and it
+    // came back on both — the list was left empty and empty reads as
+    // every screen.
+    store.islandScreens = "DP-1";
+    cfg.toggleScreen("islandScreens", "DP-1", false, all);
+    is("unchecking the only screen on the list says nowhere",
+       store.islandScreens, "none");
+    is("and the island is on neither",
+       cfg.onScreen(store.islandScreens, "DP-1")
+       || cfg.onScreen(store.islandScreens, "HDMI-A-1"), false);
+
+    // With a single monitor there was no way to switch either off.
+    store.dockScreens = "";
+    cfg.toggleScreen("dockScreens", "DP-1", false, ["DP-1"]);
+    is("one monitor, unchecked, means nowhere", store.dockScreens, "none");
+
+    // And back again.
+    cfg.toggleScreen("dockScreens", "DP-1", true, ["DP-1"]);
+    is("checking it again names it", store.dockScreens, "DP-1");
+    is("which puts the dock back", cfg.onScreen(store.dockScreens, "DP-1"), true);
+
+    // Unchecking one of two leaves the other, which is the ordinary
+    // case and the one that already worked.
+    store.islandScreens = "";
+    cfg.toggleScreen("islandScreens", "HDMI-A-1", false, all);
+    is("unchecking one of two leaves the other", store.islandScreens, "DP-1");
 }
 
 // ── Numbers out of the settings file ─────────────────────────────

@@ -25,9 +25,9 @@ Times are in milliseconds unless the name says otherwise.
 | Key | Default | What it is |
 |---|---|---|
 | `dockPosition` | `"bottom"` | `"bottom"` or `"top"` |
-| `dockIconSize` | `56` | Icon size in pixels, 16 to 128. Everything else in the dock is a ratio of this |
-| `dockOpacity` | `0.8` | 0 to 1 |
-| `dockBlur` | `true` | Blur what is behind it |
+| `dockIconSize` | `48` | Icon size in pixels, 16 to 128. Everything else in the dock is a ratio of this |
+| `dockOpacity` | `1.0` | 0 to 1. Opaque by default: the glass look needs the blur, and the blur needs Plasma 6.7 |
+| `dockBlur` | `false` | Blur what is behind it. Needs Plasma 6.7 or newer; on anything older the compositor has no protocol for it and the switch does nothing |
 | `dockFloating` | `false` | Lift it off the edge |
 | `dockMargin` | `10` | How far off, when floating. 0 to 400 |
 | `dockCornerRadius` | `28` | 0 to 80 |
@@ -35,7 +35,7 @@ Times are in milliseconds unless the name says otherwise.
 | `dockAutoHide` | `false` | Hide it until the pointer reaches the edge |
 | `dockHideDelay` | `700` | How long it waits before hiding, 100 to 60000 |
 | `dockRightClick` | `"settings"` | What a right click on an empty part of the dock opens: `"settings"` for Shima's own, `"none"` for nothing, or the id of an application — the name of its `.desktop` file without the extension. The settings window offers the system monitors it finds installed; this takes any application |
-| `dockScreens` | `""` | Comma-separated screen names, or empty for all. A name that is not there any more is ignored rather than leaving you with no dock |
+| `dockScreens` | `""` | Comma-separated screen names; empty means all of them and `none` means no screen at all. A name that is not there any more is ignored rather than leaving you with no dock |
 | `iconShape` | `"squircle"` | `"squircle"`, `"circle"` or `"square"` |
 | `iconRadiusPct` | `33` | Corner radius as a percentage of the icon, 0 to 50. Only for `"squircle"` |
 | `showRunning` | `true` | Show open applications that are not pinned |
@@ -55,7 +55,7 @@ Times are in milliseconds unless the name says otherwise.
 | `islandExpandedWidth` | `425` | 160 to 2000 |
 | `islandRadius` | `22` | 0 to 80 |
 | `islandOpacity` | `1.0` | 0 to 1 |
-| `islandBlur` | `false` | Pointless while it is opaque, which it is by default |
+| `islandBlur` | `false` | Pointless while it is opaque, which it is by default. Needs Plasma 6.7 or newer |
 | `islandFloating` | `false` | Lift it off the edge |
 | `islandMargin` | `8` | How far off, when floating. 0 to 400 |
 | `islandAutoHide` | `false` | |
@@ -119,10 +119,10 @@ when you log out.
 
 | Key | Default | What it is |
 |---|---|---|
-| `accent` | `"#a78bfa"` | |
-| `islandTint` | `"#000000"` | The island's background, before its opacity |
-| `dockTint` | `"#000000"` | |
-| `launcherTint` | `"#000000"` | |
+| `accent` | `"#ffffff"` | |
+| `islandTint` | `"#181818"` | The island's background, before its opacity |
+| `dockTint` | `"#181818"` | |
+| `launcherTint` | `"#181818"` | |
 
 Anything Qt understands as a colour works. Anything it does not falls
 back to the default rather than turning black, which is what used to

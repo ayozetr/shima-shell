@@ -193,7 +193,7 @@ var strings = {
     hideDelay: "Verzögerung vor dem Ausblenden",
     opacity: "Deckkraft",
     blur: "Hintergrundunschärfe",
-    blurHint: "Nutzt ext_background_effect von KWin",
+    blurHint: "Nutzt ext_background_effect: ab Plasma 6.7",
     blurIslandHint: "Nur sichtbar, wenn die Deckkraft sinkt",
     cornerRadius: "Eckenradius",
 

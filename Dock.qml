@@ -140,7 +140,7 @@ PanelWindow {
 
     // Real blur behind the dock, served by
     // ext_background_effect_manager_v1.
-    BackgroundEffect.blurRegion: (Config.data.dockBlur ?? true) ? blurRegion : null
+    BackgroundEffect.blurRegion: (Config.data.dockBlur ?? false) ? blurRegion : null
     Region {
         id: blurRegion
         item: pill

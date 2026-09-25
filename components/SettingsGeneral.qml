@@ -13,20 +13,26 @@ Column {
     readonly property var c: Config.data
 
     // ── SCREENS ─────────────────────────────────────────
+    // Shown even with a single monitor. It used to take two before
+    // this appeared, on the grounds that there is nothing to choose
+    // between with one — but the row is also where the island and the
+    // dock are switched off for that screen, so hiding it left the one
+    // kind of machine that most people have with no way to turn either
+    // of them off from here.
     Controls.Section_ {
         text: I18n.t.secScreens
-        visible: Quickshell.screens.length > 1
+        visible: Quickshell.screens.length > 0
     }
 
     ScreenPicker {
         width: parent.width
-        visible: Quickshell.screens.length > 1
+        visible: Quickshell.screens.length > 0
         topPadding: 6
     }
 
     Item {
         width: 1; height: 8
-        visible: Quickshell.screens.length > 1
+        visible: Quickshell.screens.length > 0
     }
 
     // ── LANGUAGE ────────────────────────────────────────

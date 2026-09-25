@@ -193,7 +193,7 @@ var strings = {
     hideDelay: "Demora para esconder",
     opacity: "Opacidade",
     blur: "Desfoque de fundo",
-    blurHint: "Usa o ext_background_effect do KWin",
+    blurHint: "Usa o ext_background_effect: precisa do Plasma 6.7 ou superior",
     blurIslandHint: "Só se nota se você baixar a opacidade",
     cornerRadius: "Raio dos cantos",
 

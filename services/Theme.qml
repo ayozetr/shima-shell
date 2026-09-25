@@ -53,18 +53,23 @@ Singleton {
     // ── Launcher ───────────────────────────────────────────────
     readonly property color launcherTintColour:
         root.colour(Config.data.launcherTint, "#000000")
-    readonly property color launcherBg: Qt.rgba(
-        root.launcherTintColour.r,
-        root.launcherTintColour.g,
-        root.launcherTintColour.b,
-        0.88)
+    // Solid. The panel used to ask the compositor to blur what was
+    // behind it and sit at 0.88 on top, but that blur is a favour, not
+    // a promise: `ext_background_effect_v1` only exists from Plasma 6.7,
+    // so on Kubuntu 26.04 (KWin 6.6.6), Debian or anything a step
+    // behind it is silently dropped and the alpha is all that is left.
+    // Measured there at 0.88 over a light window: the panel came out
+    // #333 where the window was white and #191919 where its text was,
+    // which is contrast enough to read a settings page through the
+    // launcher. Nothing shows through an opaque panel on any of them.
+    readonly property color launcherBg: root.launcherTintColour
 
     // ── Dock ───────────────────────────────────────────────────
     readonly property color dockBg: Qt.rgba(
         root.dockTintColour.r,
         root.dockTintColour.g,
         root.dockTintColour.b,
-        Config.number(Config.data.dockOpacity, 0.8, 0, 1))
+        Config.number(Config.data.dockOpacity, 1.0, 0, 1))
     readonly property color dockBorder: "#1affffff"
 
     // Gradient of the icon container.

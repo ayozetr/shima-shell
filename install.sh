@@ -645,11 +645,13 @@ do_install() {
     # a copy of the tree carries it along: bytecode compiled for
     # somebody else's Python, on your disk, for nothing.
     rm -rf "$SHARE/helper/__pycache__"
-    # What the settings window draws: our own logotype and the two
-    # marks it links with. Only those: the rest of assets/ is the brand
-    # work and has no business on anybody's disk.
+    # What the settings window draws: our own logotype, the two marks
+    # it links with, and the seven icons of its sidebar. Only those:
+    # the rest of assets/ is the brand work and has no business on
+    # anybody's disk.
     mkdir -p "$SHARE/assets"
     cp -r "$SRC/assets/vendor" "$SHARE/assets/" 2>/dev/null || true
+    cp -r "$SRC/assets/pages" "$SHARE/assets/" 2>/dev/null || true
     cp "$SRC/assets/logo-white.svg" "$SHARE/assets/" 2>/dev/null || true
     cp "$SRC/LICENSE" "$SRC/README.md" "$SHARE/" 2>/dev/null || true
     # What every setting means. The README points at it, and the

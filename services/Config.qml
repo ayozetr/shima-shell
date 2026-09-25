@@ -62,11 +62,21 @@ Singleton {
             id: cfg
 
             // ── Dock ───────────────────────────────────────────
-            property real   dockOpacity:      0.80   // 0–1
-            property bool   dockBlur:         true
+            // Opaque. Translucency leans on the blur to keep what is
+            // behind from being read through the dock, and the blur only
+            // exists from Plasma 6.7 onwards, so out of the box the dock
+            // stands on its own. Anyone who wants glass turns this down.
+            property real   dockOpacity:      1.0    // 0–1
+            // Off. Quickshell speaks `ext_background_effect` and
+            // nothing else, and that protocol arrived in Plasma 6.7 —
+            // 6.6 and everything before it drop the request in silence.
+            // A default that does nothing on half the distributions out
+            // there is not a default: whoever has the blur and wants it
+            // turns it on.
+            property bool   dockBlur:         false
             property bool   dockFloating:     false  // flush against the edge by default
             property string dockPosition:     "bottom"   // bottom | top
-            property int    dockIconSize:     56
+            property int    dockIconSize:     48
             property string iconShape:        "squircle" // squircle | circle | square
             property int    iconRadiusPct:    33     // squircle only
             property int    dockCornerRadius: 28
@@ -185,8 +195,8 @@ Singleton {
             property string dockRightClick:   "settings"
 
             // ── Color ──────────────────────────────────────────
-            property string accent:           "#a78bfa"
-            property string dockTint:         "#000000"
+            property string accent:           "#ffffff"
+            property string dockTint:         "#181818"
             // Kept across restarts only if asked. A machine that will
             // not sleep because of something switched on days ago is a
             // hard thing to work out from the outside.
@@ -198,8 +208,8 @@ Singleton {
             property bool clipboardShortcutEnabled: true
             property int  clipboardKey:       268435542   // Meta+V
             property string clipboardLabel:   "Meta+V"
-            property string islandTint:       "#000000"
-            property string launcherTint:     "#000000"
+            property string islandTint:       "#181818"
+            property string launcherTint:     "#181818"
         }
     }
 
@@ -237,17 +247,30 @@ Singleton {
         return text.split(",").map(x => x.trim()).filter(x => x.length > 0);
     }
 
-    // Empty means "all of them", not "none".
+    // Empty means "all of them", not "none" — `none` says that, and is
+    // obeyed with no net under it. Asking for no screen at all is a
+    // decision, and the settings window is in the application menu:
+    // type Shima, open it, switch it back on.
     //
-    // And so does a list naming only screens that are not there. Pin
-    // the island and the dock to DP-1, unplug it or let the connector
-    // come back under another name, and every window Shima has —
-    // island, dock, cards and launcher — disappears at once. Both ways
-    // into the settings live inside those windows, so the only way back
-    // would be editing the JSON by hand. Falling back to every screen
-    // is wrong in a small way; vanishing is wrong in a way you cannot
-    // undo.
+    // A list naming only screens that are not there is a different
+    // thing, and falls back to every screen. Pin the island and the
+    // dock to DP-1, unplug it or let the connector come back under
+    // another name after a cable, a dock or a KWin update, and nobody
+    // asked for anything: the machine changed underneath. Everything
+    // landing on the monitor that is left is ten seconds of annoyance;
+    // a shell that starts and paints nothing looks broken, and the
+    // person it happens to is the one who just undocked a laptop.
+    // "none" is the one value that is not the name of a screen. It has
+    // to exist: empty already means every screen, and empty is also
+    // what is left when the last one is unchecked, so there was no way
+    // to say "nowhere" — unchecking the island on one screen of two
+    // emptied the list and turned it on for both.
+    function nowhere(text) {
+        return typeof text === "string" && text.trim().toLowerCase() === "none";
+    }
+
     function onScreen(text, name) {
+        if (root.nowhere(text)) return false;
         const list = root.screenList(text);
         if (list.length === 0) return true;
         let present = false;
@@ -257,17 +280,21 @@ Singleton {
         return present ? list.indexOf(name) !== -1 : true;
     }
 
-    // Check or uncheck a screen. If unchecking would leave the list
-    // empty we store every other screen instead: otherwise "empty"
-    // would read as "all of them" and it would reappear on the very
-    // screen you just removed it from.
+    // Check or uncheck a screen.
+    //
+    // An empty list is read as every screen, so unchecking one starts
+    // from the list of them all and takes that one out. Unchecking the
+    // last one leaves nothing, and nothing has to be written down as
+    // "none": left empty it would read as every screen again, which is
+    // the shape of the bug this replaces — the island came back on the
+    // screen it had just been taken off, and on the other one too.
     function toggleScreen(key, name, on, allNames) {
-        let cur = root.screenList(cfg[key]);
-        if (cur.length === 0) cur = allNames.slice();
+        let cur = root.nowhere(cfg[key]) ? [] : root.screenList(cfg[key]);
+        if (!root.nowhere(cfg[key]) && cur.length === 0) cur = allNames.slice();
         const i = cur.indexOf(name);
         if (on && i === -1) cur.push(name);
         if (!on && i !== -1) cur.splice(i, 1);
-        cfg[key] = cur.join(",");
+        cfg[key] = cur.length === 0 ? "none" : cur.join(",");
         root.save();
     }
 }

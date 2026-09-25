@@ -193,7 +193,7 @@ var strings = {
     hideDelay: "Temps abans d'amagar-se",
     opacity: "Opacitat",
     blur: "Difuminat del fons",
-    blurHint: "Usa ext_background_effect del KWin",
+    blurHint: "Usa ext_background_effect: necessita Plasma 6.7 o superior",
     blurIslandHint: "Només es nota si baixes l'opacitat",
     cornerRadius: "Radi de les cantonades",
 
