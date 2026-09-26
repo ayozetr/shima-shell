@@ -248,8 +248,17 @@ quickshell_hint() {
         fedora|nobara|bazzite)
             say "  sudo dnf copr enable errornointernet/quickshell && sudo dnf install quickshell" ;;
         ubuntu|linuxmint|pop|zorin|elementary|neon)
-            ppa_has_quickshell
-            case $? in
+            # `|| ppa=$?` and not a bare call: this script runs under
+            # `set -e`, and a bare command that answers non-zero ends it
+            # there and then. The answer here is non-zero precisely when
+            # there is no build for this release — so on the machines
+            # that most needed the explanation, the installer printed
+            # "Quickshell is missing, and Shima is a Quickshell
+            # configuration:" and died on the next line without saying
+            # anything at all. Seen on KDE Neon, whose base is a series
+            # behind the one that repository publishes for.
+            ppa=0; ppa_has_quickshell || ppa=$?
+            case $ppa in
                 1) say "  There is no build for ${OS_SERIES:-this release}: the repository"
                    say "  that carries Quickshell for Ubuntu publishes for the newest"
                    say "  series only, and this is not one of them."
@@ -461,8 +470,11 @@ can_install_quickshell() {
         # Unknown counts as yes: without an answer it is the person in
         # front of the machine who should decide, not us.
         ubuntu|linuxmint|pop|zorin|elementary|neon)
-            ppa_has_quickshell
-            [ $? -eq 1 ] && return 1
+            # Same reason as above: under `set -e` a bare call that says
+            # "no build for this series" would take the whole script
+            # with it.
+            ppa=0; ppa_has_quickshell || ppa=$?
+            [ "$ppa" -eq 1 ] && return 1
             return 0 ;;
         nixos)                                         return 0 ;;
         *)                                             return 1 ;;
