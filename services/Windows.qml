@@ -116,12 +116,45 @@ Singleton {
         const direct = root.procIndex[name];
         if (direct !== undefined) return direct;
 
-        // "terraria.bin.x86_64" is the binary, and its first segment
-        // is the name. Reversed-domain ids are left alone: the first
-        // segment of "org.kde.dolphin" says nothing.
-        if (/^(org|com|net|io|dev|app|me|xyz|fr|eu)\./.test(name)) return undefined;
+        // A reversed-domain class carries the name at the end, not at
+        // the start: "org.kde.dolphin" begins with "org", which says
+        // nothing, and ends with "dolphin", which says everything.
+        //
+        // Worth trying because the two ends disagree more often than
+        // you would think. SamRewritten announces its window as
+        // org.samrewritten.SamRewritten while its desktop file says
+        // `StartupWMClass=samrewritten`, so nothing matched and it
+        // never reached the dock. Whoever wrote the desktop file is
+        // not wrong exactly — the application simply calls itself two
+        // different things.
+        const tail = name.split(".").pop();
         const head = name.split(".")[0];
-        if (head && head !== name && head.length >= 3) return root.procIndex[head];
+
+        // A name that is plainly a reverse domain is read from the end
+        // and from the end only. Its first piece has to be left alone
+        // even when something in the index does answer to it: "com" is
+        // not an application, and reaching for it would have made every
+        // program published under a domain resolve to whatever happened
+        // to be called that.
+        if (/^(org|com|net|io|dev|app|me|xyz|fr|eu)\./.test(name))
+            return tail.length >= 3 ? root.procIndex[tail] : undefined;
+
+        // Everything else gets both ends, nearest first. The front is
+        // where a binary keeps its name — Terraria's window class is
+        // "Terraria.bin.x86_64" — and the back is where a reverse
+        // domain keeps its own.
+        //
+        // The back is tried here as well, and that is the point: the
+        // list above cannot be complete, because a reverse domain is
+        // free to start with de, page, garden, fyi or anything else
+        // somebody owns. An unlisted prefix is no longer a dead end —
+        // it costs one lookup that misses and then reads the name off
+        // the other end, which is what it should have done anyway.
+        if (head && head !== name && head.length >= 3) {
+            const byHead = root.procIndex[head];
+            if (byHead !== undefined) return byHead;
+        }
+        if (tail && tail !== name && tail.length >= 3) return root.procIndex[tail];
         return undefined;
     }
 
@@ -237,13 +270,25 @@ Singleton {
         if (!entry) return "";
         const names = root.candidatesFor(entry);
         if (!names.length) return "";
-        // The trailing segment is optional because a native game's
-        // window carries the binary's full name: "Terraria" has to
-        // match "Terraria.bin.x86_64". kdotool ignores case, so the
-        // candidates being lowercase costs nothing.
+        // Loose at both ends, because a window class agrees with its
+        // desktop file at neither.
+        //
+        // The tail is optional because a native game's window carries
+        // the binary's full name: "Terraria" has to match
+        // "Terraria.bin.x86_64". The head is optional because an
+        // application may announce itself in reverse domain form while
+        // its desktop file gives the short name: SamRewritten says
+        // "org.samrewritten.SamRewritten" and its file says
+        // `StartupWMClass=samrewritten`. Anchored exactly, neither was
+        // found — the dock showed it as open and clicking it started a
+        // second copy instead of raising the first.
+        //
+        // kdotool ignores case, so the candidates being lowercase
+        // costs nothing.
         return names
             .map(n => '[ -z "$wins" ] && wins=$(kdotool search --class '
-                    + JSON.stringify("^" + n + "(\\..*)?$") + ' 2>/dev/null)')
+                    + JSON.stringify("^(.*\\.)?" + n + "(\\..*)?$")
+                    + ' 2>/dev/null)')
             .join("; ");
     }
 
@@ -305,8 +350,12 @@ Singleton {
         const names = root.candidatesFor(entry);
         if (!names.length) return;
 
+        // Same shape as the lookup above, and for the same reason:
+        // minimising and closing have to find the window that raising
+        // finds, or the dock does one of the three and not the others.
         const lookups = names
-            .map(n => 'w=$(kdotool search --class ' + JSON.stringify("^" + n + "$")
+            .map(n => 'w=$(kdotool search --class '
+                    + JSON.stringify("^(.*\\.)?" + n + "(\\..*)?$")
                     + ' 2>/dev/null | head -1); [ -n "$w" ] && break')
             .join("; ");
 
@@ -490,7 +539,11 @@ Singleton {
             // class and nothing else.
             if (p.indexOf("steam_app_") !== 0) continue;
             const app = p.slice("steam_app_".length);
-            if (Apps.steamGames[app] !== undefined) { alive[p] = true; continue; }
+            if (Apps.steamGames[app] !== undefined
+                    || Apps.steamShortcuts[app] !== undefined) {
+                alive[p] = true;
+                continue;
+            }
             // Installed after the shell started, so it is not in a list
             // that was read once and never again.
             if (!root.steamAsked[app]) {

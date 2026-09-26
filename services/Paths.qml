@@ -39,6 +39,15 @@ Singleton {
         root.env("SHIMA_CACHE_DIR",
                  root.env("XDG_CACHE_HOME", root.home + "/.cache") + "/shima")
 
+    // The pictures a file manager has already made of other people's
+    // files. Shared between every desktop by an old freedesktop
+    // standard, which is why it is worth knowing about: a game added
+    // to Steam by hand keeps its logo inside a Windows executable,
+    // where we have no way to reach it, and Dolphin has already gone
+    // in and left the result here.
+    readonly property string thumbnailDir:
+        root.env("XDG_CACHE_HOME", root.home + "/.cache") + "/thumbnails"
+
     // Scratch files for one run of the shell. This one matters for
     // more than tidiness: XDG_RUNTIME_DIR is created per user with
     // nobody else allowed in, while a fixed name under /tmp is a

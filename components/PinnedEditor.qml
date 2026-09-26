@@ -72,7 +72,9 @@ Column {
                     anchors.leftMargin: 6
                     anchors.verticalCenter: parent.verticalCenter
                     width: 16; height: 16
-                    source: (parent.entry && parent.entry.icon)
+                    source: (parent.entry && parent.entry.iconUrl)
+                        ? parent.entry.iconUrl
+                        : (parent.entry && parent.entry.icon)
                         ? Quickshell.iconPath(parent.entry.icon, "application-x-executable") : ""
                 }
 
@@ -239,7 +241,9 @@ Column {
                     anchors.leftMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
                     width: 16; height: 16
-                    source: modelData.icon
+                    source: modelData.iconUrl
+                        ? modelData.iconUrl
+                        : modelData.icon
                         ? Quickshell.iconPath(modelData.icon, "application-x-executable") : ""
                 }
 

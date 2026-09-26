@@ -219,6 +219,7 @@ Singleton {
     // from the window sweep, which is the only thing that notices.
     function rescanSteam() {
         if (!steamScan.running) steamScan.running = true;
+        if (!shortcutScan.running) shortcutScan.running = true;
     }
 
     Process {
@@ -252,8 +253,7 @@ Singleton {
     function steamEntry(id) {
         const appId = id.slice("steam_app_".length);
         const name = root.steamGames[appId];
-        if (!name) return null;
-        return {
+        if (name) return {
             id: id,
             name: name,
             icon: "steam_icon_" + appId,
@@ -261,6 +261,316 @@ Singleton {
             isSteamGame: true,
             appId: appId
         };
+
+        // Added to Steam by hand rather than installed by it, so there
+        // is no manifest and no icon in the theme either: what Steam
+        // knows about it is its own artwork, and often not even that.
+        const own = root.steamShortcuts[appId];
+        if (!own) return null;
+        return {
+            id: id,
+            name: own.name,
+            icon: own.art ? "" : "applications-games",
+            iconUrl: own.art ? "file://" + own.art : "",
+            comment: "",
+            isSteamGame: true,
+            appId: appId
+        };
+    }
+
+    // ── Games added to Steam by hand ───────────────────────────
+    //
+    // A game that was dragged into Steam rather than installed by it
+    // has no appmanifest, so everything above walks straight past it:
+    // it ran, its window said steam_app_3323031249, nothing in the
+    // catalogue answered to that, and the dock stayed empty while the
+    // game was on screen. Four of them on the machine this was found
+    // on, one of them a co-op mod that had already cost an evening.
+    //
+    // Steam keeps them somewhere else and in another format: a binary
+    // VDF under userdata, which is why this is read through od instead
+    // of sed like the manifests are. The id is stored there as a
+    // signed 32 bit integer and the window announces the unsigned form
+    // of the same number — -971936047 and 3323031249 are one game —
+    // and that sign is the whole reason a plain read of the file would
+    // have looked right and matched nothing.
+    property var steamShortcuts: ({})
+
+    Process {
+        id: shortcutScan
+        running: true
+        // The artwork is listed next to the bytes because deciding
+        // which file to use needs the ids the bytes carry, and going
+        // back to the disk a second time for that would mean building
+        // a command out of names that came off the disk. One pass,
+        // names read from the listing, nothing quoted twice.
+        command: ["sh", "-c",
+            'for cfg in "$HOME/.steam/steam/userdata"/*/config '
+            + '"$HOME/.local/share/Steam/userdata"/*/config; do '
+            + '  f="$cfg/shortcuts.vdf"; '
+            + '  [ -f "$f" ] || continue; '
+            + '  [ "$(wc -c < "$f")" -le 1048576 ] || continue; '
+            + '  printf "@%s\\n" "$cfg"; '
+            + '  for art in "$cfg"/grid/*; do '
+            + '    [ -f "$art" ] && printf "+%s\\n" "${art##*/}"; '
+            + '  done; '
+            + '  od -An -v -tu1 "$f"; '
+            + 'done']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const found = root.shortcutsFromScan(text, Paths.thumbnailDir);
+                root.steamShortcuts = found;
+                root.revision++;
+
+                const paths = root.iconFilesToCheck(found);
+                if (paths.length > 0) {
+                    // As arguments and not inside the command, because
+                    // these are paths that came off somebody's disk and
+                    // one of them is free to hold a quote.
+                    iconCheck.command = ["sh", "-c",
+                        'for p in "$@"; do [ -f "$p" ] && printf "%s\\n" "$p"; done; exit 0',
+                        "shima"].concat(paths);
+                    iconCheck.running = true;
+                }
+            }
+        }
+    }
+
+    Process {
+        id: iconCheck
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const exists = {};
+                for (const line of text.split("\n"))
+                    if (line !== "") exists[line] = true;
+                root.steamShortcuts =
+                    root.withIconFiles(root.steamShortcuts, exists);
+                root.revision++;
+            }
+        }
+    }
+
+    // One scan into a table of games. The scan is a section per Steam
+    // account: the folder it came from, the names of its artwork, and
+    // then the file itself as decimal bytes.
+    //
+    // Each game comes out with a list of pictures to try in order.
+    // Some are known to be there because they were just listed; the
+    // rest are paths out of Steam's own file and out of a cache
+    // somebody else fills, and those have to be asked about. So the
+    // answer is given twice: once now with what is certain, and again
+    // once the disk has replied — which means the dock is never left
+    // waiting for an icon, and never shows the wrong one meanwhile.
+    function shortcutsFromScan(text, thumbs) {
+        const out = {};
+
+        for (const section of text.split(/^@/m)) {
+            const lines = section.split("\n");
+            const dir = lines[0].trim();
+            if (dir === "") continue;
+
+            const files = [];
+            const bytes = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].charAt(0) === "+") files.push(lines[i].slice(1));
+                else bytes.push(lines[i]);
+            }
+
+            const games = root.parseShortcuts(bytes.join("\n"));
+            for (const id in games) {
+                const g = games[id];
+                const grid = root.gridArt(files, id);
+                const cands = [];
+
+                // An icon slot that Steam filled, then one somebody
+                // chose by hand in its Properties box. Both are icons
+                // and neither needs guessing at.
+                if (grid.icon !== "")
+                    cands.push({ p: dir + "/grid/" + grid.icon, sure: true });
+                if (g.icon !== "") cands.push({ p: g.icon, sure: false });
+
+                // Then what Steam downloaded for the library, which is
+                // a wordmark and two rectangles. Worse in a square
+                // tile than an icon, better than nothing, and chosen
+                // by the person whose dock this is — so ahead of
+                // anything we went looking for ourselves.
+                for (const rest of grid.rest)
+                    cands.push({ p: dir + "/grid/" + rest, sure: true });
+
+                // And last, the picture a file manager already made of
+                // the executable. Only reached when Steam has nothing
+                // at all, so at worst it replaces the generic one.
+                for (const t of root.thumbnailsFor(g.exe, thumbs))
+                    cands.push({ p: t, sure: false });
+
+                out[id] = { name: g.name, cands: cands,
+                            art: root.firstArt(cands, {}) };
+            }
+        }
+        return out;
+    }
+
+    // The artwork of one game out of a listing of the folder: the icon
+    // on its own, and the others in the order they are worth drawing —
+    // the logo, the header, the poster. Anything that is not a picture
+    // is not a candidate, which the .json beside each of them is.
+    function gridArt(files, id) {
+        const kinds = ["png", "jpg", "jpeg", "webp", "ico", "bmp"];
+        const rest = [];
+        let icon = "";
+        const rank = {};
+        for (const file of files) {
+            const dot = file.lastIndexOf(".");
+            if (dot < 0) continue;
+            if (kinds.indexOf(file.slice(dot + 1).toLowerCase()) < 0) continue;
+            const stem = file.slice(0, dot);
+            if (stem === id + "_icon") { icon = file; continue; }
+            const r = stem === id + "_logo" ? 0
+                    : stem === id ? 1
+                    : stem === id + "p" ? 2 : -1;
+            if (r < 0) continue;
+            rank[file] = r;
+            rest.push(file);
+        }
+        rest.sort((a, b) => rank[a] - rank[b]);
+        return { icon: icon, rest: rest };
+    }
+
+    // Where a file manager would have left its picture of a file. The
+    // name is the md5 of the address, percent-escaped — the standard
+    // is old enough that this is spelled out in it — and the sizes are
+    // tried largest first, since this ends up in a tile and not in a
+    // list.
+    function thumbnailsFor(exe, thumbs) {
+        if (!exe || !thumbs || exe.charAt(0) !== "/") return [];
+        const name = Qt.md5(encodeURI("file://" + exe)) + ".png";
+        return [thumbs + "/x-large/" + name,
+                thumbs + "/large/" + name,
+                thumbs + "/normal/" + name];
+    }
+
+    // The path out of an Exe line, which is a command and not a path:
+    // quoted, and with the game's own arguments after it.
+    function exePath(exe) {
+        if (!exe) return "";
+        const line = exe.trim();
+        const path = line.charAt(0) === '"'
+            ? line.slice(1, line.indexOf('"', 1) < 0 ? undefined
+                                                     : line.indexOf('"', 1))
+            : line.split(" ")[0];
+        return path.charAt(0) === "/" ? path : "";
+    }
+
+    // The first picture of the list that is actually there.
+    function firstArt(cands, exists) {
+        for (const c of cands)
+            if (c.sure || exists[c.p] === true) return c.p;
+        return "";
+    }
+
+    // Which paths are worth asking the disk about: the unconfirmed
+    // ones that could still win, which is those ahead of the first
+    // picture we already know is there. Everything past that one is
+    // settled whatever the answer, and a game whose icon slot is
+    // filled asks nothing at all — which matters once a library has
+    // twenty of these in it and each would otherwise have gone looking
+    // for three thumbnails it was never going to draw.
+    function iconFilesToCheck(found) {
+        const out = [];
+        for (const id in found) {
+            for (const c of found[id].cands) {
+                if (c.sure) break;
+                if (out.indexOf(c.p) < 0) out.push(c.p);
+            }
+        }
+        return out;
+    }
+
+    // And the table again, now that the disk has answered. A new
+    // object rather than the same one changed in place, or nothing
+    // downstream would notice.
+    function withIconFiles(found, exists) {
+        const out = {};
+        for (const id in found)
+            out[id] = { name: found[id].name, cands: found[id].cands,
+                        art: root.firstArt(found[id].cands, exists) };
+        return out;
+    }
+
+    // Valve's binary VDF, as decimal bytes from od.
+    //
+    // A byte says what comes next: 0 opens an object and carries its
+    // name, 1 is a name and a string, 2 is a name and four bytes of
+    // number, 8 closes an object. Only two names are wanted out of the
+    // whole file, so the rest is walked and dropped — but it has to be
+    // walked properly, because the only way to find where a value ends
+    // is to know what kind of value it is. A byte that means nothing
+    // here is where knowing that stops, so this stops with it rather
+    // than reading a length out of somebody's game title.
+    function parseShortcuts(dump) {
+        const b = [];
+        for (const piece of dump.split(/[^0-9]+/))
+            if (piece !== "") b.push(parseInt(piece, 10) & 255);
+
+        const out = {};
+        let i = 0;
+        let id = "", name = "", icon = "", exe = "";
+
+        // Percent escapes and then decodeURIComponent, which is the
+        // one decoder that is certainly there and certainly reads
+        // UTF-8: a game called Bloodborne™ arrives as three bytes and
+        // reading them one at a time would have hung a Â™ on it.
+        function str() {
+            let enc = "";
+            while (i < b.length && b[i] !== 0) {
+                enc += "%" + (b[i] < 16 ? "0" : "") + b[i].toString(16);
+                i++;
+            }
+            i++;
+            try { return decodeURIComponent(enc); } catch (e) { return ""; }
+        }
+
+        function flush() {
+            // The icon is whatever was put in Steam's own Properties
+            // box, which is a path and may well be a path to nothing:
+            // one of the four on the machine this was written for
+            // pointed at C:\Program Files, and another at a file that
+            // had since been deleted. Kept as it stands and checked
+            // later; a Windows path cannot be checked at all, so only
+            // an absolute one is worth carrying.
+            if (id !== "" && name !== "")
+                out[id] = { name: name,
+                            icon: icon.charAt(0) === "/" ? icon : "",
+                            exe: root.exePath(exe) };
+            id = ""; name = ""; icon = ""; exe = "";
+        }
+
+        while (i < b.length) {
+            const type = b[i++];
+            if (type === 8) { flush(); continue; }
+            if (type === 0) { str(); continue; }
+            if (type === 1) {
+                const key = str().toLowerCase();
+                const value = str();
+                if (key === "appname") name = value;
+                else if (key === "icon") icon = value;
+                else if (key === "exe") exe = value;
+                continue;
+            }
+            if (type === 2) {
+                const key = str().toLowerCase();
+                if (i + 4 > b.length) break;
+                const n = b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24);
+                i += 4;
+                // The sign is the point: Steam writes it as a signed
+                // number and the window class carries the unsigned one.
+                if (key === "appid") id = (n >>> 0).toString();
+                continue;
+            }
+            break;
+        }
+        flush();
+        return out;
     }
 
     // Find the application a notification came from.

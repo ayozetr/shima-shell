@@ -158,6 +158,57 @@ function is(what, got, want) {
     is("unchecking one of two leaves the other", store.islandScreens, "DP-1");
 }
 
+// ── A window that calls itself by a longer name ──────────────────
+{
+    const w = load("services/Windows.qml", ["idForClass"], {});
+    w.procIndex = {
+        "samrewritten": "sam-rewritten",
+        "dolphin": "org.kde.dolphin",
+        "org.kde.dolphin": "org.kde.dolphin",
+        "terraria": "terraria"
+    };
+
+    // The one he found: the desktop file says StartupWMClass=samrewritten
+    // and the window announces org.samrewritten.SamRewritten, so nothing
+    // matched and it never reached the dock.
+    is("a reversed-domain class is known by its last segment",
+       w.idForClass("org.samrewritten.samrewritten"), "sam-rewritten");
+
+    // What already worked keeps working: the whole class is tried first.
+    is("and the whole name still wins when it is known",
+       w.idForClass("org.kde.dolphin"), "org.kde.dolphin");
+
+    // A binary is known by its first segment, which is the other half
+    // of this function and must not have changed.
+    is("a binary is still known by its first segment",
+       w.idForClass("terraria.bin.x86_64"), "terraria");
+
+    // And nothing is invented for a name nobody knows.
+    is("an unknown class stays unknown",
+       w.idForClass("com.example.whatever"), undefined);
+
+    // The list of prefixes that mark a reverse domain cannot be
+    // complete: one is free to start with de, page, garden or fyi, and
+    // Flathub is full of those. An unlisted prefix used to be a dead
+    // end; now it misses at the front and is read off the back.
+    w.procIndex["haruna"] = "org.kde.haruna";
+    for (const cls of ["de.haeckerfelix.haruna", "page.codeberg.haruna",
+                       "garden.jamie.haruna", "fyi.zoey.haruna",
+                       "sh.cider.haruna"])
+        is("a reversed domain starting with " + cls.split(".")[0]
+           + " is read the same way", w.idForClass(cls), "org.kde.haruna");
+
+    // A name with one dot and nothing known at the front falls back to
+    // the back, so a two-part class is not a dead end either.
+    is("a single dot is tried at both ends",
+       w.idForClass("flatpak.dolphin"), "org.kde.dolphin");
+
+    // Two letters at either end are too little to go on: "io" and "me"
+    // are prefixes, not applications.
+    is("a segment of two letters is not matched",
+       w.idForClass("io.unknown.zz"), undefined);
+}
+
 // ── An application that was open before it was pinned ────────────
 {
     const entries = {
@@ -712,6 +763,231 @@ function is(what, got, want) {
 
         fs.rmSync(home, { recursive: true, force: true });
     }
+}
+
+// ── Games dragged into Steam rather than installed by it ─────────
+//
+// Steam keeps these in a binary file and keeps the id in it with the
+// wrong sign, so the number in the file and the number on the window
+// are not the same number. That is the one thing here that cannot be
+// seen by looking: a reader that ignored the sign would have produced
+// a perfectly sensible table that matched nothing at all, and the dock
+// would have stayed empty with nothing to show for it.
+{
+    const { execFileSync } = require("child_process");
+    const a = load("services/Apps.qml",
+        ["parseShortcuts", "shortcutsFromScan", "gridArt", "thumbnailsFor",
+         "exePath", "firstArt", "iconFilesToCheck", "withIconFiles"],
+        { Qt: { md5: (s) => require("crypto").createHash("md5")
+                                 .update(s).digest("hex") } });
+
+    // A shortcuts.vdf, written by hand: 0 opens an object, 1 is a
+    // string, 2 is a four byte number, 8 closes.
+    const bytes = [];
+    const put = (...xs) => bytes.push(...xs);
+    const key = (t, k) => { put(t); for (const c of Buffer.from(k, "utf8")) put(c); put(0); };
+    const text = (k, v) => { key(1, k); for (const c of Buffer.from(v, "utf8")) put(c); put(0); };
+    const int = (k, n) => {
+        key(2, k);
+        put(n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255);
+    };
+
+    key(0, "shortcuts");
+      key(0, "0");
+        int("appid", -971936047);
+        text("AppName", "Touge Attack");
+        // Quoted, which is how Steam writes it: it is a command line
+        // and not a path, and the games with a space in the folder are
+        // exactly the ones this has to survive.
+        text("Exe", '"/home/ayoze/Games/Touge Attack/TougeAttackTest.exe"');
+        text("icon", "/home/ayoze/Imágenes/touge.png");
+        key(0, "tags"); text("0", "racing"); put(8);
+      put(8);
+      key(0, "1");
+        int("appid", -1911369838);
+        text("AppName", "Bloodborne\u2122 The Old Hunters");
+        text("icon", "C:\\Program Files (x86)\\Steam\\256x256.png");
+      put(8);
+      key(0, "2");
+        int("appid", 1234567);
+        text("AppName", "Small Positive Id");
+      put(8);
+    put(8, 8);
+
+    // Through od if there is one, because that is what the shell side
+    // actually runs and its spacing is the contract between them.
+    const dump = (() => {
+        try {
+            const fs = require("fs"), os = require("os"), path = require("path");
+            const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "shima-vdf-")),
+                                "shortcuts.vdf");
+            fs.writeFileSync(f, Buffer.from(bytes));
+            const out = execFileSync("od", ["-An", "-v", "-tu1", f], { encoding: "utf8" });
+            fs.unlinkSync(f);
+            return out;
+        } catch (e) {
+            // No od here, so the same thing written out by hand.
+            let s = "";
+            for (let i = 0; i < bytes.length; i += 16)
+                s += bytes.slice(i, i + 16).map(b => String(b).padStart(4)).join("") + "\n";
+            return s;
+        }
+    })();
+
+    const games = a.parseShortcuts(dump);
+
+    // The one that started this: the file says -971936047 and the
+    // window says steam_app_3323031249.
+    is("a negative id is read as the number the window uses",
+       games["3323031249"] && games["3323031249"].name, "Touge Attack");
+    is("and so is the next one along",
+       games["2383597458"] && games["2383597458"].name,
+       "Bloodborne\u2122 The Old Hunters");
+    is("a positive id is left alone",
+       games["1234567"] && games["1234567"].name, "Small Positive Id");
+    is("and nothing else came out of it", Object.keys(games).sort(),
+       ["1234567", "2383597458", "3323031249"]);
+
+    // The name is UTF-8 and is decoded as such. Read one byte at a
+    // time it comes out as Bloodborne\u00c2\u2122, which is what a
+    // person would have seen in the dock.
+    is("a name outside ASCII survives",
+       games["2383597458"].name.indexOf("\u2122") > 0, true);
+
+    // A file that stops in the middle of a value gives back what it
+    // had and does not go looking past the end.
+    is("a truncated file gives up quietly",
+       Object.keys(a.parseShortcuts(dump.split(/\s+/).slice(0, 12).join(" "))).length, 0);
+    is("and so does an empty one", a.parseShortcuts(""), {});
+
+    // Now the whole scan, artwork and all. Steam's pictures are named
+    // after the id, and which one to draw is an order of preference:
+    // the icon slot, then one chosen by hand, then the wordmark, the
+    // header and the poster, and last of all whatever a file manager
+    // already made of the executable.
+    const home = "/home/ayoze/.steam/steam/userdata/883306741/config";
+    const thumbs = "/home/ayoze/.cache/thumbnails";
+    const scan = "@" + home + "\n"
+        + "+3323031249_logo.png\n"
+        + "+3323031249p.jpg\n"
+        + "+3323031249_icon.png\n"
+        + "+3323031249.json\n"
+        + "+2383597458_logo.png\n"
+        + "+2383597458.jpg\n"
+        + dump;
+    const found = a.shortcutsFromScan(scan, thumbs);
+
+    is("the icon slot wins over everything else", found["3323031249"].art,
+       home + "/grid/3323031249_icon.png");
+    is("and the wordmark when there is no icon", found["2383597458"].art,
+       home + "/grid/2383597458_logo.png");
+    is("a game with nothing at all gets nothing made up",
+       found["1234567"].art, "");
+    is("the name comes through the whole way",
+       found["3323031249"].name, "Touge Attack");
+
+    // The .json that sits beside each picture is not a picture.
+    const onlyJson = a.shortcutsFromScan("@/tmp/config\n+1234567.json\n" + dump,
+                                         thumbs);
+    is("a .json is not artwork", onlyJson["1234567"].art, "");
+
+    // Two Steam accounts on one machine are two sections, and a
+    // section with no folder on its first line is not a section.
+    const two = a.shortcutsFromScan(scan + "\n@/tmp/other/config\n"
+        + "+1234567_icon.png\n" + dump, thumbs);
+    is("a second account is read too", two["1234567"].art,
+       "/tmp/other/config/grid/1234567_icon.png");
+    is("and nothing is invented from an empty scan",
+       a.shortcutsFromScan("", thumbs), {});
+
+    // The picture nobody has confirmed yet: the path Steam keeps in
+    // its own Properties box, and the one a file manager may have left
+    // in the shared thumbnail cache. Both are asked about at once.
+    const exe = "/home/ayoze/Games/Touge Attack/TougeAttackTest.exe";
+    const hash = require("crypto").createHash("md5")
+        .update(encodeURI("file://" + exe)).digest("hex");
+
+    is("a Windows path is never a candidate",
+       a.iconFilesToCheck(a.shortcutsFromScan("@" + home + "\n" + dump, thumbs))
+        .indexOf("C:\\Program Files (x86)\\Steam\\256x256.png"), -1);
+
+    const bare = a.shortcutsFromScan("@" + home + "\n" + dump, thumbs);
+    is("the ones worth asking about, in order", a.iconFilesToCheck(bare),
+       ["/home/ayoze/Im\u00e1genes/touge.png",
+        thumbs + "/x-large/" + hash + ".png",
+        thumbs + "/large/" + hash + ".png",
+        thumbs + "/normal/" + hash + ".png"]);
+
+    // Nothing is asked about a game whose icon slot is already filled.
+    is("a filled icon slot asks nothing",
+       a.iconFilesToCheck(a.shortcutsFromScan(
+           "@" + home + "\n+3323031249_icon.png\n" + dump, thumbs))
+        .indexOf("/home/ayoze/Im\u00e1genes/touge.png"), -1);
+
+    // There, so it wins over the wordmark.
+    const withLogo = a.shortcutsFromScan(
+        "@/tmp/config\n+3323031249_logo.png\n" + dump, thumbs);
+    is("an icon chosen by hand beats the wordmark",
+       a.withIconFiles(withLogo, { "/home/ayoze/Im\u00e1genes/touge.png": true })
+        ["3323031249"].art, "/home/ayoze/Im\u00e1genes/touge.png");
+
+    // Not there, so the wordmark stands and nothing else is reached.
+    is("and a path to nothing changes nothing",
+       a.withIconFiles(withLogo, {})["3323031249"].art,
+       "/tmp/config/grid/3323031249_logo.png");
+
+    // With no artwork at all, the executable's own picture. This is
+    // the case that started it: a game added an hour ago, no artwork
+    // anywhere, and its logo sitting inside a .exe where Dolphin had
+    // already been and left a copy.
+    is("the thumbnail of the executable is the last resort",
+       a.withIconFiles(bare, { [thumbs + "/x-large/" + hash + ".png"]: true })
+        ["3323031249"].art, thumbs + "/x-large/" + hash + ".png");
+    is("and a smaller one will do if that is all there is",
+       a.withIconFiles(bare, { [thumbs + "/normal/" + hash + ".png"]: true })
+        ["3323031249"].art, thumbs + "/normal/" + hash + ".png");
+    is("but the wordmark still comes first",
+       a.withIconFiles(a.shortcutsFromScan(
+           "@" + home + "\n+3323031249_logo.png\n" + dump, thumbs),
+           { [thumbs + "/x-large/" + hash + ".png"]: true })["3323031249"].art,
+       home + "/grid/3323031249_logo.png");
+
+    // An Exe line is a command, not a path: quoted, and with the
+    // game's own arguments after it. One of the four on this machine
+    // runs an emulator with the game as an argument.
+    is("a quoted path with spaces comes out whole", a.exePath('"' + exe + '"'), exe);
+    is("and the arguments are left behind",
+       a.exePath('"/opt/shadPS4/shadPS4.exe" -g "/roms/eboot.bin"'),
+       "/opt/shadPS4/shadPS4.exe");
+    is("an unquoted one works too", a.exePath("/usr/bin/thing --flag"), "/usr/bin/thing");
+    is("a Windows path is not a path we can reach",
+       a.exePath('"E:\\Program Files\\shadPS4\\shadPS4.exe"'), "");
+    is("and neither is nothing at all", a.exePath(""), "");
+
+    // And the entry the dock is handed. A picture on disk is not a
+    // name in the icon theme, so it goes in as a url; with no picture
+    // it falls back to a name, because a tile that draws nothing at
+    // all looks like a fault.
+    const e = load("services/Apps.qml", ["steamEntry"], {});
+    e.steamGames = { "105600": "Terraria" };
+    e.steamShortcuts = {
+        "3323031249": { name: "Touge Attack", art: "/tmp/grid/3323031249_icon.png" },
+        "1234567": { name: "No Art", art: "" }
+    };
+
+    is("an installed game still comes from its manifest",
+       e.steamEntry("steam_app_105600").icon, "steam_icon_105600");
+    const shortcut = e.steamEntry("steam_app_3323031249");
+    is("a hand-added game carries its picture as a file",
+       shortcut.iconUrl, "file:///tmp/grid/3323031249_icon.png");
+    is("and no name in the theme, which has none for it",
+       shortcut.icon, "");
+    is("its name is its own", shortcut.name, "Touge Attack");
+    is("it is launched like any other Steam game", shortcut.appId, "3323031249");
+    is("with no picture it wears a generic one",
+       e.steamEntry("steam_app_1234567").icon, "applications-games");
+    is("and a game nobody has heard of is still nobody",
+       e.steamEntry("steam_app_999"), null);
 }
 
 // ── The clock under what is playing ──────────────────────────────
