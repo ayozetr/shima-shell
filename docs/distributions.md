@@ -45,6 +45,20 @@ Removing Plasma's panels does not settle it — `plasmashell` holds the
 service whether it is showing a panel or not. Stopping `plasmashell`
 hands it to Shima straight away.
 
+## Tray icons from Windows programs
+
+A program running under Wine or Proton — Ubisoft Connect, the EA app,
+Battle.net — does not put its icon in the tray itself. Wine's own
+`explorer.exe` does, the old X11 way, and KDE bridges that across. There
+is no menu published anywhere in that chain, so a right click has to be
+passed back down it for the program to draw its own.
+
+Shima does that, and it mostly works. Two things to expect: the menu
+appears where Wine decides to put it, which is not necessarily beside
+the dock, and the first click sometimes shows the program's name
+instead of its menu. Clicking again brings the menu up. Both happen
+inside Wine, below anything Shima can reach.
+
 ## NixOS
 
 Declare Quickshell and kdotool in your configuration rather than

@@ -14,6 +14,16 @@ Since there is no public API here, that means:
 
 ## [Unreleased]
 
+### Fixed
+
+- Right clicking a tray icon that belongs to a Windows program running
+  under Wine — Ubisoft Connect, the EA app, Battle.net — did nothing at
+  all. Those icons come through a bridge that publishes no menu, and
+  the shell gave up there instead of asking the icon to draw its own.
+  The menu appears where Wine decides to put it, and the first click
+  sometimes shows the program's name rather than the menu; both are
+  below anything Shima can reach.
+
 ## [0.5.0] — 2026-09-27
 
 The release where Shima stops assuming it is on the machine it was

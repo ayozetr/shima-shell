@@ -930,7 +930,7 @@ do_install() {
     mkdir -p "$SHARE/docs"
     cp "$SRC/docs/settings.md" "$SHARE/docs/" 2>/dev/null || true
     chmod +x "$SHARE/helper/shima-shortcuts" "$SHARE/helper/shima-games" \
-        2>/dev/null || true
+        "$SHARE/helper/shima-tray-menu" 2>/dev/null || true
 
     cp "$SRC/shima" "$BIN"
     chmod +x "$BIN"

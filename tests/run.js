@@ -990,6 +990,66 @@ function is(what, got, want) {
        e.steamEntry("steam_app_999"), null);
 }
 
+// ── A tray icon that has no menu to give ─────────────────────────
+//
+// Two kinds of icon and one of them hands us nothing. Most programs
+// publish a menu over DBusMenu and Quickshell gives it to us ready to
+// show; a Windows program under Wine arrives through a bridge that has
+// no menu on the bus at all and expects to be asked instead. Shima used
+// to give up on the second kind without a word.
+//
+// What matters here is that the first kind did not change: it is every
+// tray icon anybody has, and it goes through the same call it always
+// did.
+{
+    const calls = [];
+    const t = load("components/TrayItem.qml", ["showMenu"], {
+        Quickshell: { execDetached: (argv) => calls.push(argv) }
+    });
+    t.width = 30;
+    t.dockWindow = { name: "dock" };
+    t.helper = "/opt/shima/helper/shima-tray-menu";
+    t.mapToItem = () => ({ x: 100, y: 200 });
+    t.mapToGlobal = () => ({ x: 640.4, y: 1399.6 });
+
+    // The ordinary kind: shown by Quickshell, and nothing is run.
+    let shown = null;
+    t.item = { hasMenu: true, id: "discord_status_icon_1",
+               display: (w, x, y) => { shown = [w.name, x, y]; } };
+    t.showMenu();
+    is("an icon with a menu is still shown the way it always was",
+       shown, ["dock", 100, 200]);
+    is("and nothing is run for it", calls.length, 0);
+
+    // The bridged kind: asked through the helper, with the icon's
+    // place on screen rounded to whole pixels because it goes on a
+    // command line.
+    t.item = { hasMenu: false, id: "71303180", display: () => {} };
+    t.showMenu();
+    is("an icon with no menu is asked through the helper", calls,
+       [["/opt/shima/helper/shima-tray-menu", "71303180", "640", "1400"]]);
+
+    // And every way of having nothing to ask is a quiet no.
+    calls.length = 0;
+    t.item = null;
+    t.showMenu();
+    t.item = { hasMenu: false, id: "", display: () => {} };
+    t.showMenu();
+    t.item = { hasMenu: false, id: "71303180", display: () => {} };
+    t.helper = "";
+    t.showMenu();
+    is("no item, no id or no helper runs nothing at all", calls.length, 0);
+
+    // A window that is not there yet is not a reason to run the helper
+    // for an icon that has a menu of its own.
+    t.helper = "/opt/shima/helper/shima-tray-menu";
+    t.dockWindow = null;
+    t.item = { hasMenu: true, id: "discord_status_icon_1", display: () => {} };
+    t.showMenu();
+    is("and an icon with a menu waits for the dock rather than falling through",
+       calls.length, 0);
+}
+
 // ── The clock under what is playing ──────────────────────────────
 //
 // Read against Spotify, which reports 251.217 seconds for a track its

@@ -80,11 +80,47 @@ Item {
 
     // The application's own menu, shown natively: rebuilding it here
     // would mean reimplementing every app's entries and their state.
+    //
+    // Two kinds of icon, and only one of them hands us a menu. An
+    // application can publish one over DBusMenu, which is what most
+    // native programs do and what `display` shows. Or it can publish
+    // none and expect to be asked through its own `ContextMenu`
+    // method, drawing the menu itself — which is how every Windows
+    // program under Wine arrives, its icon owned by Wine's explorer
+    // and bridged into the tray by xembedsniproxy.
+    //
+    // This used to give up on the second kind without a word: right
+    // clicking Ubisoft Connect did nothing at all, with nothing to
+    // suggest why. Quickshell does not expose `ContextMenu`, so the
+    // asking is done by a helper — `gi` is already required for the
+    // shortcuts and Gio speaks D-Bus.
+    //
+    // Where the menu appears is then the application's own business.
+    // Wine puts it where it likes, which is not necessarily beside the
+    // dock, and there is nothing to be done about that from here.
     function showMenu() {
-        if (!root.item || !root.item.hasMenu || !root.dockWindow) return;
-        const p = root.mapToItem(null, root.width / 2, 0);
-        root.item.display(root.dockWindow, p.x, p.y);
+        if (!root.item) return;
+
+        if (root.item.hasMenu) {
+            if (!root.dockWindow) return;
+            const p = root.mapToItem(null, root.width / 2, 0);
+            root.item.display(root.dockWindow, p.x, p.y);
+            return;
+        }
+
+        if (root.helper === "" || !root.item.id) return;
+        const g = root.mapToGlobal(root.width / 2, 0);
+        Quickshell.execDetached([root.helper, root.item.id,
+                                 String(Math.round(g.x)),
+                                 String(Math.round(g.y))]);
     }
+
+    // Detached and not watched, because there is nothing to wait for
+    // and nothing it could tell us that we would act on: the helper is
+    // silent by design and the menu, if it comes, is drawn by somebody
+    // else's process.
+    readonly property string helper:
+        Paths.dataDir !== "" ? Paths.dataDir + "/helper/shima-tray-menu" : ""
 
     ToolTipLabel {
         show: ma.containsMouse && (Config.data.showAppNames ?? true)
