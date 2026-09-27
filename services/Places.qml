@@ -22,6 +22,16 @@ Singleton {
         watchChanges: true
         onFileChanged: reload()
         onLoaded: root.parse(file.text())
+        // KDE's own bookmarks, which a desktop that nobody has put a
+        // folder in yet simply does not have. Same as the three of
+        // ours next door: missing is an answer, anything else is not.
+        // This one was not in the audit's list -- it turned up on a
+        // clean HOME while checking that the other three had gone.
+        printErrors: false
+        onLoadFailed: (error) => {
+            if (error !== FileViewError.FileNotFound)
+                console.warn("shima: could not read", root.path);
+        }
     }
 
     function refresh() { file.reload(); }

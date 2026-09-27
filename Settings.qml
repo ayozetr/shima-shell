@@ -56,12 +56,21 @@ FloatingWindow {
     property string page: "general"
     onPageChanged: flick.contentY = 0
 
-    // Closing with the keyboard, from wherever the focus is. The list
-    // that opens inside the general page swallows this while it is
-    // open, so the first press closes the list and the second the
-    // window — which is the order anyone expects.
+    // Closing with the keyboard, from wherever the focus is.
+    //
+    // It used to say here that the list open in the general page
+    // swallows this first, so one press closes the list and the next
+    // the window. That was written without being tried and it was not
+    // true: Qt hands shortcuts out ahead of key events, so this fired
+    // first and took the whole window, and the escape branches in the
+    // list and in the shortcut capture box were dead code.
+    //
+    // They claim the key now, in Keys.onShortcutOverride, which is the
+    // one place an item with the focus can say a key is its own. So
+    // the order above is what happens, and for the reason given.
     Shortcut {
         sequences: ["Escape"]
+        enabled: !SettingsWindow.listOpen && !SettingsWindow.capturing
         onActivated: SettingsWindow.hide()
     }
 

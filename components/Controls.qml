@@ -546,6 +546,15 @@ Item {
             // need the escape key.
         }
 
+        // Same as the list next door: while this is listening, every
+        // key belongs to it, Escape included. Without saying so the
+        // window's own Escape shortcut fired first and closed the
+        // whole window instead of cancelling the capture, which made
+        // the branch below dead code.
+        Keys.onShortcutOverride: (event) => {
+            if (cap.listening) event.accepted = true;
+        }
+
         Keys.onPressed: (event) => {
             if (!cap.listening) return;
             event.accepted = true;
@@ -600,22 +609,37 @@ Item {
             cap.tookFromOurs = took.ours;
         }
 
+        // Spelled the way KDE spells them, which is the way Qt does:
+        // Del, Esc, Ins, PgUp, PgDown, Return. Not a matter of taste.
+        // Whether a combination is already taken is decided by looking
+        // the text of it up among the ones KDE has written down, so
+        // `Ctrl+Alt+Delete` never found the `Ctrl+Alt+Del` sitting in
+        // kglobalshortcutsrc and we took the key without a word. His
+        // own file has Del, Esc, PgUp and PgDown in it.
+        //
+        // And the label is the other half: it is what the settings
+        // window shows, so it should read like the one Plasma shows
+        // for the same key.
         function nameOf(key, text) {
             if (key >= Qt.Key_F1 && key <= Qt.Key_F35)
                 return "F" + (key - Qt.Key_F1 + 1);
             switch (key) {
-                case Qt.Key_Space:  return "Space";
+                case Qt.Key_Space:    return "Space";
                 case Qt.Key_Return:
-                case Qt.Key_Enter:  return "Enter";
-                case Qt.Key_Tab:    return "Tab";
+                case Qt.Key_Enter:    return "Return";
+                case Qt.Key_Tab:      return "Tab";
                 case Qt.Key_Backspace: return "Backspace";
-                case Qt.Key_Delete: return "Delete";
-                case Qt.Key_Home:   return "Home";
-                case Qt.Key_End:    return "End";
-                case Qt.Key_Up:     return "Up";
-                case Qt.Key_Down:   return "Down";
-                case Qt.Key_Left:   return "Left";
-                case Qt.Key_Right:  return "Right";
+                case Qt.Key_Delete:   return "Del";
+                case Qt.Key_Insert:   return "Ins";
+                case Qt.Key_Escape:   return "Esc";
+                case Qt.Key_PageUp:   return "PgUp";
+                case Qt.Key_PageDown: return "PgDown";
+                case Qt.Key_Home:     return "Home";
+                case Qt.Key_End:      return "End";
+                case Qt.Key_Up:       return "Up";
+                case Qt.Key_Down:     return "Down";
+                case Qt.Key_Left:     return "Left";
+                case Qt.Key_Right:    return "Right";
             }
             if (key >= 0x20 && key <= 0x7e) return String.fromCharCode(key).toUpperCase();
             return text ? text.toUpperCase() : "?";
@@ -717,6 +741,13 @@ Item {
         // to the end on every keystroke.
         onValueChanged: if (!input.activeFocus) input.text = field.value
 
+        // Say it now if there is anything waiting to be said.
+        function flush() {
+            if (!settle.running) return;
+            settle.stop();
+            field.edited(input.text);
+        }
+
         TextInput {
             id: input
             anchors.fill: parent
@@ -734,7 +765,26 @@ Item {
             Accessible.name: field.describedAs
             Accessible.description: input.text
 
-            onTextChanged: if (activeFocus) field.edited(text)
+            // Once you stop typing, not once per keystroke. Whoever
+            // listens to this writes the settings file, and the
+            // shortcut helper watches that file: typing
+            // `org.kde.plasma-systemmonitor` was 29 writes and 29
+            // rereads for one value. The same 450 ms the locality
+            // search next door waits.
+            onTextChanged: if (activeFocus) settle.restart()
+
+            // Leaving the box beats the clock. Otherwise typing and
+            // clicking straight out of it -- or closing the window --
+            // threw away the last thing typed, which is the one thing
+            // a box like this must never do.
+            onActiveFocusChanged: if (!activeFocus) field.flush()
+            onAccepted: field.flush()
+
+            Timer {
+                id: settle
+                interval: 450
+                onTriggered: field.edited(input.text)
+            }
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter

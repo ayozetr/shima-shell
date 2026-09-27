@@ -30,8 +30,16 @@ Singleton {
         // defaults. Each control calls save() when it should.
         // First run: dump the defaults so the JSON exists and can be
         // edited by hand.
+        // A first run has none of these files, and there is nothing
+        // wrong with that: they do not exist because nothing has
+        // written them yet. The warning printed for it was the first
+        // thing anybody saw in the log after installing, and it read
+        // like a fault. Silenced here and answered below, where a
+        // missing file is an answer and anything else is worth saying.
+        printErrors: false
         onLoadFailed: (error) => {
             if (error === FileViewError.FileNotFound) writeAdapter();
+            else console.warn("shima: could not read", root.path);
             // Nothing to read is still an answer: the defaults are
             // what there is, and whoever was waiting can get on.
             if (!root.loaded) { root.loaded = true; root.ready(); }

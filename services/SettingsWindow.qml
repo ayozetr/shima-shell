@@ -16,6 +16,17 @@ Singleton {
     // them.
     property bool capturing: false
 
+    // And whether a dropdown inside the window is unfolded. The
+    // window closes on Escape, and Qt hands shortcuts out ahead of key
+    // events, so that shortcut used to take the whole window while a
+    // list was open -- the first press should fold the list.
+    //
+    // Said here rather than claimed with Keys.onShortcutOverride in
+    // the list itself, which is the tidier idea and does not work:
+    // tried on 27 September and Escape still closed the window. A flag
+    // the shortcut can read is plain and does.
+    property bool listOpen: false
+
     // Said out loud in the runtime directory, because the one that has
     // to know is the shortcut helper — a process of its own, which
     // takes our keys out of KDE's hands while this is up so that they

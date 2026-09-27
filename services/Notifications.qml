@@ -185,7 +185,13 @@ Singleton {
             key: ++root.serial,
             id: n.id,
             appName: n.appName || "",
-            summary: n.summary || "",
+            // Flattened like the body below, and for the same reason
+            // as everything else here: a summary is a one-line title
+            // by the spec, but nothing stops a sender putting a
+            // newline in it, and a Text honours newlines even with
+            // elide on. One arriving from KDE Connect made the island
+            // strip grow a second line inside a panel of fixed height.
+            summary: (n.summary || "").replace(/\s+/g, " ").trim(),
             body: n.body || "",
             // Cleaned once here rather than in the bindings that draw
             // it: the list re-evaluates on every change, and running

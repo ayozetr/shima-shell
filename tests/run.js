@@ -1208,6 +1208,75 @@ function is(what, got, want) {
        found.filter(([, name]) => taken.indexOf(name) !== -1), []);
 }
 
+// ── Keys spelled the way KDE spells them ─────────────────────────
+//
+// Whether a combination is already taken is decided by looking its
+// text up among the ones KDE has written in kglobalshortcutsrc. So the
+// spelling is not cosmetic: `Ctrl+Alt+Delete` never found the
+// `Ctrl+Alt+Del` sitting in that file, and the warning that the key
+// belongs to somebody else never came. The names below were read out
+// of a real one.
+{
+    const Qt = {
+        Key_Escape: 0x01000000, Key_Tab: 0x01000001,
+        Key_Backspace: 0x01000003, Key_Return: 0x01000004,
+        Key_Enter: 0x01000005, Key_Insert: 0x01000006,
+        Key_Delete: 0x01000007, Key_Home: 0x01000010,
+        Key_End: 0x01000011, Key_Left: 0x01000012, Key_Up: 0x01000013,
+        Key_Right: 0x01000014, Key_Down: 0x01000015,
+        Key_PageUp: 0x01000016, Key_PageDown: 0x01000017,
+        Key_Space: 0x20, Key_F1: 0x01000030, Key_F35: 0x01000052
+    };
+    const c = load("components/Controls.qml", ["nameOf"], { Qt: Qt });
+
+    const asKde = [
+        [Qt.Key_Delete, "Del"], [Qt.Key_Escape, "Esc"],
+        [Qt.Key_PageUp, "PgUp"], [Qt.Key_PageDown, "PgDown"],
+        [Qt.Key_Return, "Return"], [Qt.Key_Enter, "Return"],
+        [Qt.Key_Insert, "Ins"]
+    ];
+    for (const [key, want] of asKde)
+        is("the key KDE calls " + want + " is called that here",
+           c.nameOf(key, ""), want);
+
+    // The ones that were already right, so that fixing the others did
+    // not quietly change them.
+    const unchanged = [
+        [Qt.Key_Space, "Space"], [Qt.Key_Tab, "Tab"],
+        [Qt.Key_Backspace, "Backspace"], [Qt.Key_Home, "Home"],
+        [Qt.Key_End, "End"], [Qt.Key_Up, "Up"], [Qt.Key_Down, "Down"],
+        [Qt.Key_Left, "Left"], [Qt.Key_Right, "Right"]
+    ];
+    for (const [key, want] of unchanged)
+        is(want + " is still " + want, c.nameOf(key, ""), want);
+
+    is("the function keys count from one", c.nameOf(Qt.Key_F1, ""), "F1");
+    is("and keep counting", c.nameOf(Qt.Key_F1 + 11, ""), "F12");
+    is("a letter is a capital letter", c.nameOf(0x61, "a"), "A");
+    is("and anything else falls back to what was typed",
+       c.nameOf(0x01ffffff, "ñ"), "\u00d1");
+}
+
+// ── Text from somebody else's machine ────────────────────────────
+//
+// A Text honours a newline even with elide on, so one inside a track
+// title takes two lines in a panel that has room for one and pushes
+// the transport out of it. Real data from an Android phone over KDE
+// Connect, which is where this was found.
+{
+    const m = load("components/MediaMode.qml", ["oneLine"], {});
+
+    is("a newline in the middle is flattened",
+       m.oneLine("BEJO\n Sume Beats"), "BEJO Sume Beats");
+    is("and so are tabs and runs of spaces",
+       m.oneLine("Aphex\t\tTwin   \u2014   Xtal"), "Aphex Twin \u2014 Xtal");
+    is("the edges are trimmed", m.oneLine("  Boards of Canada \n"),
+       "Boards of Canada");
+    is("nothing stays nothing", m.oneLine(""), "");
+    is("and neither undefined nor null becomes the word for it",
+       [m.oneLine(undefined), m.oneLine(null)], ["", ""]);
+}
+
 // ── A capture marker nobody cleaned up ───────────────────────────
 //
 // While the settings window waits for a key the shell writes a marker

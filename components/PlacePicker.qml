@@ -33,58 +33,32 @@ Column {
         }
     }
 
-    Rectangle {
-        width: parent.width
-        height: 30
-        radius: 8
-        color: "#14ffffff"
-        border.width: 1
-        border.color: search.activeFocus ? Theme.accent : "#1affffff"
+    SearchField {
+        id: search
+        describedAs: I18n.t.searchPlace
+        // The place you already have belongs here rather than a
+        // prompt: it is an answer, so it is shown as one.
+        placeholder: Weather.place || I18n.t.searchPlace
+        placeholderMuted: Weather.place !== ""
+        // Three letters, because a town search on one or two answers
+        // with the world.
+        minLength: 3
+        count: root.shown.length
+        // The mark lives in the field, because the arrows that move it
+        // are in the field. This only mirrors it out for the rows to
+        // draw and for return to act on -- binding it both ways would
+        // be a loop whose first half dies the moment an arrow is
+        // pressed, which is a worse kind of working.
+        onPickChanged: root.pick = pick
 
-        TextInput {
-            id: search
-            anchors.fill: parent
-            anchors.leftMargin: 10
-            anchors.rightMargin: 10
-            verticalAlignment: TextInput.AlignVCenter
-            color: Theme.textPrimary
-            font.pixelSize: 12
-            clip: true
-            selectByMouse: true
-            activeFocusOnTab: true
-
-            Accessible.role: Accessible.EditableText
-            Accessible.name: I18n.t.searchPlace
-
-            // Deleting back down to two letters used to leave the
-            // timer running, and a moment later a search went out for
-            // the text that had just been erased.
-            onTextChanged: {
-                root.pick = 0;
-                if (text.length >= 3) debounce.restart();
-                else { debounce.stop(); Weather.clearSearch(); }
-            }
-
-            // The arrows walk the towns found without leaving the box.
-            // Return takes the marked one, and asks again only when
-            // there is nothing to take — which is what it did before,
-            // and is still what you want after typing a name the
-            // search has not answered for yet.
-            Keys.onDownPressed:
-                root.pick = Math.min(root.shown.length - 1, root.pick + 1)
-            Keys.onUpPressed: root.pick = Math.max(0, root.pick - 1)
-            Keys.onReturnPressed: {
-                if (root.shown.length) root.choose(root.shown[root.pick]);
-                else Weather.lookup(text);
-            }
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: search.text === "" && !search.activeFocus
-                text: Weather.place || I18n.t.searchPlace
-                color: Weather.place ? Theme.textSecondary : Theme.textTertiary
-                font.pixelSize: 12
-            }
+        onSettled: (text) => Weather.lookup(text)
+        onCleared: Weather.clearSearch()
+        // Return takes the marked one, and asks again only when there
+        // is nothing to take — which is what you want after typing a
+        // name the search has not answered for yet.
+        onTaken: {
+            if (root.shown.length) root.choose(root.shown[root.pick]);
+            else Weather.lookup(search.text);
         }
     }
 
@@ -96,15 +70,8 @@ Column {
         if (!place) return;
         Weather.setPlace(place);
         Weather.clearSearch();
-        search.text = "";
-        search.focus = false;
-    }
-
-    // Don't fire a request on every keystroke.
-    Timer {
-        id: debounce
-        interval: 450
-        onTriggered: Weather.lookup(search.text)
+        search.clear();
+        search.input.focus = false;
     }
 
     Column {
@@ -119,7 +86,7 @@ Column {
                 required property var modelData
                 required property int index
                 readonly property bool marked:
-                    index === root.pick && search.activeFocus
+                    index === root.pick && search.input.activeFocus
 
                 width: parent.width
                 height: 28
