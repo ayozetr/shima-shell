@@ -43,7 +43,12 @@ Item {
             anchors.top: parent.top
             anchors.topMargin: 10
             width: 40; height: 40
-            source: (root.entry && root.entry.icon)
+            // A made-up entry may carry a file instead of a name in
+            // the theme — a game added to Steam by hand wears Steam's
+            // own artwork, which is a picture on disk and nothing else.
+            source: (root.entry && root.entry.iconUrl)
+                ? root.entry.iconUrl
+                : (root.entry && root.entry.icon)
                 ? Quickshell.iconPath(root.entry.icon, "application-x-executable")
                 : ""
             asynchronous: true

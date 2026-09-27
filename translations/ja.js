@@ -148,6 +148,10 @@ var strings = {
     secLocation: "場所",
     secColour: "色",
     secLanguage: "言語",
+    secSession: "セッション",
+    autostart: "システムと一緒に起動",
+    autostartHint: "ログイン時に Shima が自動で開きます",
+    autostartNoPath: "インストール済みのランチャーからのみ",
 
     notificationsEnabled: "通知サーバー",
     notificationsEnabledHint: "Plasma がサービスを解放するとすぐに Shima が引き継ぎます",
@@ -177,7 +181,7 @@ var strings = {
     hideDelay: "隠すまでの遅延",
     opacity: "透明度",
     blur: "背景のぼかし",
-    blurHint: "KWin の ext_background_effect を使用します",
+    blurHint: "ext_background_effect を使用します。Plasma 6.7 以降が必要です",
     blurIslandHint: "透明度を下げた場合にのみ表示されます",
     cornerRadius: "角の丸み",
 

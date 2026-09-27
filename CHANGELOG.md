@@ -14,6 +14,96 @@ Since there is no public API here, that means:
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-27
+
+The release where Shima stops assuming it is on the machine it was
+written on. All of it comes from installing it on seven other
+distributions and writing down what broke.
+
+### Added
+
+- The installer installs Quickshell too, instead of printing the line
+  you had to run yourself: the PPA on Ubuntu and its derivatives, the
+  COPR on Fedora, backports on Debian, nixpkgs on NixOS, and on
+  openSUSE the two lines for your version, printed and left for you to
+  run because that repository is a stranger's.
+- Whether Shima starts with the session is a switch in Settings ·
+  General. It used to be a flag on a command line most people never
+  type.
+- Games you dragged into Steam yourself now reach the dock, with the
+  name Steam knows them by and whatever artwork it has for them. They
+  have no desktop file and no manifest, so they were invisible while
+  you were playing them.
+- [docs/distributions.md](docs/distributions.md) — which distributions
+  it has been run on, what happens on each, and the three questions
+  people ask: why there is no blur, why the settings window will not
+  open on Debian, and why notifications sometimes keep going to Plasma.
+
+### Changed
+
+- It looks the same everywhere now. The panels are solid and untinted
+  by default rather than translucent, because translucency without
+  blur is not the same effect — and blur needs Plasma 6.7, which most
+  distributions do not have yet.
+- The seven icons down the side of the settings window ship with
+  Shima. Asked of the icon theme, they came out as dark glyphs on a
+  dark sidebar on a stock Breeze, and three of them arrived in full
+  colour.
+- The settings window is built when you open it and not before. It
+  used to be created with the shell and kept hidden, on every machine,
+  whether or not anyone opened it.
+- The launcher tells a crash from a stop. A shell that crashes comes
+  back instead of leaving you with a bare desktop.
+
+### Fixed
+
+- Shima did not start at all on Qt 6.10: `long` is a word JavaScript
+  keeps for itself, and a file that parsed here refused to parse
+  there.
+- Debian 13 could not run it at all — it crashed while building the
+  settings window, inside Qt's own machinery.
+- An application whose window announces a name in reverse domain form
+  while its desktop file gives the short one was missing from the
+  dock, and clicking it started a second copy rather than raising the
+  first.
+- An application pinned after the first sweep sat in the dock twice.
+- The screens section of the settings was missing on a machine with
+  one monitor, which is the machine most likely to have one.
+- A long category name pushed the launcher's list out of shape.
+- The island drew the album art before it had finished opening.
+- The "do not disturb" tooltip was cut off.
+- Shima's own icon was missing from the dock, the settings window and
+  the about page on a machine where it was not yet in the icon theme.
+- Uninstalling left `~/.cache/shima` behind whenever the shell had
+  been stopped first — which is what anyone does, and what a crash
+  does for you.
+- `--purge` on its own installed instead of saying it needs
+  `--uninstall`.
+- The installer died in silence on KDE Neon, where the one branch that
+  had an explanation to give was the one that ended the script.
+- On NixOS it asked for the wrong attribute, could not find the
+  running shell because the process is named after a wrapper, and left
+  it running out of deleted files with the Meta key still taken.
+- Five more things the installer took for granted: no git, no curl, a
+  DVD left in `sources.list`, a `/dev/tty` that opens but answers
+  nothing, and a `~/.local/bin` that a login session had already
+  decided about.
+
+### Known issues
+
+- **Debian 13** runs the shell but cannot open the settings window:
+  its Qt is 6.8, and the same window opens on Qt 6.11 with the very
+  same Quickshell. Debian freezes Qt until Debian 14. Everything is
+  settable by hand in the meantime — see
+  [docs/settings.md](docs/settings.md).
+- **KDE Neon** has no Quickshell to install: nobody builds it for
+  Ubuntu 24.04, which is its base. Built by hand, everything works.
+- **Notifications** go to whoever asked for the service first, and
+  Plasma asks too. Which one wins varies by machine, and removing
+  Plasma's panels does not settle it.
+- Blur needs **Plasma 6.7** or newer. Below that the panels are drawn
+  solid, which is what they are by default anyway.
+
 ## [0.4.0] — 2026-09-25
 
 ### Added

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Window
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Widgets
 import "services"
@@ -36,14 +37,21 @@ FloatingWindow {
     title: I18n.t.settingsWindowTitle
     color: "#0e0e0e"
 
+    // The icon of each page is a file of ours under assets/pages, not a
+    // name handed to the icon theme. Asking the theme meant the sidebar
+    // looked like a different window on every machine: the same seven
+    // names came out as dark line glyphs on a stock Breeze — all but
+    // invisible here — and light ones under Papirus, which inherits
+    // breeze-dark, with three of them arriving in full colour on top.
+    // The files are named after the page, so this list stays readable.
     readonly property var pages: [
-        { id: "general",  label: I18n.t.pageGeneral,  icon: "preferences-desktop" },
-        { id: "dock",     label: I18n.t.pageDock,     icon: "computer" },
-        { id: "launcher", label: I18n.t.pageLauncher, icon: "view-grid" },
-        { id: "island",   label: I18n.t.pageIsland,   icon: "view-media-visualization" },
-        { id: "notifications", label: I18n.t.pageNotifications, icon: "preferences-desktop-notification" },
-        { id: "weather",  label: I18n.t.pageWeather,  icon: "weather-clear" },
-        { id: "about",    label: I18n.t.pageAbout,    icon: "help-about" }
+        { id: "general",  label: I18n.t.pageGeneral },
+        { id: "dock",     label: I18n.t.pageDock },
+        { id: "launcher", label: I18n.t.pageLauncher },
+        { id: "island",   label: I18n.t.pageIsland },
+        { id: "notifications", label: I18n.t.pageNotifications },
+        { id: "weather",  label: I18n.t.pageWeather },
+        { id: "about",    label: I18n.t.pageAbout }
     ]
     property string page: "general"
     onPageChanged: flick.contentY = 0
@@ -158,15 +166,34 @@ FloatingWindow {
                                    : (tab.containsMouse ? "#14ffffff" : "transparent")
                     Behavior on color { ColorAnimation { duration: Theme.hoverDuration } }
 
-                    IconImage {
+                    // Painted, not used as it comes. The files are
+                    // white, which is right on the dark rows and wrong
+                    // on the accented one, and `brightness` keeps the
+                    // alpha while flattening the colour — so the same
+                    // file reads on both.
+                    Image {
                         id: tabIcon
                         anchors.left: parent.left
                         anchors.leftMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
                         width: 16
                         height: 16
-                        source: Quickshell.iconPath(parent.modelData.icon, true)
-                        opacity: parent.current ? 1 : 0.7
+                        sourceSize.width: 16
+                        sourceSize.height: 16
+                        source: "file://" + Paths.programDir + "/assets/pages/"
+                                + pageButton.modelData.id + ".svg"
+                        visible: false
+                    }
+
+                    MultiEffect {
+                        anchors.fill: tabIcon
+                        source: tabIcon
+                        // Not a fixed black: a dark accent takes white
+                        // text on top, and the icon has to follow it.
+                        brightness: pageButton.current
+                                    ? (Theme.accentText.r > 0.5 ? 1 : -1)
+                                    : 1
+                        opacity: pageButton.current ? 1 : 0.7
                     }
 
                     Text {

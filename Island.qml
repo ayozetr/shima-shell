@@ -365,6 +365,18 @@ PanelWindow {
             anchors.topMargin: 28
             opacity: win.expanded ? 1 : 0
             visible: opacity > 0
+            // The box grows over 420ms and this fades in over 160, so
+            // for a quarter of a second the contents are already solid
+            // while the island is still half its height — and what
+            // does not fit is drawn outside it, hanging in the air.
+            // The album art is the one you see, being the largest
+            // thing in the first mode. Clipped, the island opens like
+            // a drawer instead.
+            //
+            // Only while it moves, though. The tooltips of the control
+            // mode are drawn past this box on purpose, and clipping
+            // for good cut "No molestar" down to "No mol".
+            clip: shell.height < win.expandedHeight - 1
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
 
             // Each mode slides in from the direction of the scroll.

@@ -148,6 +148,10 @@ var strings = {
     secLocation: "LOCATION",
     secColour: "COLOUR",
     secLanguage: "LANGUAGE",
+    secSession: "SESSION",
+    autostart: "Start with the system",
+    autostartHint: "Shima opens on its own when you log in",
+    autostartNoPath: "Only from the installed launcher",
 
     notificationsEnabled: "Notification server",
     notificationsEnabledHint: "Shima takes over as soon as Plasma releases the service",
@@ -177,7 +181,7 @@ var strings = {
     hideDelay: "Delay before hiding",
     opacity: "Opacity",
     blur: "Background blur",
-    blurHint: "Uses KWin's ext_background_effect",
+    blurHint: "Uses ext_background_effect: needs Plasma 6.7 or newer",
     blurIslandHint: "Only shows if you lower the opacity",
     cornerRadius: "Corner radius",
 

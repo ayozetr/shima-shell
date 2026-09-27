@@ -69,5 +69,22 @@ ShellRoot {
     }
 
     // A single settings window, not one per screen.
-    Settings {}
+    // Built when it is asked for, and not before.
+    //
+    // The settings window used to be created with the shell and simply
+    // kept hidden: every page of it, every control, on every machine,
+    // whether or not anyone ever opened it. On Debian 13 that was
+    // fatal — the shell segfaulted inside Qt while building the
+    // general page and took the dock and the island with it, on a
+    // machine that is otherwise perfectly able to run all three.
+    // Built on demand, Shima starts there and works; only the window
+    // itself is out of reach.
+    //
+    // It is the right shape anyway. Nothing should be built for a
+    // window nobody has opened.
+    LazyLoader {
+        active: SettingsWindow.open
+        Settings {}
+    }
 }
+

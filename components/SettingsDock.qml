@@ -67,7 +67,7 @@ Column {
         label: I18n.t.opacity
         Controls.Slider_ {
             from: 0.2; to: 1; step: 0.01
-            value: root.c.dockOpacity ?? 0.8
+            value: root.c.dockOpacity ?? 1.0
             onMoved: (v) => { root.c.dockOpacity = v; Config.save(); }
         }
     }
@@ -77,7 +77,7 @@ Column {
         hint: I18n.t.blurHint
         Controls.Toggle_ {
             anchors.right: parent.right
-            checked: root.c.dockBlur ?? true
+            checked: root.c.dockBlur ?? false
             onToggled: (v) => { root.c.dockBlur = v; Config.save(); }
         }
     }

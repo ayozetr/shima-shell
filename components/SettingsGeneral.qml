@@ -13,20 +13,26 @@ Column {
     readonly property var c: Config.data
 
     // ── SCREENS ─────────────────────────────────────────
+    // Shown even with a single monitor. It used to take two before
+    // this appeared, on the grounds that there is nothing to choose
+    // between with one — but the row is also where the island and the
+    // dock are switched off for that screen, so hiding it left the one
+    // kind of machine that most people have with no way to turn either
+    // of them off from here.
     Controls.Section_ {
         text: I18n.t.secScreens
-        visible: Quickshell.screens.length > 1
+        visible: Quickshell.screens.length > 0
     }
 
     ScreenPicker {
         width: parent.width
-        visible: Quickshell.screens.length > 1
+        visible: Quickshell.screens.length > 0
         topPadding: 6
     }
 
     Item {
         width: 1; height: 8
-        visible: Quickshell.screens.length > 1
+        visible: Quickshell.screens.length > 0
     }
 
     // ── LANGUAGE ────────────────────────────────────────
@@ -81,4 +87,31 @@ Column {
             }
         }
     }
+
+    Item { width: 1; height: 8 }
+
+    // ── SESSION ─────────────────────────────────────────
+    Controls.Section_ { text: I18n.t.secSession }
+
+    // Not kept in the settings file: this one is a desktop file in the
+    // session's autostart directory, which is where the session looks
+    // and the only place that decides it. Read every time this page is
+    // shown, since the installer, a package or the person can have put
+    // it there or taken it away without us.
+    Controls.Row_ {
+        label: I18n.t.autostart
+        hint: Paths.launcher === "" ? I18n.t.autostartNoPath
+                                    : I18n.t.autostartHint
+        Controls.Toggle_ {
+            anchors.right: parent.right
+            enabled: Paths.launcher !== ""
+            checked: Autostart.enabled
+            onToggled: (v) => Autostart.setEnabled(v)
+        }
+    }
+
+    // Asking while the page is on screen and not before: it is one
+    // process, and a page nobody opened has no business running it.
+    Component.onCompleted: Autostart.watching = true
+    Component.onDestruction: Autostart.watching = false
 }

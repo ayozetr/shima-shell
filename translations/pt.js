@@ -157,6 +157,10 @@ var strings = {
     secLocation: "LOCALIZAÇÃO",
     secColour: "COR",
     secLanguage: "IDIOMA",
+    secSession: "SESSÃO",
+    autostart: "Arrancar com o sistema",
+    autostartHint: "O Shima abre sozinho ao iniciar sessão",
+    autostartNoPath: "Só a partir do lançador instalado",
 
     // ── Tray ──
     notificationsEnabled: "Servidor de notificações",
@@ -189,7 +193,7 @@ var strings = {
     hideDelay: "Demora para esconder",
     opacity: "Opacidade",
     blur: "Desfoque de fundo",
-    blurHint: "Usa o ext_background_effect do KWin",
+    blurHint: "Usa o ext_background_effect: precisa do Plasma 6.7 ou superior",
     blurIslandHint: "Só se nota se você baixar a opacidade",
     cornerRadius: "Raio dos cantos",
 

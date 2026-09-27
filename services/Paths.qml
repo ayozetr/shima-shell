@@ -39,6 +39,15 @@ Singleton {
         root.env("SHIMA_CACHE_DIR",
                  root.env("XDG_CACHE_HOME", root.home + "/.cache") + "/shima")
 
+    // The pictures a file manager has already made of other people's
+    // files. Shared between every desktop by an old freedesktop
+    // standard, which is why it is worth knowing about: a game added
+    // to Steam by hand keeps its logo inside a Windows executable,
+    // where we have no way to reach it, and Dolphin has already gone
+    // in and left the result here.
+    readonly property string thumbnailDir:
+        root.env("XDG_CACHE_HOME", root.home + "/.cache") + "/thumbnails"
+
     // Scratch files for one run of the shell. This one matters for
     // more than tidiness: XDG_RUNTIME_DIR is created per user with
     // nobody else allowed in, while a fixed name under /tmp is a
@@ -64,4 +73,16 @@ Singleton {
     // we may write. Only needed to find files that ship with it.
     readonly property string dataDir:
         root.env("SHIMA_DATA_DIR", "")
+
+    // The launcher that started this, as an absolute path. Said by the
+    // launcher itself, because an autostart entry that reads
+    // `Exec=shima` only works if the session's PATH happens to carry
+    // the directory it was installed into — and a login session builds
+    // its PATH before anybody installs anything.
+    readonly property string launcher: root.env("SHIMA_LAUNCHER", "")
+
+    // Where a desktop file has to sit to be started with the session.
+    readonly property string autostartFile:
+        root.env("XDG_CONFIG_HOME", root.home + "/.config")
+        + "/autostart/shima.desktop"
 }

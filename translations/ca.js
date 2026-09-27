@@ -157,6 +157,10 @@ var strings = {
     secLocation: "UBICACIÓ",
     secColour: "COLOR",
     secLanguage: "IDIOMA",
+    secSession: "SESSIÓ",
+    autostart: "Arrencar amb el sistema",
+    autostartHint: "Shima s'obre tota sola en iniciar la sessió",
+    autostartNoPath: "Només des del llançador instal·lat",
 
     // ── Tray ──
     notificationsEnabled: "Servidor de notificacions",
@@ -189,7 +193,7 @@ var strings = {
     hideDelay: "Temps abans d'amagar-se",
     opacity: "Opacitat",
     blur: "Difuminat del fons",
-    blurHint: "Usa ext_background_effect del KWin",
+    blurHint: "Usa ext_background_effect: necessita Plasma 6.7 o superior",
     blurIslandHint: "Només es nota si baixes l'opacitat",
     cornerRadius: "Radi de les cantonades",
 
