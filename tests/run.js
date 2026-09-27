@@ -1208,6 +1208,73 @@ function is(what, got, want) {
        found.filter(([, name]) => taken.indexOf(name) !== -1), []);
 }
 
+// ── Reading KDE's own shortcut file ──────────────────────────────
+//
+// parse() and usedBy() decide whether a combination is already taken,
+// and they had no test at all -- the easiest thing in the project to
+// test, and the one whose being wrong is invisible: the warning simply
+// does not appear and the key is taken from somebody else in silence.
+// The lines below are the shapes found in a real kglobalshortcutsrc,
+// escaped tabs and all.
+{
+    const config = { data: {} };
+    const i18n = { t: { pageLauncher: "Launcher", catClipboard: "Clipboard" } };
+    const sc = load("services/Shortcuts.qml", ["parse", "usedBy"],
+                    { Config: config, I18n: i18n });
+
+    sc.parse([
+        "# a comment, and a blank line follows",
+        "",
+        "[ActivityManager]",
+        "_k_friendly_name=Gestor de actividades",
+        "switch-to-activity-9254dc5c=none,none,Cambiar a la actividad",
+        "[ksmserver]",
+        "_k_friendly_name=Gestión de la sesión",
+        "Lock Session=Screensaver\\tMeta+L,Screensaver\\tMeta+L,Bloquear la sesión",
+        "Halt Without Confirmation=none,none,Apagar sin confirmación",
+        "[kwin]",
+        "Window Close=Alt+F4\\tMeta+Ctrl+Esc,Alt+F4,Cerrar ventana",
+        "Overview=Meta+W,Meta+W,Vista general",
+        "[shima]",
+        "_k_friendly_name=Shima",
+        "toggleLauncher=Meta,Meta,Launcher"
+    ].join("\n"));
+
+    is("the friendly name is what a person is shown",
+       sc.usedBy("Meta+L", "launcher"), "Gestión de la sesión");
+    is("a group with no friendly name answers with its own",
+       sc.usedBy("Meta+W", "launcher"), "kwin");
+    is("a combination nobody holds is free", sc.usedBy("Meta+J", "launcher"), "");
+    is("and `none` is not a combination", sc.usedBy("none", "launcher"), "");
+
+    // The escaped tab is the one that bites: KDE puts several keys for
+    // one action in a single field, and each of them is taken.
+    is("both keys of an action are taken, not just the first",
+       [sc.usedBy("Alt+F4", "launcher"), sc.usedBy("Meta+Ctrl+Esc", "launcher")],
+       ["kwin", "kwin"]);
+
+    // Ours are answered from the settings and not from this file,
+    // because the helper takes them out of KDE's hands while the
+    // settings window is listening -- at which point the file says
+    // nobody holds them, which is true and useless.
+    is("our own group is skipped", sc.usedBy("Meta", "clipboard"), "");
+
+    config.data = {
+        shortcutLabel: "Meta", clipboardLabel: "Meta+V",
+        shortcutKey: 1, clipboardKey: 2
+    };
+    is("our launcher key is reported by the name of its page",
+       sc.usedBy("Meta", "clipboard"), "Launcher");
+    is("and the clipboard by its own", sc.usedBy("Meta+V", "launcher"), "Clipboard");
+    is("but nothing is in its own way", sc.usedBy("Meta", "launcher"), "");
+    is("nor is an empty label anybody's", sc.usedBy("", "launcher"), "");
+
+    // A line that is not a setting, a setting before any group, and a
+    // group that never closes: none of them should throw.
+    sc.parse("not a group\nkey=value\n[unclosed\n=noname");
+    is("rubbish is read without falling over", sc.usedBy("Meta+L", "launcher"), "");
+}
+
 // ── Keys spelled the way KDE spells them ─────────────────────────
 //
 // Whether a combination is already taken is decided by looking its
