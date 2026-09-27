@@ -92,6 +92,9 @@ wget -qO- https://raw.githubusercontent.com/ayozetr/shima-shell/main/install.sh 
 It asks whether to start Shima when you log in. If you say no there,
 the switch is in Settings · General · Start with the system.
 
+For how it goes on each distribution, see
+[docs/distributions.md](docs/distributions.md).
+
 ## Uninstalling
 
 Run this first, while Shima is still installed — it hands the Meta key

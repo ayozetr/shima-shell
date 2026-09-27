@@ -291,7 +291,21 @@ quickshell_hint() {
                 say "  See https://quickshell.org/docs/master/guide/install-setup/"
             fi ;;
         nixos)
-            say "  nix profile install nixpkgs#quickshell" ;;
+            # The lasting way first, because on NixOS anything put in
+            # by hand goes away with the next `nixos-rebuild switch`
+            # that somebody runs without thinking about it.
+            #
+            # And the one-liner is `nixos.`, not `nixpkgs.`: the first
+            # part of an attribute path is the name of a channel, and
+            # on NixOS the channel is called nixos. Measured on a real
+            # installation — `nix-env -qaA nixpkgs.hello` finds nothing
+            # there while `nixos.hello` finds it — which is how this
+            # line came to be wrong in the first place. The `nix
+            # profile` form is not offered here at all: it needs the
+            # nix-command and flakes features, which a stable NixOS
+            # ships turned off.
+            say "  environment.systemPackages = [ pkgs.quickshell ];  (in your configuration.nix)"
+            say "  or, just for now:  nix-env -iA nixos.quickshell" ;;
         gentoo)
             say "  sudo eselect repository enable guru"
             say "  sudo emaint sync -r guru"
@@ -453,9 +467,38 @@ debian_install_quickshell() {
 # nixpkgs is the distribution's own, so there is nobody new to trust
 # here. The first spelling is the one Quickshell documents and needs
 # flakes turned on; the second works without them.
+# Three ways in, because which of them works depends on how the
+# machine was set up and none of them can be assumed.
+#
+# `nix profile` is the modern one and the one to try first, but it
+# needs the nix-command and flakes features, which are still
+# experimental and off by default on a stable NixOS. And the old
+# `nix-env -iA` needs an attribute path, whose first part is the name
+# of a channel: on NixOS the system channel is called `nixos`, not
+# `nixpkgs` — `nixpkgs` only exists if somebody added it by hand,
+# which is what a container image often does. Asking only for
+# `nixpkgs.…` is why this looked fine in a container and would have
+# failed on a real installation.
+nix_try() {
+    say "  trying: $*"
+    "$@" 2>/dev/null && return 0
+    return 1
+}
+
+nix_install_pkg() {
+    pkg=$1
+    nix_try nix profile install "nixpkgs#$pkg" && return 0
+    nix_try nix-env -iA "nixos.$pkg" && return 0
+    nix_try nix-env -iA "nixpkgs.$pkg" && return 0
+    err "Could not install $pkg from nixpkgs."
+    err "On NixOS the lasting way is to put it in your configuration:"
+    err "  environment.systemPackages = [ pkgs.$pkg ];"
+    err "then nixos-rebuild switch."
+    return 1
+}
+
 nix_install_quickshell() {
-    nix profile install nixpkgs#quickshell 2>/dev/null && return 0
-    nix-env -iA nixpkgs.quickshell
+    nix_install_pkg quickshell
 }
 
 # Whether the case below is one this script can actually carry out.
@@ -530,8 +573,7 @@ install_kdotool() {
     # exist on that system. Tried before the download for that reason,
     # not as a preference.
     if [ "$OS_ID" = nixos ]; then
-        nix profile install nixpkgs#kdotool 2>/dev/null && return 0
-        nix-env -iA nixpkgs.kdotool && return 0
+        nix_install_pkg kdotool && return 0
         return 1
     fi
 
@@ -942,7 +984,27 @@ do_install() {
 # one you were using and leave you without your shortcuts. Found by
 # doing exactly that.
 running_is_ours() {
-    for pid in $(pgrep -x qs 2>/dev/null); do
+    # Three ways of finding the candidates, because the name of the
+    # process is not something to count on. NixOS wraps its binaries,
+    # so what is running there is called `.quickshell-wra` — the
+    # wrapper's name, cut to the fifteen characters the kernel keeps —
+    # and neither `qs` nor `quickshell` matches it. With nothing
+    # matched this said no, and then the uninstall walked past the
+    # shell it was deleting: it stayed running out of files that were
+    # no longer there, and the Meta key stayed taken.
+    #
+    # The entry point is the one that does not depend on a name: it is
+    # a path in this user's cache and no other program has it on its
+    # command line.
+    # The `|| true` is not decoration. This runs under `set -e`, and a
+    # pgrep that matches nothing exits 1 — which on a machine where the
+    # first pattern does not match killed the substitution before the
+    # other two ran, and handed back an empty list. The same trap that
+    # made the installer die in silence on KDE Neon. Wrapping the group
+    # in an or-list is what turns `set -e` off inside it.
+    pids=$( { pgrep -x qs; pgrep -x quickshell;
+              pgrep -f -- "$CACHE/shell.qml"; } 2>/dev/null || true )
+    for pid in $pids; do
         dir=$(tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null \
               | sed -n 's/^SHIMA_DATA_DIR=//p' | head -1)
         [ -n "$dir" ] && [ "$dir" = "$SHARE" ] && return 0
@@ -978,9 +1040,23 @@ do_uninstall() {
     # user's cache directory, so naming it is enough.
     if [ "$mine" = yes ]; then
         pkill -x shima 2>/dev/null || true
-        pkill -f "$CACHE/shell.qml" 2>/dev/null || true
-        rm -rf "$CACHE"
+        # By the entry point and not by the name of the program, for
+        # the same reason as above: on NixOS there is no process
+        # called qs to kill.
+        pkill -f -- "$CACHE/shell.qml" 2>/dev/null || true
     fi
+
+    # The cache goes whether or not the shell was running, which it did
+    # not used to: the line lived inside the check above, so stopping
+    # Shima before removing it — which is what anyone does, and what a
+    # crash does for you — left ~/.cache/shima behind holding a symlink
+    # to the directory this is about to delete. A removal that says it
+    # removed everything has to have removed everything.
+    #
+    # Nothing is lost by being wrong here. The cache is a generated
+    # entry point and a link, written again by the next launcher that
+    # starts.
+    rm -rf "$CACHE"
 
     rm -rf "$SHARE"
     rm -f "$BIN" "$DESKTOP" "$DESKTOP_SETTINGS" "$AUTOSTART"
@@ -1003,6 +1079,10 @@ while [ $# -gt 0 ]; do
         --skip-deps) SKIP_DEPS=1 ;;
         --uninstall) ACTION=uninstall ;;
         --purge)     PURGE=1 ;;
+        # --purge on its own used to be read, ignored and then
+        # installed, which is the opposite of what the person asking
+        # for it wanted. Checked after the loop, once --uninstall has
+        # had its chance to appear on either side of it.
         --prefix)
             shift
             [ -n "${1:-}" ] || { err "--prefix needs a directory"; exit 1; }
@@ -1017,6 +1097,12 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+
+if [ -n "$PURGE" ] && [ "$ACTION" != uninstall ]; then
+    err "--purge only means anything with --uninstall."
+    err "To remove Shima and its settings: --uninstall --purge"
+    exit 1
+fi
 
 case $ACTION in
     install)   do_install ;;
