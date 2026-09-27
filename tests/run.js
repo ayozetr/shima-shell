@@ -1097,6 +1097,228 @@ function is(what, got, want) {
     }
 }
 
+// ── A window name is never part of a shell script ────────────────
+//
+// The names come out of desktop files and out of the titles Steam
+// keeps, so they come from outside. They used to be written into a
+// script with JSON.stringify around them, which quotes for JSON and
+// not for a shell: inside double quotes a shell still reads $, a
+// backtick and a backslash, so a name holding $(...) ran it.
+//
+// The lookup hands back patterns now and the caller passes them as
+// arguments. This runs a real shell to say so, because the whole point
+// is what a shell does with them and no amount of reading proves that.
+{
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    const { execFileSync } = require("child_process");
+
+    // All lowercase on purpose: the candidates are lowercased on the
+    // way through, and a path with a capital in it would end up
+    // pointing somewhere else and prove nothing.
+    const dir = path.join(os.tmpdir(), "shima-shell-" + process.pid);
+    fs.mkdirSync(dir, { recursive: true });
+    const proof = path.join(dir, "pwned");
+    const nasty = "game$(touch " + proof + ")odd";
+
+    const w = load("services/Windows.qml",
+                   ["windowLookup", "candidatesFor"],
+                   { Apps: { settingsId: "shima:settings",
+                             settingsClass: "shima",
+                             entryFor: () => ({ id: "x", name: nasty,
+                                                startupClass: nasty }) } });
+    w.launchers = [];
+    const pats = w.windowLookup("x");
+
+    is("the lookup hands back patterns rather than a script",
+       Array.isArray(pats) && pats.length > 0, true);
+    is("and the name is in them untouched, with nothing escaped",
+       pats.some(p => p.indexOf(nasty.toLowerCase()) !== -1), true);
+
+    // The way the shell is actually called: the script is fixed and
+    // every pattern arrives as an argument.
+    execFileSync("sh", ["-c",
+        'wins=""; for p in "$@"; do [ -n "$wins" ] && break; ' +
+        'wins=$(printf "%s" "$p"); done',
+        "shima"].concat(pats), { stdio: "ignore" });
+    is("a name that would run a command does not run it", fs.existsSync(proof), false);
+
+    // And the other way round, to be sure the proof means anything:
+    // the same name written into the script the old way does run.
+    try {
+        execFileSync("sh", ["-c", 'wins=$(printf "%s" "' + pats[0] + '")'],
+                     { stdio: "ignore" });
+    } catch (e) { /* the shell may complain; the file is the answer */ }
+    is("while writing it into the script would have", fs.existsSync(proof), true);
+
+    fs.rmSync(dir, { recursive: true, force: true });
+}
+
+// ── No IPC function named after the tool's own words ─────────────
+//
+// `qs ipc` keeps five words for its own subcommands, and a handler
+// function named after one of them cannot be reached: asking for
+// `launcher show` printed the list of targets and opened nothing. It
+// went unnoticed because nothing here called it — the shortcut helper
+// asks for `toggle` — so the first person to find it would have been
+// somebody typing it by hand and concluding the shell was broken.
+{
+    const fs = require("fs");
+    const path = require("path");
+    const { root } = require("./extract.js");
+
+    // show, call, wait, listen, prop — read off `qs ipc --help`.
+    const taken = ["show", "call", "wait", "listen", "prop"];
+
+    const found = [];
+    const walk = (dir) => {
+        for (const name of fs.readdirSync(dir)) {
+            const full = path.join(dir, name);
+            if (fs.statSync(full).isDirectory()) {
+                if (name !== "node_modules" && name !== ".git") walk(full);
+                continue;
+            }
+            if (!name.endsWith(".qml")) continue;
+            const text = fs.readFileSync(full, "utf8");
+            let at = text.indexOf("IpcHandler");
+            while (at >= 0) {
+                // From the handler's opening brace to the one that
+                // closes it, counting the way the extractor does.
+                let depth = 0, seen = false, end = at;
+                for (let i = at; i < text.length; i++) {
+                    const c = text[i];
+                    if (c === "{") { depth++; seen = true; }
+                    else if (c === "}") {
+                        depth--;
+                        if (seen && depth === 0) { end = i; break; }
+                    }
+                }
+                const body = text.slice(at, end);
+                for (const m of body.matchAll(/function\s+([A-Za-z_$][\w$]*)\s*\(/g))
+                    found.push([path.relative(root, full), m[1]]);
+                at = text.indexOf("IpcHandler", end);
+            }
+        }
+    };
+    walk(root);
+
+    is("the shell exposes IPC functions at all", found.length > 0, true);
+    is("and none of them is named after a subcommand of the tool",
+       found.filter(([, name]) => taken.indexOf(name) !== -1), []);
+}
+
+// ── A capture marker nobody cleaned up ───────────────────────────
+//
+// While the settings window waits for a key the shell writes a marker
+// and the helper takes both shortcuts out of KDE's hands, so they can
+// be typed into the box instead of firing. Only the shell removed it,
+// so a shell that died with the box open left Meta and Meta+V
+// unregistered for the rest of the session, with nothing on screen to
+// explain it.
+//
+// The shell touches the marker every twenty seconds now and the helper
+// stops believing one that has not been touched for a minute. Run
+// against the helper itself, because the rule lives there.
+{
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    const { execFileSync, spawnSync } = require("child_process");
+    const { root } = require("./extract.js");
+
+    const python = spawnSync("python3", ["-c", ""]);
+    if (python.error) {
+        console.log("  (no python3 here, so the capture marker is not exercised)");
+    } else {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shima-cap-"));
+        const probe = path.join(dir, "probe.py");
+        fs.writeFileSync(probe, [
+            "import importlib.machinery, importlib.util, os, sys, time",
+            "os.environ['SHIMA_RUNTIME_DIR'] = sys.argv[1]",
+            "sys.argv = ['shima-shortcuts']",
+            "loader = importlib.machinery.SourceFileLoader('h', sys.argv[0])",
+            "spec = importlib.util.spec_from_loader('h', importlib.machinery",
+            "       .SourceFileLoader('h', " + JSON.stringify(
+                path.join(root, "helper/shima-shortcuts")) + "))",
+            "h = importlib.util.module_from_spec(spec)",
+            "spec.loader.exec_module(h)",
+            "open(h.CAPTURING, 'w').close()",
+            "print('fresh', h.capturing())",
+            "os.utime(h.CAPTURING, (time.time() - 30,) * 2)",
+            "print('recent', h.capturing())",
+            "os.utime(h.CAPTURING, (time.time() - 90,) * 2)",
+            "print('stale', h.capturing())",
+            "print('swept', not os.path.exists(h.CAPTURING))",
+            "print('gone', h.capturing())",
+        ].join("\n"));
+
+        let out = "";
+        try {
+            out = execFileSync("python3", [probe, dir], { encoding: "utf8" });
+        } catch (e) {
+            out = "failed: " + (e.stderr || e.message);
+        }
+        const said = {};
+        for (const line of out.trim().split("\n")) {
+            const [k, v] = line.split(" ");
+            said[k] = v;
+        }
+
+        is("a marker just written is believed", said.fresh, "True");
+        is("and one touched half a minute ago still is", said.recent, "True");
+        is("one nobody has touched for a minute is not", said.stale, "False");
+        is("and it is taken away rather than left to puzzle the next reader",
+           said.swept, "True");
+        is("no marker at all is not capturing", said.gone, "False");
+
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+}
+
+// ── Every .qml file still parses ─────────────────────────────────
+//
+// Everything else here pulls one function out of a file and runs it,
+// which says nothing about whether the file as a whole is still valid
+// QML. That gap bit on 27 September: an edit left a string unclosed,
+// the suite passed 209 green, and the only thing that noticed was the
+// running shell refusing to reload — with the old configuration still
+// up, so nothing looked wrong until somebody read the log.
+//
+// qmllint answers 255 for a file it cannot parse and 0 for one it can,
+// warnings and all, and it warns plenty about Quickshell's own types
+// because they are not on its import path. So the exit code is the
+// question and the output is not.
+{
+    const fs = require("fs");
+    const path = require("path");
+    const { execFileSync, spawnSync } = require("child_process");
+    const { root } = require("./extract.js");
+
+    const have = spawnSync("qmllint", ["--help"], { stdio: "ignore" });
+    if (have.error) {
+        console.log("  (no qmllint here, so the .qml files are not parsed)");
+    } else {
+        const files = [];
+        const walk = (dir) => {
+            for (const name of fs.readdirSync(dir)) {
+                if (name === "node_modules" || name === ".git") continue;
+                const full = path.join(dir, name);
+                if (fs.statSync(full).isDirectory()) walk(full);
+                else if (name.endsWith(".qml")) files.push(full);
+            }
+        };
+        walk(root);
+
+        const broken = files.filter(f =>
+            spawnSync("qmllint", [f], { stdio: "ignore" }).status !== 0)
+            .map(f => path.relative(root, f));
+
+        is("there are .qml files to check", files.length > 0, true);
+        is("and every one of them parses", broken, []);
+    }
+}
+
 // ── Every setting has a line in the documentation ────────────────
 //
 // Not logic, but the one thing about the reference that can be checked

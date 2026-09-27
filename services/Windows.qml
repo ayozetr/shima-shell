@@ -185,13 +185,14 @@ Singleton {
                 return;
             }
             if (raiseProbe.running) return;
-            const lookups = root.windowLookup(root.raiseId);
-            if (!lookups) { root.raiseId = ""; stop(); return; }
+            const pats = root.windowLookup(root.raiseId);
+            if (pats.length === 0) { root.raiseId = ""; stop(); return; }
             raiseProbe.command = ["sh", "-c",
-                'wins=""; ' + lookups + '; '
+                root.findWins
                 + '[ -z "$wins" ] && exit 0; '
                 + 'kdotool windowactivate $(printf "%s\n" "$wins" | head -1) '
-                + '  >/dev/null 2>&1 && echo raised'];
+                + '  >/dev/null 2>&1 && echo raised',
+                "shima"].concat(pats);
             raiseProbe.running = true;
         }
     }
@@ -219,14 +220,14 @@ Singleton {
         // window on Wayland, so all that's left is launching the app.
         if (!root.hasKdotool) { Apps.start(entry); return; }
 
-        const lookups = root.windowLookup(id);
-        if (!lookups) { Apps.start(entry); return; }
+        const pats = root.windowLookup(id);
+        if (pats.length === 0) { Apps.start(entry); return; }
 
         // One window: raise it, or minimise it if it already has focus,
         // like any task manager. Several: step to the next one, so
         // clicking repeatedly walks through them.
         const script =
-            'wins=""; ' + lookups + '; '
+            root.findWins
             + '[ -z "$wins" ] && exit 9; '
             + 'n=$(printf "%s\n" "$wins" | grep -c .); '
             + 'active=$(kdotool getactivewindow 2>/dev/null); '
@@ -243,11 +244,23 @@ Singleton {
             + 'exec kdotool windowactivate "$next"';
 
         activate.pendingId = id;
-        activate.exec(["sh", "-c", script]);
+        activate.exec(["sh", "-c", script, "shima"].concat(pats));
     }
 
-    // Collects every window of an app into $wins, trying each name the
-    // app is known by until one of them matches.
+    // Every pattern an app's windows might answer to, most specific
+    // first. The caller hands these to the shell as arguments.
+    //
+    // They used to be written into the script with JSON.stringify
+    // around them, which is the right quoting for JSON and the wrong
+    // quoting for a shell: inside double quotes a shell still reads
+    // `$`, a backtick and a backslash. The names come from desktop
+    // files and from the titles Steam keeps, so they come from
+    // outside, and a name holding $(...) ran it. Demonstrated in the
+    // audit with a file called `juego$(touch /tmp/PWNED)raro`, which
+    // created the file.
+    //
+    // An argument is not quoting. The shell never parses it, so there
+    // is nothing to get right and nothing to get wrong.
     function windowLookup(id) {
         // Named outright rather than worked out from the entry: the
         // candidates of anything called org.quickshell include plain
@@ -255,21 +268,17 @@ Singleton {
         // launcher. Raising one of those, or minimising it, is not
         // something anybody asked for.
         if (id === Apps.settingsId)
-            return 'wins=$(kdotool search --class '
-                 + JSON.stringify("^" + Apps.settingsClass + "$")
-                 + ' 2>/dev/null)';
+            return ["^" + Apps.settingsClass + "$"];
 
         // A game is known by its window and by nothing else, so its
         // window is what it is looked for by.
         if (id && id.indexOf("game:") === 0)
-            return 'wins=$(kdotool search --class '
-                 + JSON.stringify("^" + id.slice("game:".length) + "$")
-                 + ' 2>/dev/null)';
+            return ["^" + id.slice("game:".length) + "$"];
 
         const entry = Apps.entryFor(id);
-        if (!entry) return "";
+        if (!entry) return [];
         const names = root.candidatesFor(entry);
-        if (!names.length) return "";
+        if (!names.length) return [];
         // Loose at both ends, because a window class agrees with its
         // desktop file at neither.
         //
@@ -285,12 +294,14 @@ Singleton {
         //
         // kdotool ignores case, so the candidates being lowercase
         // costs nothing.
-        return names
-            .map(n => '[ -z "$wins" ] && wins=$(kdotool search --class '
-                    + JSON.stringify("^(.*\\.)?" + n + "(\\..*)?$")
-                    + ' 2>/dev/null)')
-            .join("; ");
+        return names.map(n => "^(.*\\.)?" + n + "(\\..*)?$");
     }
+
+    // The same few lines wherever a window has to be found: walk the
+    // patterns given as arguments and stop at the first that matches.
+    readonly property string findWins:
+        'wins=""; for p in "$@"; do [ -n "$wins" ] && break; '
+        + 'wins=$(kdotool search --class "$p" 2>/dev/null); done; '
 
 
     // ── Listing the windows of an app ──────────────────────────
@@ -305,14 +316,15 @@ Singleton {
         root.list = [];
         if (!root.hasKdotool) return;
 
-        const lookups = root.windowLookup(id);
-        if (!lookups) return;
+        const pats = root.windowLookup(id);
+        if (pats.length === 0) return;
 
         windowLister.exec(["sh", "-c",
-            'wins=""; ' + lookups + '; '
+            root.findWins
             + 'for w in $wins; do '
             + '  printf "%s\t%s\n" "$w" "$(kdotool getwindowname "$w" 2>/dev/null)"; '
-            + 'done']);
+            + 'done',
+            "shima"].concat(pats));
     }
 
     Process {
@@ -347,21 +359,19 @@ Singleton {
         const entry = Apps.entryFor(id);
         if (!entry) return;
 
-        const names = root.candidatesFor(entry);
-        if (!names.length) return;
+        const pats = root.windowLookup(id);
+        if (pats.length === 0) return;
 
-        // Same shape as the lookup above, and for the same reason:
-        // minimising and closing have to find the window that raising
-        // finds, or the dock does one of the three and not the others.
-        const lookups = names
-            .map(n => 'w=$(kdotool search --class '
-                    + JSON.stringify("^(.*\\.)?" + n + "(\\..*)?$")
-                    + ' 2>/dev/null | head -1); [ -n "$w" ] && break')
-            .join("; ");
-
+        // Same lookup as raising, and by the same route: minimising
+        // and closing have to find the window that raising finds, or
+        // the dock does one of the three and not the others. The
+        // command is ours and the patterns are not, so both go in as
+        // arguments and the script reads neither.
         windowProc.exec(["sh", "-c",
-            'for _ in 1; do ' + lookups + '; done; '
-            + '[ -n "$w" ] && exec kdotool ' + command + ' "$w"']);
+            'cmd=$1; shift; ' + root.findWins
+            + '[ -n "$wins" ] && exec kdotool "$cmd" '
+            + '  "$(printf "%s\n" "$wins" | head -1)"',
+            "shima", command].concat(pats));
     }
 
     function close(id) { root.windowCommand(id, "windowclose"); }

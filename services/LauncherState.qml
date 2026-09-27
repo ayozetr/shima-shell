@@ -107,7 +107,17 @@ Singleton {
             return root.open ? "open" : "closed";
         }
 
-        function show(): string { root.show(); return "open"; }
+        // `open` and not `show`, which is the obvious name and is
+        // unreachable: `show` is one of the five words the tool keeps
+        // for itself — show, call, wait, listen, prop — so
+        // `qs ipc call launcher show` prints the list of targets
+        // instead of opening anything. Nothing here ever called it, so
+        // nobody noticed until somebody tried it by hand.
+        //
+        // This also leaves the launcher reading like the settings
+        // window next door, which has open, close and toggle.
+        function open(): string { root.show(); return "open"; }
+        function close(): string { root.hide(); return "closed"; }
         function hide(): string { root.hide(); return "closed"; }
 
         function clipboard(): string {
