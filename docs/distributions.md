@@ -15,6 +15,33 @@ work all the same.
 | **Debian 13 (trixie)** | Everything works except the settings window, which takes the shell down when it opens. Set things by hand meanwhile — every option is in [settings.md](settings.md). |
 | **KDE Neon** | Nobody builds Quickshell for its base (Ubuntu 24.04), so you have to build it yourself first. With that done, everything works, blur included. |
 
+## What it needs
+
+| | Version |
+|---|---|
+| **KDE Plasma** | 6, on Wayland |
+| **Qt** | 6.10 |
+| **Quickshell** | 0.3.0 |
+| **kdotool** | 0.2.3 |
+| **Plasma, for the blur** | 6.7 |
+
+And these, which your distribution almost certainly has:
+
+| | For |
+|---|---|
+| **python3** with **PyGObject** | the global shortcut, which is a program of its own: Quickshell cannot own a name on D-Bus and KDE hands shortcuts out over one |
+| **wl-clipboard** | the clipboard history, and the launcher's copy button. Wayland offers no other way in |
+| **sqlite3** | reading what KDE has open and had open recently |
+| **xdg-utils** | opening a file or a folder with whatever handles it |
+| **curl** | the weather, and fetching kdotool on the way in |
+
+Optional, and each one turns off exactly one thing: **cava** for the
+audio visualiser, **fd** for faster file search in the launcher,
+**libnotify** for sending yourself a test notification.
+
+The installer works all of this out, asks before installing anything,
+and tells you what it skipped.
+
 ## Blur needs Plasma 6.7
 
 The background behind the dock, the island and the launcher is blurred
