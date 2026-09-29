@@ -76,7 +76,16 @@ prompt() {
     # behalf before the command ever runs. dash says "cannot create
     # /dev/tty: No such device or address"; only the block's stderr
     # catches it.
-    { : > /dev/tty; } 2>/dev/null || return 1
+    #
+    # `true` and not `:`, which is what this line used to say. They do
+    # the same nothing, but `:` is a POSIX *special* built-in, and a
+    # redirection error on one of those ends a non-interactive shell
+    # there and then. The braces caught the message, the `|| return 1`
+    # never ran, and the whole installer died at the first question it
+    # asked with no terminal behind it -- silently, and with
+    # everything already copied into place. `true` is an ordinary
+    # built-in, so a failed redirection is just a failed command.
+    { true > /dev/tty; } 2>/dev/null || return 1
     { printf '%s [y/N] ' "$1" > /dev/tty; } 2>/dev/null || return 1
     { read -r reply < /dev/tty; } 2>/dev/null || return 1
     case $reply in [yY]|[yY][eE][sS]|[sS]|[sS][iI]) return 0 ;; *) return 1 ;; esac
@@ -263,6 +272,17 @@ quickshell_hint() {
                    say "  that carries Quickshell for Ubuntu publishes for the newest"
                    say "  series only, and this is not one of them."
                    say "  See https://quickshell.org/docs/master/guide/install-setup/" ;;
+                # 2 is "could not ask" -- no curl, no network, or
+                # Launchpad not answering. It used to fall in with 0
+                # and print the line below as if it were known to
+                # work, which on a series the repository does not
+                # build for means adding somebody else's repository
+                # to your machine for nothing. Say which of the two
+                # this is.
+                2) say "  Launchpad could not be reached, so this is unchecked:"
+                   say "  that repository publishes for the newest Ubuntu series"
+                   say "  only, and may well have nothing for ${OS_SERIES:-this release}."
+                   say "  See https://quickshell.org/docs/master/guide/install-setup/" ;;
                 *) say "  sudo add-apt-repository ppa:avengemedia/danklinux && sudo apt update && sudo apt install quickshell" ;;
             esac ;;
         debian)
@@ -307,13 +327,26 @@ quickshell_hint() {
             say "  environment.systemPackages = [ pkgs.quickshell ];  (in your configuration.nix)"
             say "  or, just for now:  nix-env -iA nixos.quickshell" ;;
         gentoo)
+            # The first line is not decoration. `eselect repository`
+            # is its own package and the desktop profile does not
+            # install it, so without this the very first command
+            # answers "Can't load module repository" and the recipe
+            # stops before it starts. It brings git along, which a
+            # fresh install has no reason to have either and which the
+            # guru sync needs.
+            say "  sudo emerge app-eselect/eselect-repository"
             say "  sudo eselect repository enable guru"
             say "  sudo emaint sync -r guru"
             say "  sudo emerge gui-apps/quickshell"
             say ""
-            say "  GURU is a testing overlay, so the last one may also want a line"
-            say "  in /etc/portage/package.accept_keywords. That is your system's"
-            say "  policy and not something this script should be writing."
+            # Lines, plural, and measured rather than guessed: on a
+            # stable amd64 it took three -- quickshell itself, cpptrace
+            # (its crash handler) and libdwarf under that.
+            say "  GURU is a testing overlay, so the last one will want lines in"
+            say "  /etc/portage/package.accept_keywords -- for Quickshell and for"
+            say "  a couple of its dependencies. Adding --autounmask-write to that"
+            say "  last command writes them for you. That is your system's policy"
+            say "  and not something this script should be deciding."
             ;;
         *)
             say "  see https://quickshell.org/docs/master/guide/install-setup/" ;;
@@ -615,6 +648,33 @@ install_kdotool() {
 }
 
 # ── Getting the sources when piped through a shell ───────────────
+# curl before the download, not after it.
+#
+# ensure_deps() already has curl on its list and would install it --
+# but it runs after fetch_sources(), and fetch_sources() is the thing
+# that needs it. With neither curl nor git the script stopped dead at
+# "git or curl is needed to fetch the sources" while holding a package
+# manager that could have supplied it in one line. Seen on a desktop
+# distribution that ships wget and neither of the two.
+#
+# Only when both are missing: with git the download goes through, and
+# curl is then installed in time by ensure_deps for the kdotool
+# release and the Launchpad query. Nothing here is fatal. If the
+# answer is no, or the package manager is not one this script drives,
+# it carries on and fails exactly where it failed before.
+ensure_fetch_tools() {
+    have curl && return 0
+    have git  && return 0
+    case $PM in ""|nix) return 0 ;; esac
+
+    say ""
+    say "Neither curl nor git is installed, and one of them is needed"
+    say "to fetch Shima."
+    ask "Install curl?" || return 0
+    pm_install "$(pkg_for curl)" || err "curl could not be installed; carrying on."
+    return 0
+}
+
 fetch_sources() {
     here=""
     case "$0" in
@@ -660,6 +720,31 @@ trap cleanup EXIT INT TERM
 
 # ── What is needed ───────────────────────────────────────────────
 check_desktop() {
+    # X11 first, and only when the session says so outright.
+    #
+    # Shima's panels are layer-shell surfaces and X11 has no such
+    # thing, so on an X11 session the dock, the island and the launcher
+    # do not appear at all -- while the installer finishes happily and
+    # says nothing, which is the worst way to fail. The help has always
+    # said "a Wayland session" and nothing ever checked it.
+    #
+    # Asked about rather than refused, and asked about only for a
+    # session that calls itself x11. This script is often run over ssh,
+    # where there is no graphical session to judge and the variable
+    # says `tty` or nothing at all; a warning there would be answered
+    # `no` by a prompt with no terminal behind it, and the install
+    # would stop for a machine that was perfectly fine.
+    case "${XDG_SESSION_TYPE:-}" in
+        x11)
+            say ""
+            say "Warning: this is an X11 session."
+            say "Shima draws through the layer-shell protocol, which X11 does"
+            say "not have, so the dock, the island and the launcher will not"
+            say "appear at all. Log in on Wayland and it will."
+            ask "Install anyway?" || exit 1
+            ;;
+    esac
+
     [ "${XDG_CURRENT_DESKTOP#*KDE}" != "$XDG_CURRENT_DESKTOP" ] && return 0
     have plasmashell && return 0
     say ""
@@ -700,7 +785,11 @@ ensure_deps() {
                 exit 1
             fi
         else
-            err "Install Quickshell with the lines above and run this again."
+            # Not "the lines above": on a distribution nobody has
+            # written a branch for, what is above is one link and not a
+            # command, and being told to run lines that are not there
+            # is worse than being told nothing.
+            err "Install Quickshell first, then run this again."
             exit 1
         fi
         have qs || { err "Quickshell still is not on PATH."; exit 1; }
@@ -738,7 +827,13 @@ ensure_deps() {
         fi
     fi
 
-    if ! have kdotool; then
+    # $PREFIX/bin as well as the PATH, because that is where the
+    # download below puts it and it is not on the PATH yet: adding it
+    # there is the question asked at the end of this script, and a
+    # second run before that has taken effect would otherwise be told
+    # kdotool is missing while it sits in ~/.local/bin, and would
+    # fetch it all over again.
+    if ! have kdotool && [ ! -x "$PREFIX/bin/kdotool" ]; then
         say ""
         say "kdotool is missing. Shima needs it to focus and minimise"
         say "windows and to know what is open: KWin offers no protocol"
@@ -901,6 +996,7 @@ do_install() {
     # Before fetching anything: being told this is not a Plasma session
     # is worth knowing before a download, not after one.
     check_desktop
+    ensure_fetch_tools
     fetch_sources
     ensure_deps
 
