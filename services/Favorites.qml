@@ -168,9 +168,17 @@ Singleton {
         }
         // First run: start from whatever is already favourited in the
         // K menu, which is what one expects to see.
+        // A first run has none of these files, and there is nothing
+        // wrong with that: they do not exist because nothing has
+        // written them yet. The warning printed for it was the first
+        // thing anybody saw in the log after installing, and it read
+        // like a fault. Silenced here and answered below, where a
+        // missing file is an answer and anything else is worth saying.
+        printErrors: false
         onLoadFailed: (error) => {
             if (error === FileViewError.FileNotFound)
                 root.importFromPlasma();
+            else console.warn("shima: could not read", root.favoritesPath);
         }
     }
 }

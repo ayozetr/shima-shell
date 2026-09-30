@@ -8,12 +8,41 @@ work all the same.
 | Distribution | How it goes |
 |---|---|
 | **Arch · CachyOS** and derivatives | Everything works, blur included. In the AUR as `shima-shell`. |
+| **Manjaro** | Everything works, blur included. Quickshell is in its own repositories. It ships no AUR helper, so the installer fetches the released `kdotool` binary rather than building it. |
+| **Gentoo** | Everything works, blur included. Quickshell comes from the GURU overlay, which has to be enabled first. See the note below. |
 | **Fedora KDE 44** | Everything works, blur included. The installer offers you the COPR that carries Quickshell. |
 | **openSUSE Tumbleweed** | Everything works, blur included. The installer prints the two lines that add the repository and stops there, for you to run them. |
 | **Kubuntu · Ubuntu 26.04** | Everything works except blur, which its Plasma is too old for. The installer offers you the PPA that carries Quickshell. |
 | **NixOS 26.05** | Everything works except blur, same reason. See the note below on declaring it. |
 | **Debian 13 (trixie)** | Everything works except the settings window, which takes the shell down when it opens. Set things by hand meanwhile — every option is in [settings.md](settings.md). |
 | **KDE Neon** | Nobody builds Quickshell for its base (Ubuntu 24.04), so you have to build it yourself first. With that done, everything works, blur included. |
+
+## What it needs
+
+| | Version |
+|---|---|
+| **KDE Plasma** | 6, on Wayland |
+| **Qt** | 6.10 |
+| **Quickshell** | 0.3.0 |
+| **kdotool** | 0.2.3 |
+| **Plasma, for the blur** | 6.7 |
+
+And these, which your distribution almost certainly has:
+
+| | For |
+|---|---|
+| **python3** with **PyGObject** | the global shortcut, which is a program of its own: Quickshell cannot own a name on D-Bus and KDE hands shortcuts out over one |
+| **wl-clipboard** | the clipboard history, and the launcher's copy button. Wayland offers no other way in |
+| **sqlite3** | reading what KDE has open and had open recently |
+| **xdg-utils** | opening a file or a folder with whatever handles it |
+| **curl** | the weather, and fetching kdotool on the way in |
+
+Optional, and each one turns off exactly one thing: **cava** for the
+audio visualiser, **fd** for faster file search in the launcher,
+**libnotify** for sending yourself a test notification.
+
+The installer works all of this out, asks before installing anything,
+and tells you what it skipped.
 
 ## Blur needs Plasma 6.7
 
@@ -44,6 +73,46 @@ and Shima's notification centre stays empty.
 Removing Plasma's panels does not settle it — `plasmashell` holds the
 service whether it is showing a panel or not. Stopping `plasmashell`
 hands it to Shima straight away.
+
+## Tray icons from Windows programs
+
+A program running under Wine or Proton — Ubisoft Connect, the EA app,
+Battle.net — does not put its icon in the tray itself. Wine's own
+`explorer.exe` does, the old X11 way, and KDE bridges that across. There
+is no menu published anywhere in that chain, so a right click has to be
+passed back down it for the program to draw its own.
+
+Shima does that, and it mostly works. Two things to expect: the menu
+appears where Wine decides to put it, which is not necessarily beside
+the dock, and the first click sometimes shows the program's name
+instead of its menu. Clicking again brings the menu up. Both happen
+inside Wine, below anything Shima can reach.
+
+## Gentoo
+
+Quickshell is not in the main tree; it is in GURU, which is a testing
+overlay and is not enabled by default. Four commands, and the first one
+is not decoration -- `eselect repository` is its own package and the
+desktop profile does not install it, so without it the second command
+answers that it cannot load the module:
+
+```bash
+sudo emerge app-eselect/eselect-repository
+sudo eselect repository enable guru
+sudo emaint sync -r guru
+sudo emerge --autounmask-write gui-apps/quickshell
+```
+
+Being a testing overlay, Quickshell wants lines in
+`/etc/portage/package.accept_keywords` -- on stable amd64 it took three
+of them, for Quickshell itself, for `cpptrace` under its crash handler
+and for `libdwarf` under that. `--autounmask-write` writes them for
+you; leave it off and add them yourself if you would rather see what
+you are loosening.
+
+The installer prints these and stops there rather than running them.
+Enabling somebody else's overlay, and loosening which versions your
+system will accept, are your policy and not a script's to decide.
 
 ## NixOS
 

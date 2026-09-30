@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Open the menu of a tray icon that has none to give.
+
+The StatusNotifierItem spec has two ways of asking for a menu. An
+application can publish one over DBusMenu, which is what Discord, Steam
+and most native programs do and what Quickshell hands us ready to show.
+Or it can publish none and expect to be asked, through its own
+`ContextMenu(x, y)` method, and draw the menu itself.
+
+The second kind is not exotic. Every Windows program running under Wine
+arrives that way: its icon belongs to Wine's own `explorer.exe`, which
+puts it in the X11 tray the old way, and KDE bridges that to the
+StatusNotifier world with `xembedsniproxy`. The bridge has no menu to
+publish -- there never was one on the bus -- but it does implement
+`ContextMenu`, and passing the click along is exactly its job. Ubisoft
+Connect, the EA app and Battle.net all land here.
+
+Quickshell exposes `activate`, `secondaryActivate`, `scroll` and
+`display`, and not this one, so there is no way to ask from QML. Hence a
+helper: `gi` is already required for the shortcuts, and Gio speaks
+D-Bus.
+
+    shima-tray-menu <id> <x> <y>
+
+The id is what Quickshell calls `item.id`, which is the item's own `Id`
+property on the bus, so the item is found by asking the watcher who is
+registered and reading each one's. Every failure is silent and exits
+non-zero: nothing here is worth interrupting a shell for, and the
+behaviour without it is the behaviour Shima had before -- nothing
+happens.
+"""
+
+import sys
+
+WATCHER = "org.kde.StatusNotifierWatcher"
+ITEM = "org.kde.StatusNotifierItem"
+PROPS = "org.freedesktop.DBus.Properties"
+TIMEOUT = 2000
+
+
+def main(argv):
+    if len(argv) != 4:
+        return 2
+    want, x, y = argv[1], argv[2], argv[3]
+    try:
+        x, y = int(x), int(y)
+    except ValueError:
+        return 2
+
+    try:
+        import gi
+        gi.require_version("Gio", "2.0")
+        from gi.repository import Gio, GLib
+    except Exception:
+        return 1
+
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        registered = bus.call_sync(
+            WATCHER, "/StatusNotifierWatcher", PROPS, "Get",
+            GLib.Variant("(ss)", (WATCHER, "RegisteredStatusNotifierItems")),
+            None, Gio.DBusCallFlags.NONE, TIMEOUT, None).unpack()[0]
+    except Exception:
+        return 1
+
+    for entry in registered:
+        # "serviceName/object/path", and the path keeps its slash.
+        service, slash, path = entry.partition("/")
+        if not slash or not service:
+            continue
+        path = "/" + path
+        try:
+            got = bus.call_sync(
+                service, path, PROPS, "Get",
+                GLib.Variant("(ss)", (ITEM, "Id")),
+                None, Gio.DBusCallFlags.NONE, TIMEOUT, None).unpack()[0]
+        except Exception:
+            # An item that went away between being listed and being
+            # asked, or one that answers a different interface. Neither
+            # is ours to worry about.
+            continue
+        if got != want:
+            continue
+        try:
+            bus.call_sync(service, path, ITEM, "ContextMenu",
+                          GLib.Variant("(ii)", (x, y)),
+                          None, Gio.DBusCallFlags.NONE, TIMEOUT, None)
+        except Exception:
+            return 1
+        return 0
+
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

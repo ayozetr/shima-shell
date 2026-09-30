@@ -35,6 +35,12 @@ Item {
     Keys.onSpacePressed: sel.expanded = !sel.expanded
     Keys.onReturnPressed: sel.expanded = !sel.expanded
     Keys.onEnterPressed: sel.expanded = !sel.expanded
+    // The window's Escape shortcut steps aside while this is
+    // unfolded, so the first press folds the list and the next closes
+    // the window. Told, rather than claimed through
+    // Keys.onShortcutOverride, which reads better and did not work.
+    onExpandedChanged: SettingsWindow.listOpen = sel.expanded
+    Component.onDestruction: if (sel.expanded) SettingsWindow.listOpen = false
     Keys.onEscapePressed: (e) => {
         // Only ours to swallow while the list is open; otherwise it
         // belongs to whoever wants to close the window.
@@ -144,7 +150,15 @@ Item {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: sel.expanded = !sel.expanded
+            // Taking the focus, because a list opened with the mouse
+            // had none -- and without it the escape key never reached
+            // the handler that folds it, so pressing escape did
+            // nothing at all. It is also what anyone expects of a
+            // control they just clicked.
+            onClicked: {
+                sel.forceActiveFocus();
+                sel.expanded = !sel.expanded;
+            }
         }
     }
 

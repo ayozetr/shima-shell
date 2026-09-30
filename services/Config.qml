@@ -30,8 +30,16 @@ Singleton {
         // defaults. Each control calls save() when it should.
         // First run: dump the defaults so the JSON exists and can be
         // edited by hand.
+        // A first run has none of these files, and there is nothing
+        // wrong with that: they do not exist because nothing has
+        // written them yet. The warning printed for it was the first
+        // thing anybody saw in the log after installing, and it read
+        // like a fault. Silenced here and answered below, where a
+        // missing file is an answer and anything else is worth saying.
+        printErrors: false
         onLoadFailed: (error) => {
             if (error === FileViewError.FileNotFound) writeAdapter();
+            else console.warn("shima: could not read", root.path);
             // Nothing to read is still an answer: the defaults are
             // what there is, and whoever was waiting can get on.
             if (!root.loaded) { root.loaded = true; root.ready(); }
@@ -81,38 +89,47 @@ Singleton {
             property int    iconRadiusPct:    33     // squircle only
             property int    dockCornerRadius: 28
             property int    dockMargin:       10     // only when floating
+            property bool   dockAutoHide:     false
+            property int    dockHideDelay:    700    // ms before hiding
             property bool   dockMagnify:      true
             property bool   showRunning:      true   // open apps that are not pinned
             property bool   showLauncher:     true   // application launcher button
             property bool   showAppNames:     true   // the name floating over an icon
+            // Folded behind a chevron, like Plasma's arrow, or always out.
+            property bool   trayCollapsible:  true
             property bool   showTray:         true   // the system tray icons
 
             // How much higher than the dock the launcher sits.
             property int    launcherLift:    0
 
+            // What a right click on the dock's background opens.
+            // "settings" is ours, "none" is nothing at all, and
+            // anything else is the id of an application — the name of
+            // its .desktop file without the extension. The settings
+            // window offers the ones it finds installed from a list it
+            // knows; this takes any of them, which is the way out when
+            // yours is not on that list.
+            property string dockRightClick:   "settings"
+
             // ── Global shortcut ────────────────────────────────
-            property bool   doNotDisturb:    false
             property bool   shortcutEnabled: true
             // A Qt key code with its modifiers, as the settings page
             // captures it. Qt::Key_Meta on its own is the Meta key,
             // which KWin answers through a different road entirely.
             property int    shortcutKey:     16777250
             property string shortcutLabel:   "Meta"
-            // Folded behind a chevron, like Plasma's arrow, or always out.
-            property bool   trayCollapsible:  true
 
             // ── Notifications ──────────────────────────────────
             // These were read with a `?? default` everywhere and
             // declared nowhere, so the whole settings page worked
             // until the shell restarted and then quietly forgot. The
             // defaults here are the ones those reads were using.
+            property bool   doNotDisturb:    false
             property bool   notificationsEnabled:    true
             property int    notificationPeekSeconds: 5
             property bool   notificationCards:       true
             property int    notificationCardSeconds: 12
             property int    notificationHistory:     50
-            property bool   dockAutoHide:     false
-            property int    dockHideDelay:    700    // ms before hiding
 
             // ── Island ─────────────────────────────────────────
             // The defaults are the original look: black, opaque, no
@@ -171,6 +188,8 @@ Singleton {
             property string weatherProvider:   "bbc"
             property string weatherBbcId:      ""
 
+
+            // ── Language ───────────────────────────────────────
             // auto, es, en
             property string language:          "auto"
 
@@ -185,31 +204,27 @@ Singleton {
             property string islandScreens: ""
             property string dockScreens:   ""
 
-            // What a right click on the dock's background opens.
-            // "settings" is ours, "none" is nothing at all, and
-            // anything else is the id of an application — the name of
-            // its .desktop file without the extension. The settings
-            // window offers the ones it finds installed from a list it
-            // knows; this takes any of them, which is the way out when
-            // yours is not on that list.
-            property string dockRightClick:   "settings"
 
-            // ── Color ──────────────────────────────────────────
-            property string accent:           "#ffffff"
-            property string dockTint:         "#181818"
+            // ── Clipboard ──────────────────────────────────────
+            property bool clipboardHistory:   true
+            property bool clipboardImages:    true
+            property bool clipboardShortcutEnabled: true
+            property int  clipboardKey:       268435542   // Meta+V
+            property string clipboardLabel:   "Meta+V"
+
+            // ── Keeping the machine awake ──────────────────────
             // Kept across restarts only if asked. A machine that will
             // not sleep because of something switched on days ago is a
             // hard thing to work out from the outside.
             property bool keepAwakeRemember:  false
             property bool keepAwakeOn:        false
 
-            property bool clipboardHistory:   true
-            property bool clipboardImages:    true
-            property bool clipboardShortcutEnabled: true
-            property int  clipboardKey:       268435542   // Meta+V
-            property string clipboardLabel:   "Meta+V"
+            // ── Colour ─────────────────────────────────────────
+            property string accent:           "#ffffff"
+            property string dockTint:         "#181818"
             property string islandTint:       "#181818"
             property string launcherTint:     "#181818"
+
         }
     }
 

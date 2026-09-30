@@ -64,6 +64,12 @@ Item {
             font.pixelSize: 13
             font.weight: Font.DemiBold
             elide: Text.ElideRight
+            // Belt and braces. The summary is flattened where it is
+            // stored, so this should never have two lines to draw --
+            // but this strip is a fixed height and the cost of being
+            // wrong is the transport pushed out of the panel, which is
+            // worse than the cost of saying so twice.
+            maximumLineCount: 1
             visible: text !== ""
         }
 

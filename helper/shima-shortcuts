@@ -26,6 +26,7 @@ import os
 import signal
 import subprocess
 import sys
+import time
 
 import gi
 gi.require_version("Gio", "2.0")
@@ -77,6 +78,41 @@ BORROWED = os.path.join(
 # what is happening this second and means nothing after a reboot.
 CAPTURING = os.path.join(
     _dir("SHIMA_RUNTIME_DIR", "XDG_RUNTIME_DIR", "/tmp"), "capturing")
+
+
+# How long a marker is believed without being touched again. The shell
+# refreshes it every twenty seconds while the box is really listening,
+# so anything past a minute has not been refreshed twice running and
+# whoever wrote it is gone.
+CAPTURE_GRACE = 60
+
+
+def capturing():
+    """Whether the settings window really is waiting for a key.
+
+    The file alone is not the answer. It is removed by the shell that
+    wrote it and by nothing else, so a shell that died with the capture
+    box open used to leave both shortcuts unregistered for the rest of
+    the session -- Meta and Meta+V simply stopped, with nothing on
+    screen to say why and nothing to do about it short of logging out.
+
+    A stale file cannot be told from a live one by looking at it, so
+    the shell touches it while the box is up and this reads when it was
+    last touched. Anything not refreshed inside a minute is a leftover.
+    """
+    try:
+        age = time.time() - os.stat(CAPTURING).st_mtime
+    except OSError:
+        return False
+    if age <= CAPTURE_GRACE:
+        return True
+    # And take it away, so the next reader has nothing to wonder about
+    # and the shell that eventually comes back starts clean.
+    try:
+        os.unlink(CAPTURING)
+    except OSError:
+        pass
+    return False
 
 
 def only_one():
@@ -299,7 +335,7 @@ class Helper:
         # for a key: the compositor hands a registered combination to
         # whoever owns it and never to the window, so ours could not be
         # typed into the box that asks for them.
-        if os.path.exists(CAPTURING):
+        if capturing():
             for name, (action, _) in wanted.items():
                 if self.applied.get(name) == 0:
                     continue
@@ -398,6 +434,19 @@ if __name__ == "__main__":
 
     _lock = only_one()
     die_with_parent()
+
+    # Every keypress starts a `qs` to carry the message and nothing
+    # ever collected it, so each Meta and each Meta+V left a dead
+    # process behind until this one exited -- until you logged out, in
+    # other words. They cost a slot in the process table each, which is
+    # nothing, but they pile up all session and they are the first
+    # thing somebody sees in `ps` when looking for a real problem.
+    #
+    # Handing SIGCHLD to SIG_IGN has the kernel reap them itself. It is
+    # safe here because nothing in this file ever waits on a child: the
+    # one Popen below is fired and forgotten, and there is no
+    # subprocess.run anywhere to be broken by it.
+    signal.signal(signal.SIGCHLD, signal.SIG_IGN)
     try:
         Helper().run()
     except KeyboardInterrupt:

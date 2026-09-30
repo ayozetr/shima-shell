@@ -1,7 +1,7 @@
 # Maintainer: ayozetr <ayozetr@users.noreply.github.com>
 
 pkgname=shima-shell
-pkgver=0.5.0
+pkgver=0.6.0
 pkgrel=1
 pkgdesc='Dynamic island and dock for KDE Plasma on Wayland'
 arch=('any')
@@ -77,7 +77,7 @@ package() {
     install -Dm644 assets/logo-white.svg -t "$share/assets"
 
     install -Dm755 helper/shima-shortcuts helper/shima-games \
-        -t "$share/helper"
+        helper/shima-tray-menu -t "$share/helper"
 
     # Found through /usr/bin/../share/shima by the launcher itself.
     install -Dm755 shima "$pkgdir/usr/bin/shima"

@@ -18,7 +18,7 @@ system's native services.
 album art. Hovering expands it into one of four modes, switched with the
 scroll wheel or by clicking the dots:
 
-- **Media** — album art, track and transport controls
+- **Media** — album art, track, transport controls and a progress bar
 - **Control centre** — Wi-Fi, Bluetooth, mute and volume
 - **Status** — CPU, memory and network throughput
 - **Calendar** — month view with a pomodoro timer
@@ -55,7 +55,8 @@ program that copied it marked as a password is not kept at all.
 card, with history that outlasts the shell restarting, do not disturb,
 and silencing during a focus session.
 
-**Settings.** Right click the dock. Position, auto-hide, opacity,
+**Settings.** In your application menu, or a right click on the dock —
+which is yours to point somewhere else. Position, auto-hide, opacity,
 background blur, corner radius, icon shape and size, accent colour,
 per-monitor placement, per-monitor brightness, night light, power
 profile and keeping the machine awake. Language: English, Spanish,
@@ -92,8 +93,9 @@ wget -qO- https://raw.githubusercontent.com/ayozetr/shima-shell/main/install.sh 
 It asks whether to start Shima when you log in. If you say no there,
 the switch is in Settings · General · Start with the system.
 
-For how it goes on each distribution, see
-[docs/distributions.md](docs/distributions.md).
+For what it needs and how it goes on each distribution, see
+[docs/distributions.md](docs/distributions.md). If something is not
+working, [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ## Uninstalling
 
@@ -153,9 +155,11 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 Everything under `assets/` — the name, the icon and the logotype — is
 **not** covered by the GPL. All rights are reserved by the author.
 
-The one exception is `assets/vendor/`, which holds the GitHub and Ko-fi
-marks used in the settings window to link to those two places. Those
-belong to their owners; see the note beside them.
+The one exception is `assets/vendor/`, which holds work that is not
+ours: the GitHub and Ko-fi marks used in the settings window to link to
+those two places, and the wallpaper the screenshots were taken against.
+Those belong to their owners and carry their own terms; see the note
+beside them.
 
 They may be used in forks made to contribute back to this project —
 see [CONTRIBUTING](CONTRIBUTING.md) — but not in an independent one.

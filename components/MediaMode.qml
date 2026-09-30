@@ -7,7 +7,21 @@ import "../services"
 // The island expanded: album art, track, transport and volume.
 Item {
     id: root
+
     property MprisPlayer player: null
+
+    // What a player says a track is called can hold a newline, and a
+    // Text honours newlines even with elide on -- so the line takes
+    // twice the height and pushes the transport out of a panel that
+    // has a fixed one. Seen for real: KDE Connect sends the artist
+    // from an Android phone as "BEJO\n Sume Beats".
+    //
+    // The same cleaning the notification body already gets where it is
+    // stored. Here it has to be at the binding, because this comes
+    // live from the player and is never written down.
+    function oneLine(text) {
+        return (text || "").replace(/\s+/g, " ").trim();
+    }
 
     // A player that says it is stopped has nothing to show, whatever
     // it left behind in its metadata. A browser clears the title when
@@ -38,8 +52,9 @@ Item {
 
         Text {
             Layout.fillWidth: true
-            text: root.player ? (root.player.trackTitle || I18n.t.nothingPlaying)
-                              : I18n.t.nothingPlaying
+            text: root.player
+                ? (root.oneLine(root.player.trackTitle) || I18n.t.nothingPlaying)
+                : I18n.t.nothingPlaying
             color: Theme.textPrimary
             font.pixelSize: 15
             font.weight: Font.DemiBold
@@ -53,7 +68,7 @@ Item {
             // of what this is, not a reading about it.
             text: {
                 if (!root.player) return "";
-                const who = root.player.trackArtist || "";
+                const who = root.oneLine(root.player.trackArtist);
                 if (!root.live) return who;
                 return who !== "" ? who + " · " + I18n.t.liveNow : I18n.t.liveNow;
             }

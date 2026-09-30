@@ -19,7 +19,15 @@ Column {
     FocusScope {
         width: parent.width
         height: chips.height
-        activeFocusOnTab: Pinned.list.length > 0
+        // A stop worth having only while there is something to walk,
+        // and `|| activeFocus` is what keeps that from being a trap.
+        // Deleting the last pinned application with Del happens while
+        // this very scope holds the focus, so the condition would turn
+        // false under Qt's feet -- and Qt refuses to take the tab stop
+        // away from the item that has the focus, which is the warning
+        // the sidebar already taught us. Holding the focus keeps the
+        // stop until the focus leaves, and then it goes quietly.
+        activeFocusOnTab: Pinned.list.length > 0 || activeFocus
 
         Accessible.role: Accessible.List
         Accessible.name: I18n.t.secDockApps
@@ -111,53 +119,28 @@ Column {
     }
 
     // ── Search box to add more ───────────────────────────────────
-    Rectangle {
-        width: parent.width
-        height: 30
-        radius: 8
-        color: "#14ffffff"
-        border.width: 1
-        border.color: search.activeFocus ? Theme.accent : "#1affffff"
+    // The first answer is marked as you type, so finding something and
+    // pressing return pins it. The arrows walk the rest without
+    // leaving the box, which is where your hands already are.
+    SearchField {
+        id: search
+        describedAs: I18n.t.addApp
+        placeholder: I18n.t.addApp
+        // Shorter than the town search next door on purpose: this one
+        // walks a catalogue already in memory and answers at once,
+        // while that one goes out to the network.
+        settleMs: 180
+        count: root.results.length
+        // The mark lives in the field, because the arrows that move it
+        // are in the field. This only mirrors it out for the rows to
+        // draw and for return to act on -- binding it both ways would
+        // be a loop whose first half dies the moment an arrow is
+        // pressed, which is a worse kind of working.
+        onPickChanged: root.pick = pick
 
-        TextInput {
-            id: search
-            anchors.fill: parent
-            anchors.leftMargin: 10
-            anchors.rightMargin: 10
-            verticalAlignment: TextInput.AlignVCenter
-            color: Theme.textPrimary
-            font.pixelSize: 12
-            clip: true
-            selectByMouse: true
-            activeFocusOnTab: true
-
-            Accessible.role: Accessible.EditableText
-            Accessible.name: I18n.t.addApp
-
-            // The first answer is marked as you type, so finding
-            // something and pressing return pins it. The arrows walk
-            // the rest without leaving the box, which is where your
-            // hands already are.
-            Keys.onDownPressed:
-                root.pick = Math.min(root.results.length - 1, root.pick + 1)
-            Keys.onUpPressed: root.pick = Math.max(0, root.pick - 1)
-            Keys.onReturnPressed: root.add()
-            Keys.onEnterPressed: root.add()
-
-            onTextChanged: {
-                root.pick = 0;
-                if (text.length > 0) settle.restart();
-                else { settle.stop(); root.results = []; }
-            }
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: search.text === "" && !search.activeFocus
-                text: I18n.t.addApp
-                color: Theme.textTertiary
-                font.pixelSize: 12
-            }
-        }
+        onSettled: root.lookUp()
+        onCleared: root.results = []
+        onTaken: root.add()
     }
 
     // ── Results ──────────────────────────────────────────────────
@@ -175,13 +158,7 @@ Column {
         if (!root.results.length) return;
         const at = Math.max(0, Math.min(root.results.length - 1, root.pick));
         Pinned.add(root.results[at].id);
-        search.text = "";
-    }
-
-    Timer {
-        id: settle
-        interval: 180
-        onTriggered: root.lookUp()
+        search.clear();
     }
 
     // Pinning one of them takes it out of the list it was picked from.
@@ -224,7 +201,7 @@ Column {
                 required property var modelData
                 required property int index
                 readonly property bool marked:
-                    index === root.pick && search.activeFocus
+                    index === root.pick && search.input.activeFocus
 
                 width: parent.width
                 height: 28

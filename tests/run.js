@@ -990,6 +990,66 @@ function is(what, got, want) {
        e.steamEntry("steam_app_999"), null);
 }
 
+// ── A tray icon that has no menu to give ─────────────────────────
+//
+// Two kinds of icon and one of them hands us nothing. Most programs
+// publish a menu over DBusMenu and Quickshell gives it to us ready to
+// show; a Windows program under Wine arrives through a bridge that has
+// no menu on the bus at all and expects to be asked instead. Shima used
+// to give up on the second kind without a word.
+//
+// What matters here is that the first kind did not change: it is every
+// tray icon anybody has, and it goes through the same call it always
+// did.
+{
+    const calls = [];
+    const t = load("components/TrayItem.qml", ["showMenu"], {
+        Quickshell: { execDetached: (argv) => calls.push(argv) }
+    });
+    t.width = 30;
+    t.dockWindow = { name: "dock" };
+    t.helper = "/opt/shima/helper/shima-tray-menu";
+    t.mapToItem = () => ({ x: 100, y: 200 });
+    t.mapToGlobal = () => ({ x: 640.4, y: 1399.6 });
+
+    // The ordinary kind: shown by Quickshell, and nothing is run.
+    let shown = null;
+    t.item = { hasMenu: true, id: "discord_status_icon_1",
+               display: (w, x, y) => { shown = [w.name, x, y]; } };
+    t.showMenu();
+    is("an icon with a menu is still shown the way it always was",
+       shown, ["dock", 100, 200]);
+    is("and nothing is run for it", calls.length, 0);
+
+    // The bridged kind: asked through the helper, with the icon's
+    // place on screen rounded to whole pixels because it goes on a
+    // command line.
+    t.item = { hasMenu: false, id: "71303180", display: () => {} };
+    t.showMenu();
+    is("an icon with no menu is asked through the helper", calls,
+       [["/opt/shima/helper/shima-tray-menu", "71303180", "640", "1400"]]);
+
+    // And every way of having nothing to ask is a quiet no.
+    calls.length = 0;
+    t.item = null;
+    t.showMenu();
+    t.item = { hasMenu: false, id: "", display: () => {} };
+    t.showMenu();
+    t.item = { hasMenu: false, id: "71303180", display: () => {} };
+    t.helper = "";
+    t.showMenu();
+    is("no item, no id or no helper runs nothing at all", calls.length, 0);
+
+    // A window that is not there yet is not a reason to run the helper
+    // for an icon that has a menu of its own.
+    t.helper = "/opt/shima/helper/shima-tray-menu";
+    t.dockWindow = null;
+    t.item = { hasMenu: true, id: "discord_status_icon_1", display: () => {} };
+    t.showMenu();
+    is("and an icon with a menu waits for the dock rather than falling through",
+       calls.length, 0);
+}
+
 // ── The clock under what is playing ──────────────────────────────
 //
 // Read against Spotify, which reports 251.217 seconds for a track its
@@ -1034,6 +1094,364 @@ function is(what, got, want) {
         let got;
         try { got = body(src, "f"); } catch (e) { got = "threw: " + e.message; }
         is("the whole function comes back with " + what, got, src);
+    }
+}
+
+// ── A window name is never part of a shell script ────────────────
+//
+// The names come out of desktop files and out of the titles Steam
+// keeps, so they come from outside. They used to be written into a
+// script with JSON.stringify around them, which quotes for JSON and
+// not for a shell: inside double quotes a shell still reads $, a
+// backtick and a backslash, so a name holding $(...) ran it.
+//
+// The lookup hands back patterns now and the caller passes them as
+// arguments. This runs a real shell to say so, because the whole point
+// is what a shell does with them and no amount of reading proves that.
+{
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    const { execFileSync } = require("child_process");
+
+    // All lowercase on purpose: the candidates are lowercased on the
+    // way through, and a path with a capital in it would end up
+    // pointing somewhere else and prove nothing.
+    const dir = path.join(os.tmpdir(), "shima-shell-" + process.pid);
+    fs.mkdirSync(dir, { recursive: true });
+    const proof = path.join(dir, "pwned");
+    const nasty = "game$(touch " + proof + ")odd";
+
+    const w = load("services/Windows.qml",
+                   ["windowLookup", "candidatesFor"],
+                   { Apps: { settingsId: "shima:settings",
+                             settingsClass: "shima",
+                             entryFor: () => ({ id: "x", name: nasty,
+                                                startupClass: nasty }) } });
+    w.launchers = [];
+    const pats = w.windowLookup("x");
+
+    is("the lookup hands back patterns rather than a script",
+       Array.isArray(pats) && pats.length > 0, true);
+    is("and the name is in them untouched, with nothing escaped",
+       pats.some(p => p.indexOf(nasty.toLowerCase()) !== -1), true);
+
+    // The way the shell is actually called: the script is fixed and
+    // every pattern arrives as an argument.
+    execFileSync("sh", ["-c",
+        'wins=""; for p in "$@"; do [ -n "$wins" ] && break; ' +
+        'wins=$(printf "%s" "$p"); done',
+        "shima"].concat(pats), { stdio: "ignore" });
+    is("a name that would run a command does not run it", fs.existsSync(proof), false);
+
+    // And the other way round, to be sure the proof means anything:
+    // the same name written into the script the old way does run.
+    try {
+        execFileSync("sh", ["-c", 'wins=$(printf "%s" "' + pats[0] + '")'],
+                     { stdio: "ignore" });
+    } catch (e) { /* the shell may complain; the file is the answer */ }
+    is("while writing it into the script would have", fs.existsSync(proof), true);
+
+    fs.rmSync(dir, { recursive: true, force: true });
+}
+
+// ── No IPC function named after the tool's own words ─────────────
+//
+// `qs ipc` keeps five words for its own subcommands, and a handler
+// function named after one of them cannot be reached: asking for
+// `launcher show` printed the list of targets and opened nothing. It
+// went unnoticed because nothing here called it — the shortcut helper
+// asks for `toggle` — so the first person to find it would have been
+// somebody typing it by hand and concluding the shell was broken.
+{
+    const fs = require("fs");
+    const path = require("path");
+    const { root } = require("./extract.js");
+
+    // show, call, wait, listen, prop — read off `qs ipc --help`.
+    const taken = ["show", "call", "wait", "listen", "prop"];
+
+    const found = [];
+    const walk = (dir) => {
+        for (const name of fs.readdirSync(dir)) {
+            const full = path.join(dir, name);
+            if (fs.statSync(full).isDirectory()) {
+                if (name !== "node_modules" && name !== ".git") walk(full);
+                continue;
+            }
+            if (!name.endsWith(".qml")) continue;
+            const text = fs.readFileSync(full, "utf8");
+            let at = text.indexOf("IpcHandler");
+            while (at >= 0) {
+                // From the handler's opening brace to the one that
+                // closes it, counting the way the extractor does.
+                let depth = 0, seen = false, end = at;
+                for (let i = at; i < text.length; i++) {
+                    const c = text[i];
+                    if (c === "{") { depth++; seen = true; }
+                    else if (c === "}") {
+                        depth--;
+                        if (seen && depth === 0) { end = i; break; }
+                    }
+                }
+                const body = text.slice(at, end);
+                for (const m of body.matchAll(/function\s+([A-Za-z_$][\w$]*)\s*\(/g))
+                    found.push([path.relative(root, full), m[1]]);
+                at = text.indexOf("IpcHandler", end);
+            }
+        }
+    };
+    walk(root);
+
+    is("the shell exposes IPC functions at all", found.length > 0, true);
+    is("and none of them is named after a subcommand of the tool",
+       found.filter(([, name]) => taken.indexOf(name) !== -1), []);
+}
+
+// ── Reading KDE's own shortcut file ──────────────────────────────
+//
+// parse() and usedBy() decide whether a combination is already taken,
+// and they had no test at all -- the easiest thing in the project to
+// test, and the one whose being wrong is invisible: the warning simply
+// does not appear and the key is taken from somebody else in silence.
+// The lines below are the shapes found in a real kglobalshortcutsrc,
+// escaped tabs and all.
+{
+    const config = { data: {} };
+    const i18n = { t: { pageLauncher: "Launcher", catClipboard: "Clipboard" } };
+    const sc = load("services/Shortcuts.qml", ["parse", "usedBy"],
+                    { Config: config, I18n: i18n });
+
+    sc.parse([
+        "# a comment, and a blank line follows",
+        "",
+        "[ActivityManager]",
+        "_k_friendly_name=Gestor de actividades",
+        "switch-to-activity-9254dc5c=none,none,Cambiar a la actividad",
+        "[ksmserver]",
+        "_k_friendly_name=Gestión de la sesión",
+        "Lock Session=Screensaver\\tMeta+L,Screensaver\\tMeta+L,Bloquear la sesión",
+        "Halt Without Confirmation=none,none,Apagar sin confirmación",
+        "[kwin]",
+        "Window Close=Alt+F4\\tMeta+Ctrl+Esc,Alt+F4,Cerrar ventana",
+        "Overview=Meta+W,Meta+W,Vista general",
+        "[shima]",
+        "_k_friendly_name=Shima",
+        "toggleLauncher=Meta,Meta,Launcher"
+    ].join("\n"));
+
+    is("the friendly name is what a person is shown",
+       sc.usedBy("Meta+L", "launcher"), "Gestión de la sesión");
+    is("a group with no friendly name answers with its own",
+       sc.usedBy("Meta+W", "launcher"), "kwin");
+    is("a combination nobody holds is free", sc.usedBy("Meta+J", "launcher"), "");
+    is("and `none` is not a combination", sc.usedBy("none", "launcher"), "");
+
+    // The escaped tab is the one that bites: KDE puts several keys for
+    // one action in a single field, and each of them is taken.
+    is("both keys of an action are taken, not just the first",
+       [sc.usedBy("Alt+F4", "launcher"), sc.usedBy("Meta+Ctrl+Esc", "launcher")],
+       ["kwin", "kwin"]);
+
+    // Ours are answered from the settings and not from this file,
+    // because the helper takes them out of KDE's hands while the
+    // settings window is listening -- at which point the file says
+    // nobody holds them, which is true and useless.
+    is("our own group is skipped", sc.usedBy("Meta", "clipboard"), "");
+
+    config.data = {
+        shortcutLabel: "Meta", clipboardLabel: "Meta+V",
+        shortcutKey: 1, clipboardKey: 2
+    };
+    is("our launcher key is reported by the name of its page",
+       sc.usedBy("Meta", "clipboard"), "Launcher");
+    is("and the clipboard by its own", sc.usedBy("Meta+V", "launcher"), "Clipboard");
+    is("but nothing is in its own way", sc.usedBy("Meta", "launcher"), "");
+    is("nor is an empty label anybody's", sc.usedBy("", "launcher"), "");
+
+    // A line that is not a setting, a setting before any group, and a
+    // group that never closes: none of them should throw.
+    sc.parse("not a group\nkey=value\n[unclosed\n=noname");
+    is("rubbish is read without falling over", sc.usedBy("Meta+L", "launcher"), "");
+}
+
+// ── Keys spelled the way KDE spells them ─────────────────────────
+//
+// Whether a combination is already taken is decided by looking its
+// text up among the ones KDE has written in kglobalshortcutsrc. So the
+// spelling is not cosmetic: `Ctrl+Alt+Delete` never found the
+// `Ctrl+Alt+Del` sitting in that file, and the warning that the key
+// belongs to somebody else never came. The names below were read out
+// of a real one.
+{
+    const Qt = {
+        Key_Escape: 0x01000000, Key_Tab: 0x01000001,
+        Key_Backspace: 0x01000003, Key_Return: 0x01000004,
+        Key_Enter: 0x01000005, Key_Insert: 0x01000006,
+        Key_Delete: 0x01000007, Key_Home: 0x01000010,
+        Key_End: 0x01000011, Key_Left: 0x01000012, Key_Up: 0x01000013,
+        Key_Right: 0x01000014, Key_Down: 0x01000015,
+        Key_PageUp: 0x01000016, Key_PageDown: 0x01000017,
+        Key_Space: 0x20, Key_F1: 0x01000030, Key_F35: 0x01000052
+    };
+    const c = load("components/Controls.qml", ["nameOf"], { Qt: Qt });
+
+    const asKde = [
+        [Qt.Key_Delete, "Del"], [Qt.Key_Escape, "Esc"],
+        [Qt.Key_PageUp, "PgUp"], [Qt.Key_PageDown, "PgDown"],
+        [Qt.Key_Return, "Return"], [Qt.Key_Enter, "Return"],
+        [Qt.Key_Insert, "Ins"]
+    ];
+    for (const [key, want] of asKde)
+        is("the key KDE calls " + want + " is called that here",
+           c.nameOf(key, ""), want);
+
+    // The ones that were already right, so that fixing the others did
+    // not quietly change them.
+    const unchanged = [
+        [Qt.Key_Space, "Space"], [Qt.Key_Tab, "Tab"],
+        [Qt.Key_Backspace, "Backspace"], [Qt.Key_Home, "Home"],
+        [Qt.Key_End, "End"], [Qt.Key_Up, "Up"], [Qt.Key_Down, "Down"],
+        [Qt.Key_Left, "Left"], [Qt.Key_Right, "Right"]
+    ];
+    for (const [key, want] of unchanged)
+        is(want + " is still " + want, c.nameOf(key, ""), want);
+
+    is("the function keys count from one", c.nameOf(Qt.Key_F1, ""), "F1");
+    is("and keep counting", c.nameOf(Qt.Key_F1 + 11, ""), "F12");
+    is("a letter is a capital letter", c.nameOf(0x61, "a"), "A");
+    is("and anything else falls back to what was typed",
+       c.nameOf(0x01ffffff, "ñ"), "\u00d1");
+}
+
+// ── Text from somebody else's machine ────────────────────────────
+//
+// A Text honours a newline even with elide on, so one inside a track
+// title takes two lines in a panel that has room for one and pushes
+// the transport out of it. Real data from an Android phone over KDE
+// Connect, which is where this was found.
+{
+    const m = load("components/MediaMode.qml", ["oneLine"], {});
+
+    is("a newline in the middle is flattened",
+       m.oneLine("BEJO\n Sume Beats"), "BEJO Sume Beats");
+    is("and so are tabs and runs of spaces",
+       m.oneLine("Aphex\t\tTwin   \u2014   Xtal"), "Aphex Twin \u2014 Xtal");
+    is("the edges are trimmed", m.oneLine("  Boards of Canada \n"),
+       "Boards of Canada");
+    is("nothing stays nothing", m.oneLine(""), "");
+    is("and neither undefined nor null becomes the word for it",
+       [m.oneLine(undefined), m.oneLine(null)], ["", ""]);
+}
+
+// ── A capture marker nobody cleaned up ───────────────────────────
+//
+// While the settings window waits for a key the shell writes a marker
+// and the helper takes both shortcuts out of KDE's hands, so they can
+// be typed into the box instead of firing. Only the shell removed it,
+// so a shell that died with the box open left Meta and Meta+V
+// unregistered for the rest of the session, with nothing on screen to
+// explain it.
+//
+// The shell touches the marker every twenty seconds now and the helper
+// stops believing one that has not been touched for a minute. Run
+// against the helper itself, because the rule lives there.
+{
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    const { execFileSync, spawnSync } = require("child_process");
+    const { root } = require("./extract.js");
+
+    const python = spawnSync("python3", ["-c", ""]);
+    if (python.error) {
+        console.log("  (no python3 here, so the capture marker is not exercised)");
+    } else {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shima-cap-"));
+        const probe = path.join(dir, "probe.py");
+        fs.writeFileSync(probe, [
+            "import importlib.machinery, importlib.util, os, sys, time",
+            "os.environ['SHIMA_RUNTIME_DIR'] = sys.argv[1]",
+            "sys.argv = ['shima-shortcuts']",
+            "loader = importlib.machinery.SourceFileLoader('h', sys.argv[0])",
+            "spec = importlib.util.spec_from_loader('h', importlib.machinery",
+            "       .SourceFileLoader('h', " + JSON.stringify(
+                path.join(root, "helper/shima-shortcuts")) + "))",
+            "h = importlib.util.module_from_spec(spec)",
+            "spec.loader.exec_module(h)",
+            "open(h.CAPTURING, 'w').close()",
+            "print('fresh', h.capturing())",
+            "os.utime(h.CAPTURING, (time.time() - 30,) * 2)",
+            "print('recent', h.capturing())",
+            "os.utime(h.CAPTURING, (time.time() - 90,) * 2)",
+            "print('stale', h.capturing())",
+            "print('swept', not os.path.exists(h.CAPTURING))",
+            "print('gone', h.capturing())",
+        ].join("\n"));
+
+        let out = "";
+        try {
+            out = execFileSync("python3", [probe, dir], { encoding: "utf8" });
+        } catch (e) {
+            out = "failed: " + (e.stderr || e.message);
+        }
+        const said = {};
+        for (const line of out.trim().split("\n")) {
+            const [k, v] = line.split(" ");
+            said[k] = v;
+        }
+
+        is("a marker just written is believed", said.fresh, "True");
+        is("and one touched half a minute ago still is", said.recent, "True");
+        is("one nobody has touched for a minute is not", said.stale, "False");
+        is("and it is taken away rather than left to puzzle the next reader",
+           said.swept, "True");
+        is("no marker at all is not capturing", said.gone, "False");
+
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+}
+
+// ── Every .qml file still parses ─────────────────────────────────
+//
+// Everything else here pulls one function out of a file and runs it,
+// which says nothing about whether the file as a whole is still valid
+// QML. That gap bit on 27 September: an edit left a string unclosed,
+// the suite passed 209 green, and the only thing that noticed was the
+// running shell refusing to reload — with the old configuration still
+// up, so nothing looked wrong until somebody read the log.
+//
+// qmllint answers 255 for a file it cannot parse and 0 for one it can,
+// warnings and all, and it warns plenty about Quickshell's own types
+// because they are not on its import path. So the exit code is the
+// question and the output is not.
+{
+    const fs = require("fs");
+    const path = require("path");
+    const { execFileSync, spawnSync } = require("child_process");
+    const { root } = require("./extract.js");
+
+    const have = spawnSync("qmllint", ["--help"], { stdio: "ignore" });
+    if (have.error) {
+        console.log("  (no qmllint here, so the .qml files are not parsed)");
+    } else {
+        const files = [];
+        const walk = (dir) => {
+            for (const name of fs.readdirSync(dir)) {
+                if (name === "node_modules" || name === ".git") continue;
+                const full = path.join(dir, name);
+                if (fs.statSync(full).isDirectory()) walk(full);
+                else if (name.endsWith(".qml")) files.push(full);
+            }
+        };
+        walk(root);
+
+        const broken = files.filter(f =>
+            spawnSync("qmllint", [f], { stdio: "ignore" }).status !== 0)
+            .map(f => path.relative(root, f));
+
+        is("there are .qml files to check", files.length > 0, true);
+        is("and every one of them parses", broken, []);
     }
 }
 
