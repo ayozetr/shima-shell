@@ -23,7 +23,7 @@
 
 set -e
 
-VERSION=0.5.0
+VERSION=0.6.0
 
 have() { command -v "$1" >/dev/null 2>&1; }
 

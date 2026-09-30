@@ -56,7 +56,7 @@ doing.
 ## Right clicking a tray icon does nothing
 
 If it is a Windows program under Wine — Ubisoft Connect, the EA app,
-Battle.net — its menu now opens, as of the version after 0.5.0. Two
+Battle.net — its menu now opens, as of 0.6.0. Two
 things to expect, and neither is fixable from here: the menu appears
 where Wine decides to put it, which is not necessarily beside the
 dock, and the first click sometimes shows the program's name instead

@@ -8,6 +8,8 @@ work all the same.
 | Distribution | How it goes |
 |---|---|
 | **Arch · CachyOS** and derivatives | Everything works, blur included. In the AUR as `shima-shell`. |
+| **Manjaro** | Everything works, blur included. Quickshell is in its own repositories. It ships no AUR helper, so the installer fetches the released `kdotool` binary rather than building it. |
+| **Gentoo** | Everything works, blur included. Quickshell comes from the GURU overlay, which has to be enabled first. See the note below. |
 | **Fedora KDE 44** | Everything works, blur included. The installer offers you the COPR that carries Quickshell. |
 | **openSUSE Tumbleweed** | Everything works, blur included. The installer prints the two lines that add the repository and stops there, for you to run them. |
 | **Kubuntu · Ubuntu 26.04** | Everything works except blur, which its Plasma is too old for. The installer offers you the PPA that carries Quickshell. |
@@ -85,6 +87,32 @@ appears where Wine decides to put it, which is not necessarily beside
 the dock, and the first click sometimes shows the program's name
 instead of its menu. Clicking again brings the menu up. Both happen
 inside Wine, below anything Shima can reach.
+
+## Gentoo
+
+Quickshell is not in the main tree; it is in GURU, which is a testing
+overlay and is not enabled by default. Four commands, and the first one
+is not decoration -- `eselect repository` is its own package and the
+desktop profile does not install it, so without it the second command
+answers that it cannot load the module:
+
+```bash
+sudo emerge app-eselect/eselect-repository
+sudo eselect repository enable guru
+sudo emaint sync -r guru
+sudo emerge --autounmask-write gui-apps/quickshell
+```
+
+Being a testing overlay, Quickshell wants lines in
+`/etc/portage/package.accept_keywords` -- on stable amd64 it took three
+of them, for Quickshell itself, for `cpptrace` under its crash handler
+and for `libdwarf` under that. `--autounmask-write` writes them for
+you; leave it off and add them yourself if you would rather see what
+you are loosening.
+
+The installer prints these and stops there rather than running them.
+Enabling somebody else's overlay, and loosening which versions your
+system will accept, are your policy and not a script's to decide.
 
 ## NixOS
 

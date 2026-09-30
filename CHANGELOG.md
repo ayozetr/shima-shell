@@ -14,15 +14,106 @@ Since there is no public API here, that means:
 
 ## [Unreleased]
 
-### Fixed
+## [0.6.0] — 2026-09-30
+
+What came back from 0.5.0: an audit of everything that release turned
+up, three more distributions, and the installer fixed in the places
+where nobody had ever watched it fail.
+
+### Added
 
 - Right clicking a tray icon that belongs to a Windows program running
-  under Wine — Ubisoft Connect, the EA app, Battle.net — did nothing at
-  all. Those icons come through a bridge that publishes no menu, and
+  under Wine — Ubisoft Connect, the EA app, Battle.net — opens its
+  menu. Those icons come through a bridge that publishes no menu, and
   the shell gave up there instead of asking the icon to draw its own.
   The menu appears where Wine decides to put it, and the first click
   sometimes shows the program's name rather than the menu; both are
   below anything Shima can reach.
+- `docs/distributions.md`: how it goes on each distribution and what
+  versions it needs, every number of it met on a real machine.
+- `docs/troubleshooting.md`: nine questions that have actually been
+  asked, and a plain answer where the answer is that nothing can be
+  done.
+
+### Changed
+
+- A click anywhere along the row of mode dots takes the nearest one. A
+  dot is four pixels wide with four more to the next, and widening
+  either the target or the spacing changes the other, since they are
+  the same measurement. Nothing was widened: the drawing is untouched
+  and the aiming is what changed.
+- A settings box writes when you stop typing rather than on every
+  keystroke — one shortcut name wrote the file twenty-nine times, and
+  the shortcut helper rereads it each time. It still writes the moment
+  you leave the box.
+- Escape in a search field leaves the field and keeps the setting,
+  instead of closing the settings window.
+- The key names shown are the ones KDE writes down: Del, Return, Ins,
+  Esc, PgUp, PgDown.
+- The sections of the configuration file describe what is under them
+  again; several settings had drifted into the wrong one.
+- The screenshots in the README show the shell as it is now, and the
+  wallpaper they were taken against ships in `assets/vendor/`.
+
+### Fixed
+
+- A window name holding `$(...)` was executed. The dock built a shell
+  script with those names written into it, quoted for JSON rather than
+  for a shell, and the names come from desktop files and from the
+  titles Steam keeps. They are passed as arguments now, which a shell
+  never parses.
+- A shell that died while the settings window was waiting for a key
+  left Meta and Meta+V unregistered for the rest of the session, with
+  nothing on screen to say why.
+- `qs ipc call launcher show` printed the list of targets and opened
+  nothing: `show` is one of five words the tool keeps for itself.
+- A first run printed four warnings about files that do not exist,
+  which is what a first run is.
+- A track whose artist arrives with a newline in it, which is what KDE
+  Connect sends from a phone, took two lines in a panel with room for
+  one and pushed the transport out of it.
+- `Ctrl+Alt+Delete` never noticed the `Ctrl+Alt+Del` already taken,
+  because the names being compared were not the ones KDE uses.
+- Deleting the last pinned application hit the one focus pattern Qt
+  refuses, and the arrow keys did not move through the lists at all.
+- The installer died at the first question it asked with no terminal
+  behind it: exit 1, nothing printed, everything already copied into
+  place. A redirection error on a POSIX special built-in ends a
+  non-interactive shell, so the `|| return 1` meant to answer "no"
+  never ran. Every distribution was affected — ssh without a terminal,
+  cron, a container, CI.
+- The installer stopped for want of curl while holding a package
+  manager that could have installed it: the step that installs it ran
+  after the step that needs it.
+- kdotool was downloaded again on a second run while sitting in
+  `~/.local/bin`, because only the PATH was looked at.
+- An X11 session was not mentioned at all. The panels are layer-shell
+  surfaces, which X11 has no equivalent of, so nothing appears while
+  the installer finishes happily. It asks first now, and only when the
+  session says x11 outright.
+- Told that it could not reach Launchpad, the installer suggested
+  adding a repository that may have nothing for that release. It says
+  which of the two it is now.
+- Gentoo was told to run a command that cannot work on a fresh
+  install: `eselect repository` is its own package and nothing pulls
+  it in. The keyword note said one line where it takes three.
+
+### Known issues
+
+- Debian 13 runs the shell but cannot open the settings window: its Qt
+  is 6.8, and the same window opens on Qt 6.11 with the very same
+  Quickshell.
+- KDE Neon has no Quickshell to install; built by hand, everything
+  works there.
+- Gentoo needs the GURU overlay enabled and three keyword lines before
+  Quickshell will install. The installer prints the commands and
+  leaves them to you.
+- Notifications go to whoever asked for the service first, and Plasma
+  asks too.
+- Blur needs Plasma 6.7 or newer.
+- The launcher's category names follow the language of your session,
+  not the one set in Shima: they come from KDE's menu.
+- The island, the dock and the session bar are mouse only.
 
 ## [0.5.0] — 2026-09-27
 
@@ -385,7 +476,9 @@ First release. Installable and packaged; expect rough edges.
 - The launcher's category names follow the language of your session,
   not the one set in Shima: they come from KDE's menu.
 
-[Unreleased]: https://github.com/ayozetr/shima-shell/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/ayozetr/shima-shell/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.6.0
+[0.5.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.5.0
 [0.4.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.2.0
