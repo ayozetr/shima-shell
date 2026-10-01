@@ -187,6 +187,17 @@ Item {
                 // Launching from the dock puts the launcher away, the
                 // same as launching from inside it does.
                 LauncherState.hide();
+                // And the dock's own panels with it. The other two
+                // buttons never needed saying so: they open a panel,
+                // and opening one puts the other away. This one opens
+                // nothing, so nothing put them away — walk along the
+                // dock starting applications with a list of windows
+                // open and it stayed there, over the dock, listing the
+                // windows of whatever you had asked about first.
+                if (root.dockWindow) {
+                    root.dockWindow.menu.hide();
+                    root.dockWindow.windowList.hide();
+                }
                 Windows.raiseOrStart(root.appId);
             }
         }
