@@ -98,6 +98,17 @@ PanelWindow {
     // zone the handler never hears about.
     Item {
         id: reach
+        // Above the strip below, and that is the whole point of the
+        // line. `edgeStrip` is three pixels tall, spans the width of
+        // the screen, sits at y 0 and is declared after this, so among
+        // siblings it was on top — and a covered item is not asked
+        // about hover at all. In those three pixels, which is exactly
+        // where the pointer is when it reaches the top of the screen,
+        // this zone never heard anything: `overReach` stayed false and
+        // the flicker it exists to prevent came back. Measured, with
+        // the pointer parked at the edge: `overIsland` alone going
+        // true and false every thirty-odd milliseconds.
+        z: 1
         anchors.horizontalCenter: parent.horizontalCenter
         y: 0
         width: (win.expanded || win.peeking) ? Theme.islandExpandedWidth
