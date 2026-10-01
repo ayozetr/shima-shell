@@ -123,6 +123,16 @@ var strings = {
     upload: "UPLOAD",
     battery: "BATERIA",
 
+    batteryToFull: "ATÉ CHEIA",
+    batteryRemaining: "RESTANTE",
+    batteryStatus: "ESTADO",
+    batteryFull: "Carregada",
+    batteryCharging: "A carregar",
+    batteryOnBattery: "Na bateria",
+    batteryPlugged: "Ligada",
+    durationHm: "%1 h %2 min",
+    durationH: "%1 h",
+    durationM: "%1 min",
     // ── Island: media and focus ──
     focus: "FOCO",
     breakLabel: "PAUSA",

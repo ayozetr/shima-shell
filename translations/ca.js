@@ -123,6 +123,16 @@ var strings = {
     upload: "PUJADA",
     battery: "BATERIA",
 
+    batteryToFull: "PER CARREGAR",
+    batteryRemaining: "RESTANT",
+    batteryStatus: "ESTAT",
+    batteryFull: "Carregada",
+    batteryCharging: "Carregant",
+    batteryOnBattery: "Amb bateria",
+    batteryPlugged: "Endollada",
+    durationHm: "%1 h %2 min",
+    durationH: "%1 h",
+    durationM: "%1 min",
     // ── Island: media and focus ──
     focus: "CONCENTRACIÓ",
     breakLabel: "DESCANS",

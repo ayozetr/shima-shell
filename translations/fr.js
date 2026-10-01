@@ -123,6 +123,16 @@ var strings = {
     upload: "ENVOI",
     battery: "BATTERIE",
 
+    batteryToFull: "AVANT PLEINE",
+    batteryRemaining: "RESTANT",
+    batteryStatus: "ÉTAT",
+    batteryFull: "Chargée",
+    batteryCharging: "En charge",
+    batteryOnBattery: "Sur batterie",
+    batteryPlugged: "Branchée",
+    durationHm: "%1 h %2 min",
+    durationH: "%1 h",
+    durationM: "%1 min",
     // ── Island: media and focus ──
     focus: "CONCENTRATION",
     breakLabel: "PAUSE",

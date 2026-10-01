@@ -32,9 +32,22 @@ PanelWindow {
     ]
     property int mode: 0
 
+    // Bumped whenever a mode's loader produces or drops its item. The
+    // height below is worked out with `itemAt`, which is a function
+    // and not a property, so nothing tells that binding when the item
+    // it asked about finally exists — and the loaders are lazy, so on
+    // the mode the island opens in the item is not there yet when the
+    // binding first runs. It then kept the written height for good and
+    // the mode was cut off, which looked like the height was wrong
+    // rather than the moment it was read. Changing mode hid it: that
+    // does re-run the binding, with the item present by then, which is
+    // why it only ever showed up straight after a restart.
+    property int modeRevision: 0
+
     // A mode can ask for a different height (the control centre does,
     // when its output list is unfolded); otherwise its fixed one.
     readonly property int expandedHeight: {
+        win.modeRevision;
         const loader = modeLoaders.itemAt(win.mode);
         const item = loader ? loader.item : null;
         if (item && item.preferredHeight)
@@ -390,6 +403,8 @@ PanelWindow {
                     opacity: index === win.mode ? 1 : 0
                     visible: opacity > 0
                     x: (index - win.mode) * 24
+
+                    onItemChanged: win.modeRevision++
 
                     Behavior on opacity { NumberAnimation { duration: 200 } }
                     Behavior on x { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }

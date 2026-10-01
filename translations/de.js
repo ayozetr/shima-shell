@@ -123,6 +123,16 @@ var strings = {
     upload: "SENDEN",
     battery: "AKKU",
 
+    batteryToFull: "BIS VOLL",
+    batteryRemaining: "VERBLEIBEND",
+    batteryStatus: "STATUS",
+    batteryFull: "Geladen",
+    batteryCharging: "Lädt",
+    batteryOnBattery: "Akkubetrieb",
+    batteryPlugged: "Angeschlossen",
+    durationHm: "%1 h %2 min",
+    durationH: "%1 h",
+    durationM: "%1 min",
     // ── Island: media and focus ──
     focus: "FOKUS",
     breakLabel: "PAUSE",
