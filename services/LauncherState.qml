@@ -84,6 +84,19 @@ Singleton {
         function onEntriesChanged() { root.refresh(); }
     }
 
+    // The favourites grid is a snapshot: `apps` is set by refresh()
+    // and nothing re-derives it. Until now it followed the favourites
+    // only by way of Apps.revision, which every function that changes
+    // the list has to remember to bump. All four of them do, today —
+    // but the grid showing one list while another is on disk is a
+    // thing that happened, right after an install with everything
+    // still settling, and the fix for it is not to remember harder.
+    // What the grid shows is this list, so it listens to this list.
+    Connections {
+        target: Favorites
+        function onListChanged() { root.refresh(); }
+    }
+
     // Meta+V, which is where hands already go for a clipboard. Opening
     // it is the same as opening the launcher and then picking the
     // category, minus the picking; pressing it again closes it, the
