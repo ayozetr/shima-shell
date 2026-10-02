@@ -113,7 +113,7 @@ Item {
         width: 188
         height: col.height + 8
         radius: 10
-        color: "#fa121212"
+        color: "#ff121212"
         border.width: 1
         border.color: "#2a2a2a"
         z: 50

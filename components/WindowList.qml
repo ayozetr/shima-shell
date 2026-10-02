@@ -27,7 +27,7 @@ Rectangle {
         NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
     }
     radius: 10
-    color: "#fa121212"
+    color: Theme.dockPanelBg
     border.width: 1
     border.color: "#2a2a2a"
 
