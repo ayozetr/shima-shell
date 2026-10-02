@@ -122,27 +122,33 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        Column {
+        // Name and number on one line, sitting on the same baseline.
+        // Anchored rather than left to the row, which lines its items
+        // up by the top: the version is smaller, so that left it
+        // floating above the name instead of beside it.
+        Row {
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 3
+            spacing: 9
 
             Text {
+                id: nameText
                 text: I18n.t.settingsTitle
                 color: Theme.textPrimary
                 font.pixelSize: 21
                 font.weight: Font.DemiBold
             }
             Text {
+                anchors.baseline: nameText.baseline
                 text: Paths.version !== ""
                     ? I18n.t.aboutVersion + " " + Paths.version
                     : I18n.t.aboutVersionUnknown
                 color: Theme.textSecondary
-                font.pixelSize: 12
+                font.pixelSize: 11
             }
         }
     }
 
-    Item { width: 1; height: 12 }
+    Item { width: 1; height: 10 }
 
     Text {
         text: I18n.t.aboutLine
@@ -150,8 +156,91 @@ Column {
         font.pixelSize: 11
         width: parent.width
         wrapMode: Text.WordWrap
-        bottomPadding: 14
+        bottomPadding: 10
     }
+
+    // Asked for, never on its own. Pressing it is the only thing that
+    // makes Shima talk to the network about itself.
+    Row {
+        spacing: 10
+
+        Rectangle {
+            id: checkBtn
+            width: checkLabel.implicitWidth + 26
+            height: 28
+            radius: 8
+            color: checkMouse.containsMouse ? "#1fffffff" : "#12ffffff"
+            border.width: 1
+            border.color: "#1affffff"
+            opacity: Updates.busy ? 0.6 : 1
+            Behavior on color { ColorAnimation { duration: Theme.hoverDuration } }
+
+            activeFocusOnTab: true
+            Keys.onSpacePressed: Updates.check()
+            Keys.onReturnPressed: Updates.check()
+            Keys.onEnterPressed: Updates.check()
+            Accessible.role: Accessible.Button
+            Accessible.name: checkLabel.text
+            Accessible.onPressAction: Updates.check()
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -4
+                radius: 12
+                color: "transparent"
+                border.width: 2
+                border.color: Theme.accent
+                visible: checkBtn.activeFocus
+            }
+
+            Text {
+                id: checkLabel
+                anchors.centerIn: parent
+                text: Updates.busy ? I18n.t.updateChecking : I18n.t.updateCheck
+                color: Theme.textPrimary
+                font.pixelSize: 11
+            }
+
+            MouseArea {
+                id: checkMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                enabled: !Updates.busy
+                onClicked: Updates.check()
+            }
+        }
+
+        // The answer, and where there is somewhere to go, a way to go
+        // there. Nothing downloads itself: what Shima knows is the
+        // number, and how it was installed is not its business.
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            width: root.width - checkBtn.width - 10
+            elide: Text.ElideRight
+            color: Updates.state === "newer" ? Theme.accent : Theme.textTertiary
+            font.pixelSize: 11
+            visible: text !== ""
+            text: {
+                switch (Updates.state) {
+                case "current": return I18n.t.updateCurrent;
+                case "newer":   return I18n.t.updateNewer.replace("%1", Updates.latest);
+                case "offline": return I18n.t.updateOffline;
+                case "failed":  return I18n.t.updateFailed;
+                default:        return "";
+                }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                enabled: Updates.state === "newer"
+                cursorShape: Qt.PointingHandCursor
+                onClicked: Updates.open()
+            }
+        }
+    }
+
+    Item { width: 1; height: 12 }
 
     Link_ {
         mark: "github"
