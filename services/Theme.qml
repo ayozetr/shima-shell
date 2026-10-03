@@ -72,6 +72,22 @@ Singleton {
         Config.number(Config.data.dockOpacity, 1.0, 0, 1))
     readonly property color dockBorder: "#1affffff"
 
+    // The panels that open over the dock: the list of an application's
+    // windows and its menu. A shade darker than the dock itself, since
+    // they sit on top of it and want to read as a layer above rather
+    // than more of the same surface.
+    //
+    // The opacity is the dock's, not one of their own. They used to
+    // carry #fa121212 written into each file -- a 2% leak that is
+    // invisible over a wallpaper and perfectly legible over white text
+    // on a dark background, which is where somebody reading
+    // documentation has them. Now turning the dock translucent turns
+    // these translucent with it, and leaving it solid leaves them
+    // solid, which is the default and what they look like here.
+    readonly property color dockPanelBg: Qt.rgba(
+        0.07, 0.07, 0.07,
+        Config.number(Config.data.dockOpacity, 1.0, 0, 1))
+
     // Gradient of the icon container.
     readonly property color iconTop:    "#33ffffff"
     readonly property color iconBottom: "#0dffffff"

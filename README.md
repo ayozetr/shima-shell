@@ -97,6 +97,21 @@ For what it needs and how it goes on each distribution, see
 [docs/distributions.md](docs/distributions.md). If something is not
 working, [docs/troubleshooting.md](docs/troubleshooting.md).
 
+## Updating
+
+From the AUR, with everything else: `paru -Syu`.
+
+Everywhere else, the same line you installed with. There is no separate
+command: it sees Shima is already there, says which version it is
+replacing, and leaves your settings alone.
+
+**Log out and back in afterwards.** Running it with Shima up is safe —
+nothing breaks — but the Shima already running goes on running the old
+files, and nothing on screen will look wrong while it does.
+
+Settings · About has a button that asks GitHub whether there is a newer
+release. It asks when you press it and at no other time.
+
 ## Uninstalling
 
 Run this first, while Shima is still installed — it hands the Meta key

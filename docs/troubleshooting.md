@@ -128,6 +128,36 @@ It tells a crash from a stop: a shell that crashes is started again, a
 shell you stopped stays stopped. If it keeps crashing, the line before
 the last is usually the one that matters.
 
+## How do I update it?
+
+The same line you installed with, run again. There is no separate
+update command.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ayozetr/shima-shell/main/install.sh | sh
+```
+
+It notices Shima is already there and says which version it is
+replacing. Your settings, your pinned applications and what it
+remembered are in other directories and are not touched.
+
+Log out and back in afterwards. Doing it with Shima running is safe and
+breaks nothing, but the shell that is already up goes on running the
+files it started with: the new version is on disk and the old one is on
+screen, and there is no sign of it either way.
+
+Quickshell does watch those files and does reload when they change —
+that is how Shima is written — but it stops doing so on a shell that
+has been up for a while, and a shell you are updating has been up for a
+while by definition. So the only answer that is true every time is to
+start it again.
+
+From the AUR it comes with the rest of the system: `paru -Syu`.
+
+Settings · About will tell you whether there is a newer release. It
+asks GitHub when you press the button and never on its own: no timer,
+no checking in the background.
+
 ## How do I get rid of it?
 
 ```bash

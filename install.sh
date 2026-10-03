@@ -998,6 +998,34 @@ do_install() {
     check_desktop
     ensure_fetch_tools
     fetch_sources
+
+    # Say which of the two things this is, because they look identical
+    # from here and only one of them is what you meant. Re-running the
+    # line from the README is how Shima is updated -- there is no
+    # separate command for it -- so somebody doing exactly that should
+    # be told it worked, and told from what to what.
+    #
+    # Read out of the launcher rather than kept anywhere: it is the one
+    # place the number is written, and the copy on disk is the version
+    # that is installed by definition.
+    UPDATING=
+    HAD_VERSION=
+    if [ -d "$SHARE" ] || [ -f "$BIN" ]; then
+        UPDATING=1
+        HAD_VERSION=$(sed -n 's/^VERSION=//p' "$BIN" 2>/dev/null | head -1)
+        NEW_VERSION=$(sed -n 's/^VERSION=//p' "$SRC/shima" 2>/dev/null | head -1)
+        say ""
+        if [ -n "$HAD_VERSION" ] && [ -n "$NEW_VERSION" ] \
+           && [ "$HAD_VERSION" != "$NEW_VERSION" ]; then
+            say "Shima $HAD_VERSION is already here. Updating it to $NEW_VERSION."
+        elif [ -n "$HAD_VERSION" ]; then
+            say "Shima $HAD_VERSION is already here. Putting it back as it is."
+        else
+            say "Shima is already here. Replacing it."
+        fi
+        say "Your settings are not touched."
+    fi
+
     ensure_deps
 
     rm -rf "$SHARE"
@@ -1060,7 +1088,28 @@ do_install() {
     fi
 
     say ""
-    say "Installed to $SHARE"
+    # An `if`, and not `[ x ] && say ... || say ...`: a bare AND-OR
+    # list whose test fails is the shape that ended this script once
+    # already, and one place in it is enough.
+    if [ -n "$UPDATING" ]; then
+        say "Updated in place at $SHARE"
+        # This line said the opposite until it was measured. Quickshell
+        # does watch the files and does reload when they change, and
+        # that is what makes writing Shima bearable -- but it stops
+        # doing it after a while, on a shell that has been up for an
+        # hour or so, and then the new files sit on disk while the old
+        # ones go on running. Both machines it was tried on behaved
+        # that way, one of them without this script ever being run on
+        # it, so it is not something the install does.
+        #
+        # Which means the only honest thing to say here is: start it
+        # again. Shima will not tell you it is out of date, and
+        # nothing on screen would look wrong.
+        say "Log out and back in to run it. Until you do, the old one"
+        say "keeps running and nothing on screen will look wrong."
+    else
+        say "Installed to $SHARE"
+    fi
     case ":$PATH:" in
         *":$PREFIX/bin:"*) say "Start it with: shima" ;;
         *) offer_path ;;

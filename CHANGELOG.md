@@ -14,6 +14,83 @@ Since there is no public API here, that means:
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-10-03
+
+A week of using it on a second machine, which is a laptop. Everything
+here was found that way: by somebody opening the thing and saying what
+was wrong with it.
+
+### Added
+
+- The dock's window list closes windows: a cross at the right of each
+  row, showing while the row is under the pointer. It is the window
+  you pointed at that closes, not whichever of the application's
+  windows comes first.
+- The island's status mode shows the battery properly on a machine
+  that has one: a glyph that follows the charge, and beside it the
+  time left — to full while charging, to empty while not. While UPower
+  has no estimate yet it says what the battery is doing instead of
+  inventing a figure.
+- Settings · About asks GitHub whether there is a newer release, when
+  you press the button and at no other time.
+- Right clicking a category in the launcher opens KDE's menu editor at
+  that category.
+- Updating is written down at last, in the README and in
+  troubleshooting.md, and the installer says which version it is
+  replacing instead of looking like a fresh install.
+
+### Changed
+
+- The panels over the dock follow the dock's own opacity rather than a
+  figure written into each file. Solid stays solid, which is the
+  default; turning the dock translucent turns them translucent too.
+- The version in Settings · About sits beside the name rather than
+  under it.
+
+### Fixed
+
+- Clicking a Windows program in the dock did nothing at all — no
+  window, no message — and left a stuck kstart behind with every
+  click. kstart looks a program up by the name of its .desktop file,
+  and a file in a subfolder has an id that is not that name. Wine
+  installs everything into a subfolder, so this was every Windows
+  program on the machine.
+- The battery row fell out of the bottom of the island, and a mode
+  that asks for more height than the table says was cut off whenever
+  the island opened in it — which only showed straight after a
+  restart, since changing mode hid it.
+- The island opened and shut in a loop with the pointer at the very
+  top of the screen. Three pixels of a strip that spans the width of
+  the display sat over the zone that exists to prevent exactly that,
+  and a covered item is never asked about hover.
+- The launcher's grid now follows the favourites it is showing instead
+  of a signal that every function changing them has to remember to
+  send.
+- Closing a window from the list blinked and jumped: the panel had no
+  animation, every row was rebuilt rather than the one that went, and
+  underneath both the list was emptied before being read again.
+- Starting an application from the dock left the dock's own panels
+  open over it.
+- The installer stopped for want of curl while holding a package
+  manager that could have installed it, and told Gentoo to run a
+  command that cannot work on a fresh install.
+
+### Known issues
+
+- Updating with Shima running leaves the old one running: it watches
+  its files and reloads, and stops doing so after a while. Log out and
+  back in after updating.
+- Debian 13 runs the shell but cannot open the settings window; its Qt
+  is 6.8.
+- KDE Neon has no Quickshell to install for its base.
+- Gentoo needs the GURU overlay and three keyword lines.
+- Notifications go to whoever asked for the service first, and Plasma
+  asks too.
+- Blur needs Plasma 6.7 or newer.
+- The launcher's category names follow the language of your session,
+  not the one set in Shima.
+- The island, the dock and the session bar are mouse only.
+
 ## [0.6.0] — 2026-09-30
 
 What came back from 0.5.0: an audit of everything that release turned
@@ -476,7 +553,8 @@ First release. Installable and packaged; expect rough edges.
 - The launcher's category names follow the language of your session,
   not the one set in Shima: they come from KDE's menu.
 
-[Unreleased]: https://github.com/ayozetr/shima-shell/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/ayozetr/shima-shell/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.7.0
 [0.6.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.6.0
 [0.5.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.5.0
 [0.4.0]: https://github.com/ayozetr/shima-shell/releases/tag/v0.4.0

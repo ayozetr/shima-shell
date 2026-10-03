@@ -32,9 +32,22 @@ PanelWindow {
     ]
     property int mode: 0
 
+    // Bumped whenever a mode's loader produces or drops its item. The
+    // height below is worked out with `itemAt`, which is a function
+    // and not a property, so nothing tells that binding when the item
+    // it asked about finally exists — and the loaders are lazy, so on
+    // the mode the island opens in the item is not there yet when the
+    // binding first runs. It then kept the written height for good and
+    // the mode was cut off, which looked like the height was wrong
+    // rather than the moment it was read. Changing mode hid it: that
+    // does re-run the binding, with the item present by then, which is
+    // why it only ever showed up straight after a restart.
+    property int modeRevision: 0
+
     // A mode can ask for a different height (the control centre does,
     // when its output list is unfolded); otherwise its fixed one.
     readonly property int expandedHeight: {
+        win.modeRevision;
         const loader = modeLoaders.itemAt(win.mode);
         const item = loader ? loader.item : null;
         if (item && item.preferredHeight)
@@ -85,6 +98,17 @@ PanelWindow {
     // zone the handler never hears about.
     Item {
         id: reach
+        // Above the strip below, and that is the whole point of the
+        // line. `edgeStrip` is three pixels tall, spans the width of
+        // the screen, sits at y 0 and is declared after this, so among
+        // siblings it was on top — and a covered item is not asked
+        // about hover at all. In those three pixels, which is exactly
+        // where the pointer is when it reaches the top of the screen,
+        // this zone never heard anything: `overReach` stayed false and
+        // the flicker it exists to prevent came back. Measured, with
+        // the pointer parked at the edge: `overIsland` alone going
+        // true and false every thirty-odd milliseconds.
+        z: 1
         anchors.horizontalCenter: parent.horizontalCenter
         y: 0
         width: (win.expanded || win.peeking) ? Theme.islandExpandedWidth
@@ -390,6 +414,8 @@ PanelWindow {
                     opacity: index === win.mode ? 1 : 0
                     visible: opacity > 0
                     x: (index - win.mode) * 24
+
+                    onItemChanged: win.modeRevision++
 
                     Behavior on opacity { NumberAnimation { duration: 200 } }
                     Behavior on x { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }

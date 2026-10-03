@@ -312,12 +312,22 @@ Singleton {
     property var list: []
 
     function load(id) {
+        // Emptied when the application changes, and only then. What is
+        // on screen belongs to the one you were looking at, and leaving
+        // it under another name would be wrong.
+        //
+        // Reading the same one again is a different matter: the rows
+        // are already right, and clearing them to put them back a third
+        // of a second later is a blink of an empty panel. That is what
+        // closing a window looked like — the row folded away neatly and
+        // then the whole list flashed, because this had thrown it away
+        // and built it again behind the animation.
+        if (id !== root.forAppId) root.list = [];
         root.forAppId = id;
-        root.list = [];
-        if (!root.hasKdotool) return;
+        if (!root.hasKdotool) { root.list = []; return; }
 
         const pats = root.windowLookup(id);
-        if (pats.length === 0) return;
+        if (pats.length === 0) { root.list = []; return; }
 
         windowLister.exec(["sh", "-c",
             root.findWins
@@ -375,6 +385,31 @@ Singleton {
     }
 
     function close(id) { root.windowCommand(id, "windowclose"); }
+
+    // Closing one window of the list, which is not the same thing as
+    // close() above: that one is given an application and takes
+    // whichever of its windows comes first. This is given the window
+    // you pointed at, the same way activate() is.
+    function closeWindow(winId) {
+        if (!winId || !root.hasKdotool) return;
+        windowProc.exec(["kdotool", "windowclose", winId]);
+        // A window does not go the moment the command returns: the
+        // application is asked and decides when, and some stop to ask
+        // you whether to save first. So the list is not edited here on
+        // the assumption it worked -- it is read again, twice, and
+        // shows whatever is actually left.
+        relistSoon.restart();
+        relistLater.restart();
+    }
+
+    property Timer relistSoon: Timer {
+        interval: 350
+        onTriggered: if (root.forAppId !== "") root.load(root.forAppId)
+    }
+    property Timer relistLater: Timer {
+        interval: 1400
+        onTriggered: if (root.forAppId !== "") root.load(root.forAppId)
+    }
 
     // Launch another instance regardless of what is already open.
     function launchNew(id) {

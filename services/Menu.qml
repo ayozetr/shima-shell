@@ -33,6 +33,91 @@ Singleton {
         stdout: StdioCollector { onStreamFinished: root.parse(text) }
     }
 
+    // Right clicking a category opens KDE's own menu editor there.
+    //
+    // kmenuedit wants the menu's internal name — `Utilities` — and the
+    // sidebar is built from the one on screen — `Utilidades` — because
+    // that is what the menu reports. Giving it the caption lands on
+    // Lost & Found, which is worse than landing nowhere, and giving it
+    // an application lands on that application rather than on the
+    // category, which is not what was asked for. Both were tried.
+    //
+    // So the two are paired here. The menu files put <Name>Utilities
+    // </Name> beside <Directory>kf5-utilities.directory</Directory>,
+    // and that .directory carries the translated name that ends up on
+    // screen. Read once, the sidebar's own words turn into the words
+    // kmenuedit answers to.
+    //
+    // Every menu file, not only the main one: the categories a program
+    // adds for itself live in applications-merged/, which is how Wine
+    // gets a category at all. Those are passed to awk by `find -exec`
+    // and not by a loop over its output, because Wine writes names
+    // with spaces in them — "Python 3.10 (64-bit).menu" — and an
+    // unquoted expansion breaks them into pieces that do not exist.
+    property var catNames: ({})
+
+    Process {
+        id: catScan
+        running: true
+        command: ["sh", "-c",
+            'lang=${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}; '
+            + 'lang=${lang%%.*}; lang=${lang%%@*}; short=${lang%%_*}; '
+            + 'for d in $(printf "%s" "${XDG_CONFIG_DIRS:-/etc/xdg}" | tr ":" " ") '
+            + '         /etc/xdg "${XDG_CONFIG_HOME:-$HOME/.config}"; do '
+            + '  [ -d "$d/menus" ] || continue; '
+            + '  find "$d/menus" -name "*.menu" -type f -exec awk \'\n'
+            + '    match($0, /<Name>[^<]+<\\/Name>/) { last = substr($0, RSTART+6, RLENGTH-13); next }\n'
+            + '    match($0, /<Directory>[^<]+<\\/Directory>/) {\n'
+            + '      d = substr($0, RSTART+11, RLENGTH-23);\n'
+            + '      if (last != "") print last "\\t" d; last = ""\n'
+            + '    }\' {} + 2>/dev/null; '
+            + 'done | sort -u | while IFS="\t" read -r internal dirfile; do '
+            + '  for base in ${XDG_DATA_HOME:-$HOME/.local/share} '
+            + '              $(printf "%s" "${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" | tr ":" " "); do '
+            + '    f="$base/desktop-directories/$dirfile"; [ -f "$f" ] || continue; '
+            + '    cap=$(grep -m1 "^Name\\[$lang\\]=" "$f" 2>/dev/null | cut -d= -f2-); '
+            + '    [ -z "$cap" ] && cap=$(grep -m1 "^Name\\[$short\\]=" "$f" 2>/dev/null | cut -d= -f2-); '
+            + '    [ -z "$cap" ] && cap=$(grep -m1 "^Name=" "$f" 2>/dev/null | cut -d= -f2-); '
+            + '    [ -n "$cap" ] && printf "%s\\t%s\\n" "$cap" "$internal"; break; '
+            + '  done; '
+            + 'done']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const out = {};
+                for (const line of text.split("\n")) {
+                    const tab = line.indexOf("\t");
+                    if (tab < 1) continue;
+                    const cap = line.slice(0, tab).trim();
+                    const internal = line.slice(tab + 1).trim();
+                    // The first wins: a caption that two menus share
+                    // is a menu file shadowing another, and the one
+                    // read first is the one the sidebar came from.
+                    if (cap !== "" && internal !== ""
+                        && !Object.prototype.hasOwnProperty.call(out, cap))
+                        out[cap] = internal;
+                }
+                root.catNames = out;
+            }
+        }
+    }
+
+    // Answers whether it opened anything, because the launcher closes
+    // on the way out and should not close over a click that did
+    // nothing. Favourites, recent, places and the clipboard are not
+    // KDE's categories and have nothing to edit, so nothing is what
+    // happens on those.
+    function edit(cat) {
+        if (!root.menuApps[cat]) return false;
+        const internal = Object.prototype.hasOwnProperty.call(root.catNames, cat)
+            ? root.catNames[cat] : "";
+        // Without a name to give it, the editor still opens — at its
+        // root, where the category is one click away — rather than
+        // being sent somewhere wrong.
+        if (internal === "") Quickshell.execDetached(["kmenuedit"]);
+        else Quickshell.execDetached(["kmenuedit", internal]);
+        return true;
+    }
+
     function read() {
         // Cheap (some 45 ms) but not free, and the launcher asks every
         // time it opens.

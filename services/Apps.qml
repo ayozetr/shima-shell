@@ -54,6 +54,9 @@ Singleton {
         target: DesktopEntries
         function onApplicationsChanged() {
             root.revision++;
+            // Something was installed or removed, so which names
+            // kstart can answer to has changed with it.
+            root.scanKstartIds();
             // What is installed has changed underneath, so the index
             // that maps a window to an application is stale and the
             // dock may be showing an icon for something that is gone.
@@ -616,6 +619,87 @@ Singleton {
         }
     }
 
+    // The name kstart has to be given, for each id we might be asked
+    // to start.
+    //
+    // kstart looks a program up by the name of its .desktop file. The
+    // id the spec gives that file is the path under applications/ with
+    // the slashes turned into dashes, so for one sitting directly in
+    // there the two strings are the same and nobody noticed the
+    // difference. For one in a subfolder they are not:
+    // wine/Programs/MobaXterm/MobaXterm.desktop has the id
+    // `wine-Programs-MobaXterm-MobaXterm`, kstart answers `No such
+    // service ""` to that — and then does not exit, so every click on
+    // the icon did nothing, said nothing, and left another kstart
+    // behind. Wine installs everything it touches into such a
+    // subfolder, so that was every Windows program on the machine.
+    //
+    // Three things were tried before this one, and all three are
+    // written down because each looks reasonable until you measure it:
+    //
+    //  * giving kstart the full path to the .desktop file: it hangs on
+    //    that too;
+    //  * cutting the id at its last dash: `brave-browser` is a file in
+    //    applications/ whose own name has a dash, and that would break
+    //    a launch that works today;
+    //  * leaving kstart out and calling entry.execute(): it starts,
+    //    but a .desktop with a `Path=` of its own is then run from the
+    //    wrong directory, and a program that keeps its settings beside
+    //    itself comes up looking like a different program.
+    //
+    // So the names are not guessed at. The directories are walked, the
+    // id is built the way the spec builds it, and the file name is
+    // taken from the file. A name that turns up twice is left out
+    // rather than resolved by chance.
+    property var kstartNames: ({})
+
+    function kstartName(id) {
+        if (!id) return "";
+        if (!Object.prototype.hasOwnProperty.call(root.kstartNames, id)) return "";
+        return root.kstartNames[id];
+    }
+
+    function scanKstartIds() { kstartScan.running = true; }
+
+    Process {
+        id: kstartScan
+        running: true
+        command: ["sh", "-c",
+            'set -- "${XDG_DATA_HOME:-$HOME/.local/share}"; '
+            + 'IFS=:; for d in ${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do '
+            + '  set -- "$@" "$d"; done; unset IFS; '
+            + 'for d in "$@"; do '
+            + '  [ -d "$d/applications" ] || continue; '
+            + '  ( cd "$d/applications" 2>/dev/null || exit 0; '
+            + '    find . -name "*.desktop" -type f 2>/dev/null | while read -r rel; do '
+            + '      rel=${rel#./}; base=${rel##*/}; '
+            + '      printf "%s\t%s\n" "$(printf "%s" "${rel%.desktop}" | tr "/" "-")" "${base%.desktop}"; '
+            + '    done ) ; '
+            + 'done 2>/dev/null']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                // Counted first, so a name shared by two files can be
+                // left out of both rather than sending one of them to
+                // whichever kstart happens to find.
+                const count = {};
+                const pairs = [];
+                for (const line of text.split("\n")) {
+                    const tab = line.indexOf("\t");
+                    if (tab < 1) continue;
+                    const id = line.slice(0, tab).trim();
+                    const base = line.slice(tab + 1).trim();
+                    if (id === "" || base === "") continue;
+                    pairs.push([id, base]);
+                    count[base] = (count[base] || 0) + 1;
+                }
+                const out = {};
+                for (const [id, base] of pairs)
+                    if (count[base] === 1) out[id] = base;
+                root.kstartNames = out;
+            }
+        }
+    }
+
     function start(entry) {
         if (!entry) return;
         // A place is a folder, not a program: it opens in whatever
@@ -635,8 +719,9 @@ Singleton {
         // something wrong.
         if (entry.isGame) return;
 
-        if (root.hasKstart && entry.id)
-            Quickshell.execDetached(["kstart", "--application", entry.id]);
+        const kname = root.kstartName(entry.id);
+        if (root.hasKstart && kname !== "")
+            Quickshell.execDetached(["kstart", "--application", kname]);
         else
             entry.execute();
 
