@@ -424,7 +424,25 @@ PanelWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: LauncherState.category = modelData.id
+                            // The right button is taken whether or not
+                            // there is anything to do with it: left
+                            // unclaimed it falls through to the
+                            // launcher behind, which treats a click on
+                            // itself as a click outside and shuts.
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onClicked: (e) => {
+                                if (e.button === Qt.RightButton) {
+                                    // Out of the way of the window it
+                                    // just opened, but only if one
+                                    // opened: a category with nothing
+                                    // to edit leaves things as they
+                                    // are rather than shutting on you.
+                                    if (Menu.edit(modelData.id))
+                                        LauncherState.hide();
+                                    return;
+                                }
+                                LauncherState.category = modelData.id;
+                            }
                         }
                     }
 
