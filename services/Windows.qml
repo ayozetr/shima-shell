@@ -16,6 +16,11 @@ Singleton {
     property var runningIds: ({})
     // How many sweeps in a row have failed to see each application.
     property var misses: ({})
+    // Applications whose window carries no class, and the title the
+    // last sweep found them under. Written by the sweep, read by
+    // windowLookup, which is the only way those windows can be found
+    // again when one is clicked.
+    property var classlessTitles: ({})
 
     property bool hasKdotool: false
     // Don't scan until we know whether kdotool is around: the first
@@ -275,10 +280,18 @@ Singleton {
         if (id && id.indexOf("game:") === 0)
             return ["^" + id.slice("game:".length) + "$"];
 
+        // Found by its title because it has no class. That goes first
+        // and the class patterns still follow it: the sweep saw no
+        // class this time, which is not a promise that there will
+        // never be one.
+        const title = root.classlessTitles[id];
+        const byTitle = title === undefined
+            ? [] : ["name:^" + root.reEscape(title) + "$"];
+
         const entry = Apps.entryFor(id);
-        if (!entry) return [];
+        if (!entry) return byTitle;
         const names = root.candidatesFor(entry);
-        if (!names.length) return [];
+        if (!names.length) return byTitle;
         // Loose at both ends, because a window class agrees with its
         // desktop file at neither.
         //
@@ -294,14 +307,31 @@ Singleton {
         //
         // kdotool ignores case, so the candidates being lowercase
         // costs nothing.
-        return names.map(n => "^(.*\\.)?" + n + "(\\..*)?$");
+        return byTitle.concat(
+            names.map(n => "^(.*\\.)?" + n + "(\\..*)?$"));
+    }
+
+    // A title is a sentence, not a pattern. "S.T.A.L.K.E.R." and
+    // "Rocket League (Epic)" are both real names and both would match
+    // things they are not, so everything a regexp would read as syntax
+    // is spelled out as itself.
+    function reEscape(s) {
+        return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }
 
     // The same few lines wherever a window has to be found: walk the
     // patterns given as arguments and stop at the first that matches.
+    //
+    // A pattern starting with "name:" is looked for among the titles
+    // instead of the classes, which is the only way to find a window
+    // that has no class — see classlessTitles below. kdotool treats
+    // both the same way: a regexp, unanchored, ignoring case.
     readonly property string findWins:
         'wins=""; for p in "$@"; do [ -n "$wins" ] && break; '
-        + 'wins=$(kdotool search --class "$p" 2>/dev/null); done; '
+        + 'case "$p" in '
+        + '  name:*) wins=$(kdotool search --name "${p#name:}" 2>/dev/null);; '
+        + '  *) wins=$(kdotool search --class "$p" 2>/dev/null);; '
+        + 'esac; done; '
 
 
     // ── Listing the windows of an app ──────────────────────────
@@ -516,10 +546,20 @@ Singleton {
                 root.settled = 0;
                 // Each window's class is a call of its own, so this
                 // runs only when the list of windows has changed.
+                //
+                // A window with no class at all falls back to its
+                // title, marked as one so that nothing downstream
+                // mistakes a sentence for a class. The extra call is
+                // only made for those: a window that answers the first
+                // question is never asked the second.
                 classer.command = ["sh", "-c",
                     "printf '%s\\n' \"$1\" | while read -r w; do "
-                    + "  [ -n \"$w\" ] && kdotool getwindowclassname \"$w\" "
-                    + "    2>/dev/null; "
+                    + "  [ -n \"$w\" ] || continue; "
+                    + "  c=$(kdotool getwindowclassname \"$w\" 2>/dev/null); "
+                    + "  if [ -n \"$c\" ]; then printf '%s\\n' \"$c\"; else "
+                    + "    t=$(kdotool getwindowname \"$w\" 2>/dev/null); "
+                    + "    [ -n \"$t\" ] && printf 'title:%s\\n' \"$t\"; "
+                    + "  fi; "
                     + "done | sort -u",
                     "shima", ids];
                 classer.running = true;
@@ -565,7 +605,30 @@ Singleton {
         // What's alive, through the index instead of walking every
         // entry for each process.
         const alive = {};
+        const titled = {};
         for (const p of procs) {
+            // A window that has no class, offering its title instead.
+            //
+            // Hotline Miami is one: a Linux build from 2012 on SDL 1.2
+            // that never set WM_CLASS, so everything above it had
+            // nothing to work with and the game was missing from the
+            // dock while it was on screen, fullscreen.
+            //
+            // Steam's own manifests are what the title is matched
+            // against, and only those. A title is not an identifier —
+            // it is whatever the application felt like writing in its
+            // titlebar, and it changes — so it is read as a name to be
+            // recognised and never as a name to be trusted. A game
+            // installed by Steam is listed under a name Steam wrote
+            // down; anything else keeps nothing from this.
+            if (p.indexOf("title:") === 0) {
+                const title = p.slice("title:".length);
+                const appId = Apps.steamByName[title];
+                if (appId === undefined) continue;
+                alive["steam_app_" + appId] = true;
+                titled["steam_app_" + appId] = title;
+                continue;
+            }
             if (p === Apps.settingsClass) {
                 alive[Apps.settingsId] = true;
                 continue;
@@ -678,6 +741,8 @@ Singleton {
         // couple of seconds with nothing having changed.
         if (extra.join("\u0000") !== root.runningExtra.join("\u0000"))
             root.runningExtra = extra;
+        if (!root.sameState(titled, root.classlessTitles))
+            root.classlessTitles = titled;
     }
 
     // Linux cuts comm at 15 characters, so we compare by prefix rather

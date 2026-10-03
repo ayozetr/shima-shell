@@ -222,7 +222,8 @@ function is(what, got, want) {
                    ["sweepDone", "idForClass", "candidatesFor",
                     "matchesProcess", "sameState"],
                    { Apps: { settingsClass: "shima", settingsId: "shima:settings",
-                             steamGames: {}, rescanSteam: () => {},
+                             steamGames: {}, steamByName: {},
+                             rescanSteam: () => {},
                              entryFor: (id) => entries[id] || null },
                      Pinned: { list: ["org.kde.konsole"] },
                      Config: { data: { showRunning: true } },
@@ -234,6 +235,7 @@ function is(what, got, want) {
     w.runningIds = {};
     w.misses = {};
     w.steamAsked = {};
+    w.classlessTitles = {};
     // What a first sweep leaves behind: the dock inherits Plasma's pins
     // after it has already seen what was open, so whatever was running
     // went in as an application that is merely open.
@@ -493,6 +495,7 @@ function is(what, got, want) {
                     settingsClass: "shima",
                     settingsId: "shima-settings",
                     steamGames: {},
+                    steamByName: {},
                     rescanSteam: () => {},
                     // Our own settings window has no .desktop file on
                     // disk: the real one makes an entry up for it, so
@@ -508,6 +511,7 @@ function is(what, got, want) {
         a.runningExtra = [];
         a.misses = {};
         a.steamAsked = {};
+        a.classlessTitles = {};
         a.procIndex = {};
         a.buildIndex();
         return a;
@@ -580,6 +584,113 @@ function is(what, got, want) {
     // .desktop file of its own.
     is("but our own settings window shows while it is open",
        d.runningExtra, ["shima-settings"]);
+}
+
+// ── A window with no class at all ────────────────────────────────
+//
+// Hotline Miami's window carries no WM_CLASS: a Linux build from 2012
+// on SDL 1.2, which never set one. KWin has nothing to report, the
+// sweep filtered the empty line away with the blank ones, and the
+// game was missing from the dock while it was being played.
+//
+// Its title is all that is left, and a title is not an identifier. So
+// it is matched against the names Steam wrote in its own manifests
+// and against nothing else: a game Steam installed is a name worth
+// recognising, and a window that merely happens to be called
+// something keeps nothing from this.
+{
+    const { literal } = require("./extract.js");
+    const games = { "219150": "Hotline Miami" };
+    const byName = { "hotline miami": "219150" };
+    const entries = {
+        steam_app_219150: { id: "steam_app_219150", name: "Hotline Miami",
+                            icon: "steam_icon_219150", isSteamGame: true }
+    };
+    const mk = () => {
+        const w = load("services/Windows.qml",
+                       ["sweepDone", "idForClass", "candidatesFor",
+                        "matchesProcess", "sameState", "windowLookup",
+                        "reEscape"],
+                       { Apps: { settingsClass: "shima",
+                                 settingsId: "shima-settings",
+                                 steamGames: games, steamByName: byName,
+                                 rescanSteam: () => {},
+                                 entryFor: (id) => entries[id] || null },
+                         Pinned: { list: [] },
+                         Config: { data: { showRunning: true } },
+                         Games: { byClass: {} } });
+        w.neverShow = literal("services/Windows.qml", "neverShow");
+        w.launchers = literal("services/Windows.qml", "launchers");
+        w.procIndex = { konsole: "org.kde.konsole" };
+        w.runningIds = {};
+        w.runningExtra = [];
+        w.misses = {};
+        w.steamAsked = {};
+        w.classlessTitles = {};
+        return w;
+    };
+
+    const w = mk();
+    w.sweepDone("konsole\ntitle:hotline miami\n");
+    is("a game known only by its title reaches the dock",
+       w.runningExtra.indexOf("steam_app_219150") !== -1, true);
+    is("and counts as running", w.runningIds["steam_app_219150"], true);
+    is("and the title it was found under is kept",
+       w.classlessTitles["steam_app_219150"], "hotline miami");
+
+    // Which is the whole point: without the title there is no way back
+    // to the window, and clicking the icon would start a second copy
+    // of a game that is already running fullscreen.
+    const pats = w.windowLookup("steam_app_219150");
+    is("the title is what the window is looked for by",
+       pats[0], "name:^hotline miami$");
+    is("and the class patterns still follow it, in case there is one",
+       pats.length > 1, true);
+
+    // A title belongs to nobody in particular. One that matches no
+    // game Steam installed is not an application.
+    const u = mk();
+    u.sweepDone("konsole\ntitle:untitled document 1\n");
+    is("a title that matches no game is nothing at all",
+       u.runningExtra, []);
+    is("and leaves no window to look for", u.classlessTitles, {});
+
+    // A name is a sentence and a pattern is not. "S.T.A.L.K.E.R." and
+    // "Rocket League (Epic)" are both real names, and both would match
+    // things they are not.
+    const e = mk();
+    is("a dot in a title is a dot",
+       e.reEscape("S.T.A.L.K.E.R."), "S\\.T\\.A\\.L\\.K\\.E\\.R\\.");
+    is("and brackets are brackets",
+       e.reEscape("Rocket League (Epic)"), "Rocket League \\(Epic\\)");
+
+    // And it is still an argument, never a script. Same reasoning as
+    // the block further down, and the same proof: the shell is run.
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    const { execFileSync } = require("child_process");
+
+    const dir = path.join(os.tmpdir(), "shima-title-" + process.pid);
+    fs.mkdirSync(dir, { recursive: true });
+    const proof = path.join(dir, "pwned");
+
+    const t = mk();
+    byName["game$(touch " + proof + ")odd"] = "219150";
+    t.sweepDone("title:game$(touch " + proof + ")odd\n");
+    const bad = t.windowLookup("steam_app_219150");
+    delete byName["game$(touch " + proof + ")odd"];
+
+    // The case statement that routes a "name:" pattern to --name is
+    // the new part, so it is the part that runs here.
+    execFileSync("sh", ["-c",
+        'wins=""; for p in "$@"; do [ -n "$wins" ] && break; '
+        + 'case "$p" in name:*) wins=$(printf "%s" "${p#name:}");; '
+        + '  *) wins=$(printf "%s" "$p");; esac; done',
+        "shima"].concat(bad), { stdio: "ignore" });
+    is("a title that would run a command does not run it",
+       fs.existsSync(proof), false);
+    fs.rmSync(dir, { recursive: true, force: true });
 }
 
 // ── The application a notification came from ─────────────────────
@@ -1123,12 +1234,13 @@ function is(what, got, want) {
     const nasty = "game$(touch " + proof + ")odd";
 
     const w = load("services/Windows.qml",
-                   ["windowLookup", "candidatesFor"],
+                   ["windowLookup", "candidatesFor", "reEscape"],
                    { Apps: { settingsId: "shima:settings",
                              settingsClass: "shima",
                              entryFor: () => ({ id: "x", name: nasty,
                                                 startupClass: nasty }) } });
     w.launchers = [];
+    w.classlessTitles = {};
     const pats = w.windowLookup("x");
 
     is("the lookup hands back patterns rather than a script",
