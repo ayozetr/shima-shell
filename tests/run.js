@@ -236,6 +236,8 @@ function is(what, got, want) {
     w.misses = {};
     w.steamAsked = {};
     w.classlessTitles = {};
+    w.steamAlias = {};
+    w.steamWindowClass = {};
     // What a first sweep leaves behind: the dock inherits Plasma's pins
     // after it has already seen what was open, so whatever was running
     // went in as an application that is merely open.
@@ -512,6 +514,8 @@ function is(what, got, want) {
         a.misses = {};
         a.steamAsked = {};
         a.classlessTitles = {};
+        a.steamAlias = {};
+        a.steamWindowClass = {};
         a.procIndex = {};
         a.buildIndex();
         return a;
@@ -627,6 +631,8 @@ function is(what, got, want) {
         w.misses = {};
         w.steamAsked = {};
         w.classlessTitles = {};
+        w.steamAlias = {};
+        w.steamWindowClass = {};
         return w;
     };
 
@@ -691,6 +697,119 @@ function is(what, got, want) {
     is("a title that would run a command does not run it",
        fs.existsSync(proof), false);
     fs.rmSync(dir, { recursive: true, force: true });
+}
+
+// ── A Steam window announcing an id that is not its own ──────────
+//
+// The id a Steam window gives is normally the one Steam has a manifest
+// or a shortcut for. A game added to Steam by hand runs under the
+// shortcut's id while announcing the id it has in Steam's store, which
+// is a different number that nothing on the machine answers to. The
+// window belonged to nobody and the dock stayed empty while the game
+// was on screen.
+//
+// The process is what ties them together, and the helper reads it. All
+// this side has to do is believe it, and only when it leads somewhere.
+{
+    const { literal } = require("./extract.js");
+    const shortcuts = { "4000000001": { name: "A launcher" } };
+    const entries = {
+        steam_app_4000000001: { id: "steam_app_4000000001", name: "A launcher",
+                                icon: "applications-games", isSteamGame: true },
+        steam_app_555: { id: "steam_app_555", name: "An installed game",
+                         icon: "steam_icon_555", isSteamGame: true }
+    };
+    const mk = () => {
+        const w = load("services/Windows.qml",
+                       ["sweepDone", "idForClass", "candidatesFor",
+                        "matchesProcess", "sameState", "windowLookup",
+                        "reEscape", "aliasFromHelper"],
+                       { Apps: { settingsClass: "shima",
+                                 settingsId: "shima-settings",
+                                 steamGames: { "555": "An installed game" },
+                                 steamShortcuts: shortcuts,
+                                 steamByName: {},
+                                 rescanSteam: () => {},
+                                 entryFor: (id) => entries[id] || null },
+                         Pinned: { list: [] },
+                         Config: { data: { showRunning: true } },
+                         Games: { byClass: {} } });
+        w.neverShow = literal("services/Windows.qml", "neverShow");
+        w.launchers = literal("services/Windows.qml", "launchers");
+        w.procIndex = {};
+        w.runningIds = {};
+        w.runningExtra = [];
+        w.misses = {};
+        w.steamAsked = {};
+        w.classlessTitles = {};
+        w.steamAlias = {};
+        w.steamWindowClass = {};
+        w.askSteamWindows = () => { w.asked = true; };
+        return w;
+    };
+
+    // Reading the helper's answer.
+    const p = mk();
+    is("a window that answers to its own id is not worth an alias",
+       p.aliasFromHelper("steam_app_555\t555\n"), {});
+    is("one that does not, is",
+       p.aliasFromHelper("steam_app_999\t4000000001\n"),
+       { steam_app_999: "4000000001" });
+    // It came off a process's environment and goes on to be joined to
+    // a string that is looked up in the catalogue.
+    is("an id that is not a number is dropped",
+       p.aliasFromHelper("steam_app_999\t40x0; rm -rf\n"), {});
+    is("and a line with nothing in it is skipped",
+       p.aliasFromHelper("\n\nsteam_app_999\t4000000001\n\n"),
+       { steam_app_999: "4000000001" });
+
+    // An unknown id, with nothing to resolve it: the sweep asks, and
+    // asks once.
+    const u = mk();
+    u.sweepDone("steam_app_999\n");
+    is("an id nobody has gets the question asked", u.asked, true);
+    is("and nothing is shown until there is an answer", u.runningExtra, []);
+    u.asked = false;
+    u.sweepDone("steam_app_999\n");
+    is("and it is not asked twice", u.asked, false);
+
+    // With the answer, the game the launcher belongs to turns up.
+    const a = mk();
+    a.steamAlias = { steam_app_999: "4000000001" };
+    a.sweepDone("steam_app_999\n");
+    is("a window resolved through its launcher reaches the dock",
+       a.runningExtra, ["steam_app_4000000001"]);
+    is("and counts as running", a.runningIds["steam_app_4000000001"], true);
+    is("while the id the window announced is not an application",
+       a.runningIds["steam_app_999"], undefined);
+
+    // Which is the point: the click has to find a window whose class
+    // is not the one the game is filed under.
+    is("the announced class is what the window is looked for by",
+       a.windowLookup("steam_app_4000000001"), ["^steam_app_999$"]);
+
+    // An alias is believed only when it leads to something real. The
+    // helper reports whatever the process says, and a launcher nobody
+    // has is still nobody.
+    const n = mk();
+    n.steamAlias = { steam_app_999: "4000000002" };
+    n.sweepDone("steam_app_999\n");
+    is("an alias pointing at an id nobody has shows nothing",
+       n.runningExtra, []);
+
+    // And the ordinary case is untouched: a game Steam installed is
+    // found by its own id, with no alias and no helper.
+    const o = mk();
+    o.sweepDone("steam_app_555\n");
+    is("a game Steam installed still goes in on its own",
+       o.runningExtra, ["steam_app_555"]);
+    is("with no question asked", o.asked, undefined);
+    // Twice over, because the id and its last segment are the same
+    // string here. That is how it already was; the lookup stops at
+    // the first pattern that finds anything.
+    is("and is still looked for by its own class",
+       o.windowLookup("steam_app_555")[0],
+       "^(.*\\.)?steam_app_555(\\..*)?$");
 }
 
 // ── The application a notification came from ─────────────────────
@@ -1241,6 +1360,7 @@ function is(what, got, want) {
                                                 startupClass: nasty }) } });
     w.launchers = [];
     w.classlessTitles = {};
+    w.steamWindowClass = {};
     const pats = w.windowLookup("x");
 
     is("the lookup hands back patterns rather than a script",

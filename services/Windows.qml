@@ -22,6 +22,15 @@ Singleton {
     // again when one is clicked.
     property var classlessTitles: ({})
 
+    // The class a Steam window announces → the id of whatever actually
+    // launched it, which the helper reads out of the process. The two
+    // are the same for a game Steam installed and different for one
+    // launched through something else; see askSteamWindows below.
+    property var steamAlias: ({})
+    // And the way back: a game's id → the class its window announces,
+    // for the click, since looking for the id would find nothing.
+    property var steamWindowClass: ({})
+
     property bool hasKdotool: false
     // Don't scan until we know whether kdotool is around: the first
     // sweep would fall back to the process list and light up icons that
@@ -279,6 +288,13 @@ Singleton {
         // window is what it is looked for by.
         if (id && id.indexOf("game:") === 0)
             return ["^" + id.slice("game:".length) + "$"];
+
+        // A game whose window announces an id that is not its own. The
+        // class the sweep actually saw is the only thing that finds
+        // it; its own id finds nothing, which is how it got here.
+        const announced = root.steamWindowClass[id];
+        if (announced !== undefined)
+            return ["^" + root.reEscape(announced) + "$"];
 
         // Found by its title because it has no class. That goes first
         // and the class patterns still follow it: the sweep saw no
@@ -593,6 +609,79 @@ Singleton {
     // game, not once per sweep.
     property var steamAsked: ({})
 
+    // ── A Steam window whose id nobody has ─────────────────────
+    //
+    // Normally the id a window announces is the id Steam has a manifest
+    // or a shortcut for, and the lines above are the whole story. Not
+    // always: a game added to Steam by hand runs under the shortcut's
+    // id, and the game itself is free to announce the id it has in
+    // Steam's store instead. Those are two different numbers, nothing
+    // on the machine answers to the one the window gives, and the dock
+    // had nothing to show while the game was on screen.
+    //
+    // What ties them together is the process: the window belongs to a
+    // pid and that pid's environment carries SteamAppId, which is the
+    // id of whatever really launched it. KWin knows the pid, so the
+    // helper asks KWin — kdotool cannot, its `search --pid` returns
+    // every window in the session rather than filtering, which was
+    // measured before any of this was written.
+    //
+    // Asked once per unknown id and never on a timer. It costs about
+    // 90 ms, which is twice an entire sweep, and that is fine for
+    // something that happens when a game is launched and not two and a
+    // half times a second.
+    readonly property string steamHelper:
+        Paths.dataDir !== "" ? Paths.dataDir + "/helper/shima-steam-windows" : ""
+
+    function askSteamWindows() {
+        if (root.steamHelper === "" || steamWindows.running) return;
+        steamWindows.running = true;
+    }
+
+    // One line per window: the class it announces, a tab, the id of
+    // whatever launched it.
+    function aliasFromHelper(text) {
+        const found = {};
+        for (const line of String(text).split("\n")) {
+            const parts = line.split("\t");
+            if (parts.length < 2) continue;
+            const cls = parts[0].trim().toLowerCase();
+            const app = parts[1].trim();
+            if (cls === "" || app === "") continue;
+            // Only digits. The id goes on to be joined to a string
+            // that is compared against the catalogue, and this one
+            // came off a process's environment.
+            if (!/^[0-9]+$/.test(app)) continue;
+            // A window that answers to its own id tells us nothing we
+            // did not know, and recording it would put an alias in
+            // the way of the ordinary path.
+            if (cls === "steam_app_" + app) continue;
+            found[cls] = app;
+        }
+        return found;
+    }
+
+    Process {
+        id: steamWindows
+        command: [root.steamHelper]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const found = root.aliasFromHelper(text);
+                if (Object.keys(found).length === 0) return;
+                const merged = {};
+                for (const k in root.steamAlias) merged[k] = root.steamAlias[k];
+                for (const k in found) merged[k] = found[k];
+                if (root.sameState(merged, root.steamAlias)) return;
+                root.steamAlias = merged;
+                // The sweep that asked has already finished deciding
+                // without this, so it is run again now that there is
+                // an answer. Without it the icon waits for whatever
+                // the next sweep happens to see.
+                root.sweepNow();
+            }
+        }
+    }
+
     function sweepDone(text) {
         const names = text.split("\n").map(s => s.trim().toLowerCase()).filter(s => s);
 
@@ -606,6 +695,7 @@ Singleton {
         // entry for each process.
         const alive = {};
         const titled = {};
+        const steamClasses = {};
         for (const p of procs) {
             // A window that has no class, offering its title instead.
             //
@@ -652,11 +742,26 @@ Singleton {
                 alive[p] = true;
                 continue;
             }
+            // Nobody has that id. Whatever launched it might still be
+            // something we know, and the helper is what says so.
+            const real = root.steamAlias[p];
+            if (real !== undefined
+                    && (Apps.steamGames[real] !== undefined
+                        || Apps.steamShortcuts[real] !== undefined)) {
+                const rid = "steam_app_" + real;
+                alive[rid] = true;
+                // Which class to look for when it is clicked, since
+                // looking for the launcher's id would find no window.
+                steamClasses[rid] = p;
+                continue;
+            }
             // Installed after the shell started, so it is not in a list
-            // that was read once and never again.
+            // that was read once and never again. And, failing that,
+            // ask whose process the window belongs to — once per id.
             if (!root.steamAsked[app]) {
                 root.steamAsked[app] = true;
                 Apps.rescanSteam();
+                root.askSteamWindows();
             }
         }
 
@@ -743,6 +848,8 @@ Singleton {
             root.runningExtra = extra;
         if (!root.sameState(titled, root.classlessTitles))
             root.classlessTitles = titled;
+        if (!root.sameState(steamClasses, root.steamWindowClass))
+            root.steamWindowClass = steamClasses;
     }
 
     // Linux cuts comm at 15 characters, so we compare by prefix rather

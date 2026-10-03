@@ -31,7 +31,7 @@ And these, which your distribution almost certainly has:
 
 | | For |
 |---|---|
-| **python3** with **PyGObject** | the global shortcut, which is a program of its own: Quickshell cannot own a name on D-Bus and KDE hands shortcuts out over one |
+| **python3** with **PyGObject** | the helpers that speak D-Bus, because Quickshell cannot own a name on one: the global shortcut, which KDE hands out that way, and asking KWin which process a window belongs to |
 | **wl-clipboard** | the clipboard history, and the launcher's copy button. Wayland offers no other way in |
 | **sqlite3** | reading what KDE has open and had open recently |
 | **xdg-utils** | opening a file or a folder with whatever handles it |

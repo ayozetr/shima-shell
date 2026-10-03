@@ -795,7 +795,8 @@ ensure_deps() {
         have qs || { err "Quickshell still is not on PATH."; exit 1; }
     fi
 
-    # The shortcut helper. Python is everywhere; PyGObject often is not.
+    # The helpers that speak D-Bus. Python is everywhere; PyGObject
+    # often is not.
     missing=""
     have python3 || missing="$missing $(pkg_for python)"
     python3 -c 'import gi' 2>/dev/null || missing="$missing $(pkg_for pygobject)"
@@ -1054,7 +1055,8 @@ do_install() {
     mkdir -p "$SHARE/docs"
     cp "$SRC/docs/settings.md" "$SHARE/docs/" 2>/dev/null || true
     chmod +x "$SHARE/helper/shima-shortcuts" "$SHARE/helper/shima-games" \
-        "$SHARE/helper/shima-tray-menu" 2>/dev/null || true
+        "$SHARE/helper/shima-tray-menu" \
+        "$SHARE/helper/shima-steam-windows" 2>/dev/null || true
 
     cp "$SRC/shima" "$BIN"
     chmod +x "$BIN"
