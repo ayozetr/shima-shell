@@ -225,7 +225,9 @@ PanelWindow {
     // the same thing of it. Only geometry reads this — never
     // `expanded`, or the loop comes back.
     readonly property bool banner: win.peeking || win.shelving || win.btShowing
-    readonly property int peekHeight: 84
+    // The battery wants more room than a line of text: it carries three
+    // readings, and a photo of each when one has been put there.
+    readonly property int peekHeight: win.btShowing ? 108 : 84
 
     // Held open while the pointer is on it, the way the notification is.
     Binding {
