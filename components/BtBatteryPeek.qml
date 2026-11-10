@@ -175,7 +175,10 @@ Item {
                     ? Math.max(0, Math.min(100, cell.level)) / 100 : 0)
                 height: parent.height
                 radius: 3
-                color: cell.level <= 20 ? Theme.urgent : Theme.accent
+                // Only a known, low charge is red. An unknown reading is
+                // -1, which would otherwise read as "low" and turn the
+                // bar red as the peek folds away and the levels clear.
+                color: (cell.known && cell.level <= 20) ? Theme.urgent : Theme.accent
                 Behavior on width { NumberAnimation { duration: Theme.fadeDuration } }
             }
         }
