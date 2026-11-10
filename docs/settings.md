@@ -65,6 +65,7 @@ Times are in milliseconds unless the name says otherwise.
 | `islandHideHandle` | `false` | While hidden, leave a small handle at the top edge to see and pull from |
 | `islandScreens` | `""` | As `dockScreens` |
 | `clock24` | `true` | 24-hour clock |
+| `clockDate` | `false` | Show the date beside the time on the island at rest |
 
 ## The clipboard
 

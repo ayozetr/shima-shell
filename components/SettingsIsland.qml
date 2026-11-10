@@ -32,6 +32,16 @@ Column {
     }
 
     Controls.Row_ {
+        label: I18n.t.clockDate
+        hint: I18n.t.clockDateHint
+        Controls.Toggle_ {
+            anchors.right: parent.right
+            checked: root.c.clockDate ?? false
+            onToggled: (v) => { root.c.clockDate = v; Config.save(); }
+        }
+    }
+
+    Controls.Row_ {
         label: I18n.t.cornerRadius
         Controls.Slider_ {
             from: 0; to: 34; step: 1; suffix: " px"

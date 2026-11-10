@@ -270,6 +270,8 @@ var strings = {
 
     showIsland: "Mostra l'illa",
     clockFormat: "Format de l'hora",
+    clockDate: "Mostra la data",
+    clockDateHint: "Al costat de l'hora, a l'illa en repòs",
     hours24: "24 h",
     hours12: "12 h",
     collapsedWidth: "Amplada en repòs",

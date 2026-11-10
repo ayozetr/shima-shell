@@ -270,6 +270,8 @@ var strings = {
 
     showIsland: "Insel anzeigen",
     clockFormat: "Zeitformat",
+    clockDate: "Datum anzeigen",
+    clockDateHint: "Neben der Uhrzeit auf der ruhenden Insel",
     hours24: "24 h",
     hours12: "12 h",
     collapsedWidth: "Breite in Ruhe",

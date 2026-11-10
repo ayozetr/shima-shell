@@ -258,6 +258,8 @@ var strings = {
 
     showIsland: "アイランドを表示",
     clockFormat: "時計の形式",
+    clockDate: "日付を表示",
+    clockDateHint: "待機中のアイランドで時刻の横に",
     hours24: "24 時間",
     hours12: "12 時間",
     collapsedWidth: "通常時の幅",

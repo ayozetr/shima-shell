@@ -61,6 +61,24 @@ Item {
             font.pixelSize: 13
         }
 
+        // The date, in the language the rest is in, before the time the
+        // way a menu bar reads it. Optional; off leaves the clock alone.
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Config.data.clockDate ?? false
+            text: clock.date.toLocaleDateString(Qt.locale(I18n.qtLocale), "d MMM")
+            color: Theme.textSecondary
+            font.pixelSize: 13
+        }
+
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Config.data.clockDate ?? false
+            text: "·"
+            color: Theme.textTertiary
+            font.pixelSize: 13
+        }
+
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: Qt.formatDateTime(clock.date,

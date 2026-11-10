@@ -158,6 +158,8 @@ Singleton {
             // 24-hour clock by default, which is what a Spanish locale
             // expects; the previous hardcoded format was 12-hour.
             property bool   clock24:          true
+            // The date beside the time on the island at rest.
+            property bool   clockDate:        false
 
             // ── Focus (pomodoro) ───────────────────────────────
             property int    focusMinutes:      25

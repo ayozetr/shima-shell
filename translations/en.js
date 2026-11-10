@@ -258,6 +258,8 @@ var strings = {
 
     showIsland: "Show the island",
     clockFormat: "Clock format",
+    clockDate: "Show the date",
+    clockDateHint: "Beside the time on the island at rest",
     hours24: "24 h",
     hours12: "12 h",
     collapsedWidth: "Width at rest",
