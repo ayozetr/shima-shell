@@ -53,4 +53,13 @@ Singleton {
             root.show({ kind: "volume", value: Audio.volume, muted: Audio.muted });
         }
     }
+
+    // Brightness arrives live only once the Brightness service is told
+    // of outside changes (it listens to powerdevil while this is on).
+    Connections {
+        target: Brightness
+        function onRatioChanged() {
+            root.show({ kind: "brightness", value: Brightness.ratio });
+        }
+    }
 }

@@ -9,6 +9,7 @@ Item {
     property var entry: null   // { kind, value, muted }
     signal dismissed()
 
+    readonly property string kind: root.entry ? (root.entry.kind ?? "volume") : "volume"
     readonly property bool muted: root.entry ? (root.entry.muted ?? false) : false
     readonly property real value: root.entry ? root.entry.value : 0
 
@@ -18,11 +19,23 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 14
 
-        Glyph {
+        // A speaker for volume, the sun for brightness.
+        Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 18; height: 18
-            kind: root.muted ? "speakerOff" : "speakerOn"
-            fill: root.muted ? Theme.textTertiary : Theme.textPrimary
+
+            Glyph {
+                anchors.fill: parent
+                visible: root.kind === "volume"
+                kind: root.muted ? "speakerOff" : "speakerOn"
+                fill: root.muted ? Theme.textTertiary : Theme.textPrimary
+            }
+            ControlGlyph {
+                anchors.fill: parent
+                visible: root.kind === "brightness"
+                kind: "brightness"
+                fill: Theme.textPrimary
+            }
         }
 
         Rectangle {
@@ -33,11 +46,13 @@ Item {
             color: "#22ffffff"
 
             Rectangle {
+                // No width animation: the bar should be at the level the
+                // moment it appears, not fill up to it from nothing,
+                // which reads as the display being slow to catch up.
                 width: parent.width * Math.max(0, Math.min(1, root.value))
                 height: parent.height
                 radius: 3
                 color: root.muted ? Theme.textTertiary : Theme.accent
-                Behavior on width { NumberAnimation { duration: Theme.hoverDuration } }
             }
         }
 
