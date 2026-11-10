@@ -9,8 +9,9 @@ url='https://github.com/ayozetr/shima-shell'
 license=('GPL-3.0-or-later')
 
 # quickshell runs the whole thing; python and python-gobject are the
-# shortcut helper; the rest are read or called at runtime by name, so
-# they are needed even though nothing links against them.
+# helpers that talk D-Bus for it, since Quickshell cannot; the rest
+# are read or called at runtime by name, so they are needed even
+# though nothing links against them.
 depends=(
     'quickshell'
     'python'
@@ -77,7 +78,8 @@ package() {
     install -Dm644 assets/logo-white.svg -t "$share/assets"
 
     install -Dm755 helper/shima-shortcuts helper/shima-games \
-        helper/shima-tray-menu -t "$share/helper"
+        helper/shima-tray-menu helper/shima-steam-windows \
+        -t "$share/helper"
 
     # Found through /usr/bin/../share/shima by the launcher itself.
     install -Dm755 shima "$pkgdir/usr/bin/shima"

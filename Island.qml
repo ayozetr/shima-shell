@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import "services"
@@ -111,13 +112,13 @@ PanelWindow {
         z: 1
         anchors.horizontalCenter: parent.horizontalCenter
         y: 0
-        width: (win.expanded || win.peeking) ? Theme.islandExpandedWidth
-                                             : Theme.islandCollapsedWidth
+        width: (win.expanded || win.banner) ? Theme.islandExpandedWidth
+                                            : Theme.islandCollapsedWidth
         height: {
             if (win.expanded)
                 return Math.max(win.topMargin, Theme.islandExpandedMargin)
                        + win.expandedHeight;
-            if (win.peeking) return win.topMargin + win.peekHeight;
+            if (win.banner) return win.topMargin + win.peekHeight;
             return win.topMargin + Theme.islandCollapsedHeight;
         }
 
@@ -137,12 +138,36 @@ PanelWindow {
         // which is not always the same size — the dock's strip carries
         // the same note for the same reason. A strip narrower than the
         // screen is an island that does not come back at the edges.
+        //
+        // Taller while a handle is sitting there, so the handle and the
+        // few pixels around it all bring the island back.
         width: win.width
-        height: 3
+        height: (win.handle && !win.revealed) ? 16 : 3
         y: 0
         HoverHandler {
             onHoveredChanged: if (hovered) win.hovering = true
         }
+    }
+
+    // The handle: a small bar at the very top while the island is
+    // hidden, so there is a thing to reach for instead of a blind edge.
+    // Shown only when asked for and only while away.
+    Rectangle {
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: 4
+        width: 46
+        height: 5
+        radius: 2.5
+        // The cover's own colour while something plays — a sign of life
+        // on the strip that matches what you are listening to — and a
+        // quiet grey otherwise.
+        readonly property bool playing: win.hasMedia && win.player && win.player.isPlaying
+        color: playing ? win.coverColour : Theme.textSecondary
+        Behavior on color { ColorAnimation { duration: Theme.hoverDuration } }
+        opacity: (win.handle && !win.revealed) ? 0.9 : 0
+        visible: opacity > 0
+        z: 20
+        Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
     }
 
     // Background blur, if asked for. Off by default because the island
@@ -156,12 +181,32 @@ PanelWindow {
     }
 
     readonly property bool autoHide: Config.data.islandAutoHide ?? false
+    // When set, auto-hide only steps aside for a window that is in the
+    // way — one maximised or fullscreen on top — and stays out over the
+    // bare desktop. Off, auto-hide tucks away all the time, as it did.
+    readonly property bool hideForWindows: Config.data.islandAutoHideMaximized ?? false
+    // Leave a small handle at the top edge while hidden, something to
+    // see and to pull from, rather than nothing at all.
+    readonly property bool handle: Config.data.islandHideHandle ?? false
     readonly property bool floating: Config.data.islandFloating ?? false
     readonly property int  topMargin: floating
         ? Config.number(Config.data.islandMargin, 8, 0, 400) : 0
 
+    // A window covering the top of this screen, where the island sits —
+    // the active one maximised or fullscreen over it. Worked out from
+    // its geometry (via ActiveWindow), which is also what keeps it to
+    // the screen the window is actually on, not both at once.
+    readonly property bool windowCovering: win.screen
+        && ActiveWindow.coversTop(win.screen.x, win.screen.y,
+                                  win.screen.width, win.screen.height)
+
+    // Whether, right now, it wants to be tucked away: auto-hide on, and
+    // either hiding always or hiding because a window is in the way.
+    readonly property bool wantHidden: win.autoHide
+        && (!win.hideForWindows || win.windowCovering)
+
     // It won't hide while expanded, obviously.
-    readonly property bool revealed: !autoHide || hovering || expanded || peeking
+    readonly property bool revealed: !wantHidden || hovering || expanded || banner
 
     property bool hovering: false
 
@@ -176,7 +221,13 @@ PanelWindow {
     property bool overIsland: false
     property bool overReach: false
 
-    readonly property bool expanded: !win.peeking && (win.overIsland || win.overReach)
+    // Reads the two flags directly, not through `banner`: going through
+    // it put expanded → banner → shelving → shelf → expanded, a loop Qt
+    // flagged. Named apart, the way the peek has always been, they form
+    // the same short cycle the peek does and that Qt lets stand.
+    readonly property bool expanded: !win.peeking && !win.shelving && !win.btShowing
+                                     && !win.osding
+                                     && (win.overIsland || win.overReach)
     readonly property bool pointerNear: win.overIsland || win.overReach
 
     onPointerNearChanged: {
@@ -185,7 +236,7 @@ PanelWindow {
             else peekTimer.restart();
         }
         if (win.pointerNear) { hideTimer.stop(); win.hovering = true; }
-        else if (win.autoHide) hideTimer.restart();
+        else if (win.wantHidden) hideTimer.restart();
     }
 
     // ── A notification passing through ─────────────────────────
@@ -193,10 +244,66 @@ PanelWindow {
     // It only takes the island when the island is idle: interrupting
     // someone who is in the middle of changing the volume would be
     // worse than making them wait. Missed ones are in the history.
+    // The clipboard shelf shares this strip with the notification
+    // peek. A copy is something you have just this moment done, so it
+    // takes the slot over a notification passing through.
+    readonly property var shelf: (win.expanded || !Config.onScreen(
+        Config.data.islandScreens, win.screenName)) ? null : Clipboard.shelf
+    readonly property bool shelving: win.shelf !== null
+
+    // The battery an opened earbud case just announced, sharing the
+    // same strip. Infrequent and deliberate, so it sits over the other
+    // two when they coincide.
+    readonly property var btBat: (win.expanded || !Config.onScreen(
+        Config.data.islandScreens, win.screenName)) ? null : BtBattery.peek
+    readonly property bool btShowing: win.btBat !== null
+
+    // The volume display, flashing as you change it. The most immediate
+    // of the lot — you just pressed a key — so it sits over the rest.
+    readonly property var osd: (win.expanded || !Config.onScreen(
+        Config.data.islandScreens, win.screenName)) ? null : Osd.peek
+    readonly property bool osding: win.osd !== null
+
+    // The shelf is kept out of this binding on purpose: peek reading
+    // shelving, with shelving reading shelf and shelf reading expanded,
+    // was part of the loop. The shelf takes the slot instead by sitting
+    // over the notification, which is hidden while it does.
     readonly property var peek: (win.expanded || !Config.onScreen(
         Config.data.islandScreens, win.screenName)) ? null : Notifications.peek
     readonly property bool peeking: win.peek !== null
-    readonly property int peekHeight: 84
+
+    // Any of the three filling the strip: what the geometry below
+    // reacts to, where the notification, the shelf and the battery want
+    // the same thing of it. Only geometry reads this — never
+    // `expanded`, or the loop comes back.
+    readonly property bool banner: win.peeking || win.shelving || win.btShowing || win.osding
+    // The battery wants more room than a line of text: it carries three
+    // readings, and a photo of each when one has been put there.
+    readonly property int peekHeight: win.btShowing ? 108 : 84
+
+    // Held open while the pointer is on it, the way the notification is.
+    Binding {
+        target: Clipboard
+        property: "shelfHeld"
+        value: win.shelving && win.pointerNear
+    }
+    Binding {
+        target: BtBattery
+        property: "peekHeld"
+        value: win.btShowing && win.pointerNear
+    }
+    Binding {
+        target: Osd
+        property: "held"
+        value: win.osding && win.pointerNear
+    }
+    // Held shut while the island is open, so changing the volume from
+    // its own slider does not flash the display over that slider.
+    Binding {
+        target: Osd
+        property: "inhibited"
+        value: win.expanded
+    }
 
     onPeekChanged: {
         if (win.peek) peekTimer.restart();
@@ -234,6 +341,71 @@ PanelWindow {
     }
     readonly property bool hasMedia: player !== null
 
+    // The colours of the album art, for the handle to wear while
+    // something plays — so the strip picks up the cover rather than a
+    // colour from nowhere.
+    //
+    // The reader cannot fetch a remote address, and Spotify and the like
+    // hand the cover over as one; so it is pulled down to a file first,
+    // under a name that alternates, so the reader is handed a url it has
+    // not seen and reads the new cover rather than the cached old one. A
+    // local cover is read where it already is.
+    property url artLocal: ""
+    property int artGen: 0
+
+    Process {
+        id: artFetch
+        property string dest: ""
+        onExited: (code) => { if (code === 0) win.artLocal = "file://" + artFetch.dest; }
+    }
+
+    function updateArt() {
+        const u = (win.player && win.player.trackArtUrl)
+            ? String(win.player.trackArtUrl) : "";
+        if (u === "") { win.artLocal = ""; return; }
+        if (u.indexOf("file://") === 0) { win.artLocal = u; return; }
+        if (u.indexOf("/") === 0) { win.artLocal = "file://" + u; return; }
+        if (Paths.cacheDir === "") { win.artLocal = ""; return; }
+        win.artGen = (win.artGen + 1) % 2;
+        artFetch.dest = Paths.cacheDir + "/nowplaying-art-" + win.artGen;
+        artFetch.command = ["sh", "-c", 'curl -sL --max-time 8 -o "$1" "$2"',
+                            "shima", artFetch.dest, u];
+        artFetch.running = true;
+    }
+
+    onPlayerChanged: win.updateArt()
+    Component.onCompleted: win.updateArt()
+    Connections {
+        target: win.player
+        function onTrackArtUrlChanged() { win.updateArt(); }
+    }
+
+    ColorQuantizer {
+        id: artColours
+        source: win.artLocal
+        // Four buckets, not eight: the handful of tones the cover is
+        // really made of, so the liveliest of them is a colour the cover
+        // actually wears, not a stray pixel's accent.
+        depth: 2
+        rescaleSize: 64     // plenty for a palette, cheap to work out
+    }
+
+    // The liveliest one: saturated, and neither near-black nor washed
+    // out, so it shows on the dark strip. The cover's own grey if it has
+    // no real colour, the accent if there is no cover at all.
+    readonly property color coverColour: {
+        const cs = artColours.colors;
+        if (!cs || cs.length === 0) return Theme.accent;
+        let best = cs[0], bestScore = -1;
+        for (const c of cs) {
+            const v = c.hsvValue;
+            const score = c.hsvSaturation
+                * ((v > 0.3 && v < 0.95) ? v : v * 0.25);
+            if (score > bestScore) { bestScore = score; best = c; }
+        }
+        return best;
+    }
+
     onHasMediaChanged: Cava.setActive(hasMedia && player.isPlaying)
     Connections {
         target: win.player
@@ -265,21 +437,21 @@ PanelWindow {
             if (win.expanded) return Math.max(win.topMargin, Theme.islandExpandedMargin);
             return win.topMargin;
         }
-        width:  (win.expanded || win.peeking) ? Theme.islandExpandedWidth
-                                              : Theme.islandCollapsedWidth
+        width:  (win.expanded || win.banner) ? Theme.islandExpandedWidth
+                                             : Theme.islandCollapsedWidth
         height: win.expanded ? win.expandedHeight
-                             : (win.peeking ? win.peekHeight : Theme.islandCollapsedHeight)
+                             : (win.banner ? win.peekHeight : Theme.islandCollapsedHeight)
         color: Theme.islandBg
         // Width zero rather than a transparent colour: Qt still lays a
         // one-pixel stroke for a transparent border, and it shows up as
         // a faint line across the top of the collapsed island.
-        border.width: (win.expanded || win.peeking) ? 1 : 0
+        border.width: (win.expanded || win.banner) ? 1 : 0
         border.color: Theme.islandBorder
 
         // Collapsed it sits against the top, so only the bottom
         // corners get rounded.
-        topLeftRadius:     (win.expanded || win.peeking || win.floating) ? Theme.islandRadius : 0
-        topRightRadius:    (win.expanded || win.peeking || win.floating) ? Theme.islandRadius : 0
+        topLeftRadius:     (win.expanded || win.banner || win.floating) ? Theme.islandRadius : 0
+        topRightRadius:    (win.expanded || win.banner || win.floating) ? Theme.islandRadius : 0
         bottomLeftRadius:  Theme.islandRadius
         bottomRightRadius: Theme.islandRadius
         readonly property int radius: Theme.islandRadius
@@ -313,6 +485,9 @@ PanelWindow {
                 // when it came for the volume, and the wheel says
                 // which.
                 if (win.peeking) { Notifications.dismissPeek(); return; }
+                if (win.shelving) { Clipboard.dismissShelf(); return; }
+                if (win.btShowing) { BtBattery.dismiss(); return; }
+                if (win.osding) { Osd.dismiss(); return; }
                 if (!win.expanded) return;
                 const dy = e.angleDelta.y !== 0 ? e.angleDelta.y : e.angleDelta.x;
                 if (dy === 0) return;
@@ -325,7 +500,7 @@ PanelWindow {
         CollapsedContent {
             anchors.fill: parent
             player: win.player
-            opacity: (win.expanded || win.peeking) ? 0 : 1
+            opacity: (win.expanded || win.banner) ? 0 : 1
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
         }
@@ -340,7 +515,7 @@ PanelWindow {
             anchors.bottomMargin: 7
             width: 5; height: 5; radius: 2.5
             color: Theme.accent
-            opacity: (!win.expanded && !win.peeking && Notifications.unread > 0) ? 1 : 0
+            opacity: (!win.expanded && !win.banner && Notifications.unread > 0) ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
         }
@@ -350,7 +525,10 @@ PanelWindow {
             anchors.leftMargin: 16
             anchors.rightMargin: 16
             entry: win.peek
-            opacity: win.peeking ? 1 : 0
+            // Hidden under the shelf or the battery when they want the
+            // strip: both are newer, deliberate things. The
+            // notification's own timer still runs it out underneath.
+            opacity: (win.peeking && !win.shelving && !win.btShowing && !win.osding) ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
 
@@ -364,6 +542,53 @@ PanelWindow {
                 }
                 Notifications.dismissPeek();
             }
+        }
+
+        // The shelf, in the same strip: what was just copied, to drag
+        // out or to tap for the history.
+        ClipboardPeek {
+            anchors.fill: parent
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            entry: win.shelf
+            opacity: (win.shelving && !win.btShowing && !win.osding) ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
+
+            onOpenHistory: {
+                Clipboard.dismissShelf();
+                LauncherState.showClipboard();
+            }
+            onDismissed: Clipboard.dismissShelf()
+        }
+
+        // The earbud battery, over the other two: an opened case is an
+        // uncommon, on-purpose moment.
+        BtBatteryPeek {
+            anchors.fill: parent
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            entry: win.btBat
+            opacity: (win.btShowing && !win.osding) ? 1 : 0
+            visible: opacity > 0
+            z: 1
+            Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
+
+            onDismissed: BtBattery.dismiss()
+        }
+
+        // The volume display, over all the rest.
+        OsdPeek {
+            anchors.fill: parent
+            anchors.leftMargin: 18
+            anchors.rightMargin: 18
+            entry: win.osd
+            opacity: win.osding ? 1 : 0
+            visible: opacity > 0
+            z: 2
+            Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
+
+            onDismissed: Osd.dismiss()
         }
 
         // Its own strip for the mode indicator, so no content ever

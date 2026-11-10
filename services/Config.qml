@@ -144,11 +144,22 @@ Singleton {
             property bool   islandFloating:   false
             property int    islandMargin:     8
             property bool   islandAutoHide:   false
+            // Auto-hide only steps aside for a maximised or fullscreen
+            // window, rather than hiding over the bare desktop too.
+            property bool   islandAutoHideMaximized: false
+            // A small handle left at the top edge while hidden, to see
+            // and to pull from.
+            property bool   islandHideHandle: false
             property int    islandHideDelay:  700
+            // The volume on-screen display, in the island. Off because
+            // KDE shows its own and two at once is one too many.
+            property bool   islandOsd:        false
 
             // 24-hour clock by default, which is what a Spanish locale
             // expects; the previous hardcoded format was 12-hour.
             property bool   clock24:          true
+            // The date beside the time on the island at rest.
+            property bool   clockDate:        false
 
             // ── Focus (pomodoro) ───────────────────────────────
             property int    focusMinutes:      25
@@ -208,9 +219,19 @@ Singleton {
             // ── Clipboard ──────────────────────────────────────
             property bool clipboardHistory:   true
             property bool clipboardImages:    true
+            // The island holding out what you just copied, to drag it
+            // straight into an app or a folder.
+            property bool clipboardShelf:     true
             property bool clipboardShortcutEnabled: true
             property int  clipboardKey:       268435542   // Meta+V
             property string clipboardLabel:   "Meta+V"
+
+            // ── Bluetooth ──────────────────────────────────────
+            // The earbud battery an opened case announces, shown on the
+            // island. Off by default: catching it keeps a background
+            // Bluetooth scan running, which is not a cost to impose on
+            // someone who never asked for it.
+            property bool fastPairPeek:       false
 
             // ── Keeping the machine awake ──────────────────────
             // Kept across restarts only if asked. A machine that will

@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+"""Which game each Steam window actually belongs to.
+
+A window launched through Steam announces itself as steam_app_<id>, and
+that id is normally the one Steam has a manifest or a shortcut for. Not
+always. A game added to Steam by hand runs under the shortcut's id,
+while the game itself is free to announce the id it has in Steam's own
+store, which is a different number and one nothing on the machine
+answers to. The window then belongs to nobody and the dock has nothing
+to show while the game is on screen.
+
+The one thing that ties the two together is the process. The window
+belongs to a pid, and that pid's environment carries SteamAppId, which
+is the id of whatever actually launched it. So this prints, for every
+Steam window on screen, the class it announces and the id it really
+came from.
+
+The pid is the hard part. kdotool can find windows by class and by
+title but cannot say whose process one is -- its `search --pid` returns
+every window in the session rather than filtering -- so the question
+goes to KWin directly, the same way kdotool asks everything else: a
+script loaded over D-Bus, which calls back with the answer.
+
+Output is one line per window, class and id separated by a tab. A
+window whose process says nothing is left out. Anything going wrong is
+silence and exit 0: the caller then knows exactly what it knew before,
+which is the behaviour this replaced.
+"""
+
+import os
+import sys
+import warnings
+
+# register_object is deprecated in newer pygobject and is still the only
+# one every version we support has. The warning goes to stderr, which
+# the shell reads, and a line about our own bindings in the middle of a
+# log somebody is using to find a real problem is noise.
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+try:
+    import gi
+    gi.require_version("Gio", "2.0")
+    from gi.repository import Gio, GLib
+except Exception:
+    sys.exit(0)
+
+# Ours while this runs and nobody else's: the name carries the pid so
+# that two of these at once cannot unload each other's script.
+TAG = "shima-steam-windows-%d" % os.getpid()
+IFACE = "org.shima.SteamWindows"
+
+XML = """
+<node><interface name='%s'>
+  <method name='Rows'><arg type='s' name='data' direction='in'/></method>
+</interface></node>
+""" % IFACE
+
+# Asked of KWin, which is the only thing that knows. Only Steam windows
+# are collected; everything else on screen is none of our business and
+# not worth carrying back.
+SCRIPT = r"""
+var out = [];
+try {
+    var t = workspace.windowList();
+    for (var i = 0; i < t.length; i++) {
+        var w = t[i];
+        var c = String(w.resourceClass);
+        if (c.indexOf("steam_app_") === 0) out.push(c + "\x1f" + w.pid);
+    }
+} catch (e) {
+}
+callDBus("%s", "/", "%s", "Rows", out.join("\x1e"));
+"""
+
+
+def steam_app_id(pid):
+    """The id in a process's environment, or None.
+
+    Only our own processes are readable, which is exactly the set that
+    matters: a game somebody else is running is not in our dock.
+    """
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return None
+    try:
+        with open("/proc/%d/environ" % pid, "rb") as f:
+            raw = f.read(65536)
+    except (OSError, IOError):
+        return None
+    for part in raw.split(b"\0"):
+        if part.startswith(b"SteamAppId="):
+            value = part[len(b"SteamAppId="):].decode("utf-8", "replace")
+            return value if value.isdigit() else None
+    return None
+
+
+def main():
+    runtime = os.environ.get("XDG_RUNTIME_DIR") or "/tmp"
+    path = os.path.join(runtime, TAG + ".js")
+
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    except Exception:
+        return 0
+
+    # No name is claimed on the bus. KWin answers to the connection's
+    # own unique name, which exists for as long as this process does
+    # and cannot collide with anything.
+    unique = bus.get_unique_name()
+    if not unique:
+        return 0
+
+    try:
+        with open(path, "w") as f:
+            f.write(SCRIPT % (unique, IFACE))
+    except (OSError, IOError):
+        return 0
+
+    rows = {}
+    loop = GLib.MainLoop()
+
+    def on_call(conn, sender, obj, iface, method, params, invocation):
+        if method == "Rows":
+            rows["data"] = params.unpack()[0]
+        invocation.return_value(None)
+        loop.quit()
+
+    try:
+        node = Gio.DBusNodeInfo.new_for_xml(XML)
+        bus.register_object("/", node.interfaces[0], on_call, None, None)
+    except Exception:
+        os.unlink(path)
+        return 0
+
+    script_id = [None]
+
+    def ask():
+        try:
+            r = bus.call_sync(
+                "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting",
+                "loadScript", GLib.Variant("(ss)", (path, TAG)),
+                None, Gio.DBusCallFlags.NONE, 3000, None)
+            script_id[0] = r.unpack()[0]
+            bus.call_sync(
+                "org.kde.KWin", "/Scripting/Script%d" % script_id[0],
+                "org.kde.kwin.Script", "run", None,
+                None, Gio.DBusCallFlags.NONE, 3000, None)
+        except Exception:
+            loop.quit()
+        return False
+
+    GLib.timeout_add(0, ask)
+    # KWin not answering is a possibility and not an emergency: the
+    # shell is told nothing and goes on as before.
+    GLib.timeout_add(4000, lambda: (loop.quit(), False)[1])
+    loop.run()
+
+    # Put back what we loaded, whatever happened.
+    try:
+        bus.call_sync("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting",
+                      "unloadScript", GLib.Variant("(s)", (TAG,)),
+                      None, Gio.DBusCallFlags.NONE, 3000, None)
+    except Exception:
+        pass
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
+    data = rows.get("data")
+    if not data:
+        return 0
+
+    seen = set()
+    for row in data.split("\x1e"):
+        if not row:
+            continue
+        parts = row.split("\x1f")
+        if len(parts) != 2:
+            continue
+        cls, pid = parts[0].strip(), parts[1].strip()
+        if not cls or cls in seen:
+            continue
+        app = steam_app_id(pid)
+        if not app:
+            continue
+        seen.add(cls)
+        sys.stdout.write("%s\t%s\n" % (cls, app))
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception:
+        sys.exit(0)

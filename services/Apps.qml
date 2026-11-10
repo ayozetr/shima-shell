@@ -253,6 +253,33 @@ Singleton {
         }
     }
 
+    // The catalogues above, read backwards: the name a game is listed
+    // under, down to the Steam id it is listed under it.
+    //
+    // For windows that have no class. There is nothing else to go on
+    // for those, and a title that matches a game Steam has installed
+    // is a good deal more than nothing — the alternative on the
+    // machine this was found on was a game running fullscreen with no
+    // icon in the dock at all.
+    //
+    // Lowercase on both sides, because a titlebar capitalises for the
+    // person reading it and a manifest does not have to agree.
+    readonly property var steamByName: {
+        const out = {};
+        // Manifests last, so an installed game wins over one added by
+        // hand under the same name: it has a name Steam itself wrote
+        // and an icon installed in the theme.
+        for (const sid in root.steamShortcuts) {
+            const n = root.steamShortcuts[sid].name;
+            if (n) out[String(n).trim().toLowerCase()] = sid;
+        }
+        for (const gid in root.steamGames) {
+            const n = root.steamGames[gid];
+            if (n) out[String(n).trim().toLowerCase()] = gid;
+        }
+        return out;
+    }
+
     function steamEntry(id) {
         const appId = id.slice("steam_app_".length);
         const name = root.steamGames[appId];

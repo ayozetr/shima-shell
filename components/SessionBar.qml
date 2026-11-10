@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell.Widgets
 import "../services"
 
 // The launcher's bottom bar: power, session and settings, the way
@@ -30,6 +31,49 @@ Item {
             kind: "settings"
             menu: ""
             onPlainClick: { SettingsWindow.show(); root.dismissed(); }
+        }
+    }
+
+    // Who is logged in, off at the far end: the account's picture, and
+    // the name at the machine beside it, the way a start menu signs off.
+    Row {
+        anchors.right: parent.right
+        anchors.rightMargin: 6
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 8
+
+        ClippingRectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width: 22; height: 22
+            radius: 11
+            color: "#20ffffff"
+
+            Image {
+                id: face
+                anchors.fill: parent
+                source: UserInfo.avatar !== "" ? "file://" + UserInfo.avatar : ""
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: true
+                visible: status === Image.Ready
+            }
+
+            // No picture: the same user glyph the button wears.
+            SessionGlyph {
+                anchors.centerIn: parent
+                width: 13; height: 13
+                kind: "user"
+                fill: Theme.textSecondary
+                visible: face.status !== Image.Ready
+            }
+        }
+
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: UserInfo.name + "@" + UserInfo.host
+            color: Theme.textSecondary
+            font.pixelSize: 12
+            elide: Text.ElideRight
         }
     }
 

@@ -60,13 +60,24 @@ Singleton {
         if (!root.sameList(nextClips, root.clips)) root.clips = nextClips;
     }
 
-    // By identity where there is one and by id otherwise: an entry
-    // made up for a Steam game is a new object every time it is asked
-    // for, so comparing the objects would never say they are the same.
+    // Two entries are the same when they are the same object, or when
+    // both carry an id and it matches: an entry made up for a Steam
+    // game is a new object every time it is asked for, so the id is
+    // what says it is still the same game.
+    //
+    // A clipboard entry has no id, and comparing the two missing ones
+    // used to say "undefined is undefined" and call them the same — so
+    // re-copying a picture, a new entry with a new file but the same
+    // length of list, left the launcher showing the old one, whose file
+    // had just been deleted under it. Without an id it falls back to the
+    // object, which a re-copy does change.
     function sameList(a, b) {
         if (a.length !== b.length) return false;
-        for (let i = 0; i < a.length; i++)
-            if (a[i] !== b[i] && a[i].id !== b[i].id) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] === b[i]) continue;
+            if (a[i].id !== undefined && a[i].id === b[i].id) continue;
+            return false;
+        }
         return true;
     }
 

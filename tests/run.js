@@ -67,7 +67,7 @@ function is(what, got, want) {
 // ── The clipboard ────────────────────────────────────────────────
 {
     const c = load("services/Clipboard.qml",
-                   ["isFiles", "preview", "matches"]);
+                   ["isFiles", "preview", "matches", "dragData"]);
 
     is("a file address is recognised",
        c.isFiles("file:///home/ayoze/x.pdf"), true);
@@ -93,6 +93,27 @@ function is(what, got, want) {
        c.matches({ kind: "image", path: "/x.png" }, "x"), false);
     is("with nothing typed, everything counts",
        c.matches({ kind: "image", path: "/x.png" }, ""), true);
+
+    // What a dragged entry hands whatever it is dropped on. A picture
+    // and a copied file go as an address so a file manager takes them
+    // as the thing; plain text goes as text and offers no address at
+    // all, or a folder would make a file out of a sentence.
+    is("a dragged picture is offered as a file address",
+       c.dragData({ kind: "image", path: "/run/u/clips/1.png" }),
+       { "text/uri-list": "file:///run/u/clips/1.png\r\n",
+         "text/plain": "/run/u/clips/1.png" });
+    is("dragged plain text is offered as text only",
+       c.dragData({ kind: "text", text: "hello" }),
+       { "text/plain": "hello" });
+    is("a dragged file keeps being a file",
+       c.dragData({ kind: "text", text: "file:///home/ayoze/a.pdf" }),
+       { "text/uri-list": "file:///home/ayoze/a.pdf\r\n",
+         "text/plain": "file:///home/ayoze/a.pdf" });
+    is("several dragged files come apart into a list",
+       c.dragData({ kind: "text",
+                    text: "file:///a%20b.txt\nfile:///c.txt" }),
+       { "text/uri-list": "file:///a%20b.txt\r\nfile:///c.txt\r\n",
+         "text/plain": "file:///a%20b.txt\nfile:///c.txt" });
 }
 
 // ── Which screens something is pinned to ─────────────────────────
@@ -222,7 +243,8 @@ function is(what, got, want) {
                    ["sweepDone", "idForClass", "candidatesFor",
                     "matchesProcess", "sameState"],
                    { Apps: { settingsClass: "shima", settingsId: "shima:settings",
-                             steamGames: {}, rescanSteam: () => {},
+                             steamGames: {}, steamByName: {},
+                             rescanSteam: () => {},
                              entryFor: (id) => entries[id] || null },
                      Pinned: { list: ["org.kde.konsole"] },
                      Config: { data: { showRunning: true } },
@@ -234,6 +256,9 @@ function is(what, got, want) {
     w.runningIds = {};
     w.misses = {};
     w.steamAsked = {};
+    w.classlessTitles = {};
+    w.steamAlias = {};
+    w.steamWindowClass = {};
     // What a first sweep leaves behind: the dock inherits Plasma's pins
     // after it has already seen what was open, so whatever was running
     // went in as an application that is merely open.
@@ -284,6 +309,37 @@ function is(what, got, want) {
     // says "no town chosen yet" — and is not where it does not.
     is("zero, where zero is allowed", number(0, 10, 0, 100), 0);
     is("zero, where it is not", number(0, 25, 1, 600), 1);
+}
+
+// ── Telling one list of launcher entries from another ────────────
+//
+// The grid is rebuilt only when the list really changed. A clipboard
+// entry has no id, and the old test called two different ones the same
+// — so re-copying a picture left the launcher pointing at the file it
+// had just deleted, and the thumbnail came up blank.
+{
+    const { sameList } = load("services/LauncherState.qml", ["sameList"]);
+
+    const a = { id: "firefox" }, b = { id: "discord" };
+    is("the same array is the same list", sameList([a, b], [a, b]), true);
+    is("a different length is a different list",
+       sameList([a], [a, b]), false);
+    // Apps are known by their id, so a remade object with the same id
+    // is still the same entry. This is what the id is there for.
+    is("same id, new object, still the same",
+       sameList([{ id: "firefox" }], [{ id: "firefox" }]), true);
+    is("a different id is a different entry",
+       sameList([{ id: "firefox" }], [{ id: "kate" }]), false);
+
+    // Clipboard entries have no id. Two different ones must not be
+    // mistaken for one, or the launcher keeps the stale one.
+    const clipOld = { kind: "image", path: "/clips/1.png", mark: "m" };
+    const clipNew = { kind: "image", path: "/clips/2.png", mark: "m" };
+    is("the very same clip object is the same", sameList([clipOld], [clipOld]), true);
+    is("a re-copied picture is a new entry, not the old one",
+       sameList([clipNew], [clipOld]), false);
+    is("a changed clip in a list of the same length is noticed",
+       sameList([clipNew, b], [clipOld, b]), false);
 }
 
 // ── The language ─────────────────────────────────────────────────
@@ -370,6 +426,13 @@ function is(what, got, want) {
         id: "terraria", execString: "steam steam://rungameid/105600",
         name: "Terraria"
     };
+    // A game built for Linux whose name is more than one word: its
+    // window class is the name run together, "CoreKeeper", while the
+    // catalogue carries it with the space.
+    const coreKeeper = {
+        id: "Core Keeper", execString: "steam steam://rungameid/1621690",
+        name: "Core Keeper"
+    };
     // Named after something longer than a process name can be.
     const long = {
         id: "supercalifragilistic", execString: "/usr/bin/supercalifragilistic",
@@ -396,14 +459,19 @@ function is(what, got, want) {
     is("a Steam game answers to its number and not to steam",
        a.candidatesFor(terraria),
        ["terraria", "terraria", "steam_app_105600", "terraria"]);
-    // The name is only read for games, and only a one-word name: it
-    // is how a game built for Linux is recognised, since its window is
-    // called after its own binary and that is nowhere in the .desktop.
+    // The name is only read for games: it is how a game built for
+    // Linux is recognised, since its window is called after its own
+    // binary and that is nowhere in the .desktop. A one-word name goes
+    // in as itself; a longer one goes in run together, the way the
+    // window class spells it.
     is("an application that is not a game is not matched on its name",
        a.candidatesFor({ id: "x.foo", execString: "/usr/bin/foo", name: "Bar" }),
        ["x.foo", "foo", "foo"]);
+    is("a game with a two-word name answers to it run together",
+       a.candidatesFor(coreKeeper),
+       ["core keeper", "core keeper", "steam_app_1621690", "corekeeper"]);
 
-    const idx = apps([dolphin, terraria, long, hidden]);
+    const idx = apps([dolphin, terraria, coreKeeper, long, hidden]);
     idx.buildIndex();
 
     is("a window class finds its application",
@@ -414,6 +482,10 @@ function is(what, got, want) {
     // "terraria.bin.x86_64" is the binary of a game built for Linux.
     is("a binary with its architecture stuck on the end still finds it",
        idx.idForClass("terraria.bin.x86_64"), "terraria");
+    // Core Keeper installs as "Core Keeper" and its window announces
+    // "CoreKeeper"; the spaced form the catalogue carries would miss it.
+    is("a two-word game is found by its name run together",
+       idx.idForClass("corekeeper"), "Core Keeper");
     // The kernel cuts a process name at fifteen characters.
     is("a name cut short by the kernel still finds it",
        idx.idForClass("supercalifragil"), "supercalifragilistic");
@@ -493,6 +565,7 @@ function is(what, got, want) {
                     settingsClass: "shima",
                     settingsId: "shima-settings",
                     steamGames: {},
+                    steamByName: {},
                     rescanSteam: () => {},
                     // Our own settings window has no .desktop file on
                     // disk: the real one makes an entry up for it, so
@@ -508,6 +581,9 @@ function is(what, got, want) {
         a.runningExtra = [];
         a.misses = {};
         a.steamAsked = {};
+        a.classlessTitles = {};
+        a.steamAlias = {};
+        a.steamWindowClass = {};
         a.procIndex = {};
         a.buildIndex();
         return a;
@@ -580,6 +656,228 @@ function is(what, got, want) {
     // .desktop file of its own.
     is("but our own settings window shows while it is open",
        d.runningExtra, ["shima-settings"]);
+}
+
+// ── A window with no class at all ────────────────────────────────
+//
+// Hotline Miami's window carries no WM_CLASS: a Linux build from 2012
+// on SDL 1.2, which never set one. KWin has nothing to report, the
+// sweep filtered the empty line away with the blank ones, and the
+// game was missing from the dock while it was being played.
+//
+// Its title is all that is left, and a title is not an identifier. So
+// it is matched against the names Steam wrote in its own manifests
+// and against nothing else: a game Steam installed is a name worth
+// recognising, and a window that merely happens to be called
+// something keeps nothing from this.
+{
+    const { literal } = require("./extract.js");
+    const games = { "219150": "Hotline Miami" };
+    const byName = { "hotline miami": "219150" };
+    const entries = {
+        steam_app_219150: { id: "steam_app_219150", name: "Hotline Miami",
+                            icon: "steam_icon_219150", isSteamGame: true }
+    };
+    const mk = () => {
+        const w = load("services/Windows.qml",
+                       ["sweepDone", "idForClass", "candidatesFor",
+                        "matchesProcess", "sameState", "windowLookup",
+                        "reEscape"],
+                       { Apps: { settingsClass: "shima",
+                                 settingsId: "shima-settings",
+                                 steamGames: games, steamByName: byName,
+                                 rescanSteam: () => {},
+                                 entryFor: (id) => entries[id] || null },
+                         Pinned: { list: [] },
+                         Config: { data: { showRunning: true } },
+                         Games: { byClass: {} } });
+        w.neverShow = literal("services/Windows.qml", "neverShow");
+        w.launchers = literal("services/Windows.qml", "launchers");
+        w.procIndex = { konsole: "org.kde.konsole" };
+        w.runningIds = {};
+        w.runningExtra = [];
+        w.misses = {};
+        w.steamAsked = {};
+        w.classlessTitles = {};
+        w.steamAlias = {};
+        w.steamWindowClass = {};
+        return w;
+    };
+
+    const w = mk();
+    w.sweepDone("konsole\ntitle:hotline miami\n");
+    is("a game known only by its title reaches the dock",
+       w.runningExtra.indexOf("steam_app_219150") !== -1, true);
+    is("and counts as running", w.runningIds["steam_app_219150"], true);
+    is("and the title it was found under is kept",
+       w.classlessTitles["steam_app_219150"], "hotline miami");
+
+    // Which is the whole point: without the title there is no way back
+    // to the window, and clicking the icon would start a second copy
+    // of a game that is already running fullscreen.
+    const pats = w.windowLookup("steam_app_219150");
+    is("the title is what the window is looked for by",
+       pats[0], "name:^hotline miami$");
+    is("and the class patterns still follow it, in case there is one",
+       pats.length > 1, true);
+
+    // A title belongs to nobody in particular. One that matches no
+    // game Steam installed is not an application.
+    const u = mk();
+    u.sweepDone("konsole\ntitle:untitled document 1\n");
+    is("a title that matches no game is nothing at all",
+       u.runningExtra, []);
+    is("and leaves no window to look for", u.classlessTitles, {});
+
+    // A name is a sentence and a pattern is not. "S.T.A.L.K.E.R." and
+    // "Rocket League (Epic)" are both real names, and both would match
+    // things they are not.
+    const e = mk();
+    is("a dot in a title is a dot",
+       e.reEscape("S.T.A.L.K.E.R."), "S\\.T\\.A\\.L\\.K\\.E\\.R\\.");
+    is("and brackets are brackets",
+       e.reEscape("Rocket League (Epic)"), "Rocket League \\(Epic\\)");
+
+    // And it is still an argument, never a script. Same reasoning as
+    // the block further down, and the same proof: the shell is run.
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    const { execFileSync } = require("child_process");
+
+    const dir = path.join(os.tmpdir(), "shima-title-" + process.pid);
+    fs.mkdirSync(dir, { recursive: true });
+    const proof = path.join(dir, "pwned");
+
+    const t = mk();
+    byName["game$(touch " + proof + ")odd"] = "219150";
+    t.sweepDone("title:game$(touch " + proof + ")odd\n");
+    const bad = t.windowLookup("steam_app_219150");
+    delete byName["game$(touch " + proof + ")odd"];
+
+    // The case statement that routes a "name:" pattern to --name is
+    // the new part, so it is the part that runs here.
+    execFileSync("sh", ["-c",
+        'wins=""; for p in "$@"; do [ -n "$wins" ] && break; '
+        + 'case "$p" in name:*) wins=$(printf "%s" "${p#name:}");; '
+        + '  *) wins=$(printf "%s" "$p");; esac; done',
+        "shima"].concat(bad), { stdio: "ignore" });
+    is("a title that would run a command does not run it",
+       fs.existsSync(proof), false);
+    fs.rmSync(dir, { recursive: true, force: true });
+}
+
+// ── A Steam window announcing an id that is not its own ──────────
+//
+// The id a Steam window gives is normally the one Steam has a manifest
+// or a shortcut for. A game added to Steam by hand runs under the
+// shortcut's id while announcing the id it has in Steam's store, which
+// is a different number that nothing on the machine answers to. The
+// window belonged to nobody and the dock stayed empty while the game
+// was on screen.
+//
+// The process is what ties them together, and the helper reads it. All
+// this side has to do is believe it, and only when it leads somewhere.
+{
+    const { literal } = require("./extract.js");
+    const shortcuts = { "4000000001": { name: "A launcher" } };
+    const entries = {
+        steam_app_4000000001: { id: "steam_app_4000000001", name: "A launcher",
+                                icon: "applications-games", isSteamGame: true },
+        steam_app_555: { id: "steam_app_555", name: "An installed game",
+                         icon: "steam_icon_555", isSteamGame: true }
+    };
+    const mk = () => {
+        const w = load("services/Windows.qml",
+                       ["sweepDone", "idForClass", "candidatesFor",
+                        "matchesProcess", "sameState", "windowLookup",
+                        "reEscape", "aliasFromHelper"],
+                       { Apps: { settingsClass: "shima",
+                                 settingsId: "shima-settings",
+                                 steamGames: { "555": "An installed game" },
+                                 steamShortcuts: shortcuts,
+                                 steamByName: {},
+                                 rescanSteam: () => {},
+                                 entryFor: (id) => entries[id] || null },
+                         Pinned: { list: [] },
+                         Config: { data: { showRunning: true } },
+                         Games: { byClass: {} } });
+        w.neverShow = literal("services/Windows.qml", "neverShow");
+        w.launchers = literal("services/Windows.qml", "launchers");
+        w.procIndex = {};
+        w.runningIds = {};
+        w.runningExtra = [];
+        w.misses = {};
+        w.steamAsked = {};
+        w.classlessTitles = {};
+        w.steamAlias = {};
+        w.steamWindowClass = {};
+        w.askSteamWindows = () => { w.asked = true; };
+        return w;
+    };
+
+    // Reading the helper's answer.
+    const p = mk();
+    is("a window that answers to its own id is not worth an alias",
+       p.aliasFromHelper("steam_app_555\t555\n"), {});
+    is("one that does not, is",
+       p.aliasFromHelper("steam_app_999\t4000000001\n"),
+       { steam_app_999: "4000000001" });
+    // It came off a process's environment and goes on to be joined to
+    // a string that is looked up in the catalogue.
+    is("an id that is not a number is dropped",
+       p.aliasFromHelper("steam_app_999\t40x0; rm -rf\n"), {});
+    is("and a line with nothing in it is skipped",
+       p.aliasFromHelper("\n\nsteam_app_999\t4000000001\n\n"),
+       { steam_app_999: "4000000001" });
+
+    // An unknown id, with nothing to resolve it: the sweep asks, and
+    // asks once.
+    const u = mk();
+    u.sweepDone("steam_app_999\n");
+    is("an id nobody has gets the question asked", u.asked, true);
+    is("and nothing is shown until there is an answer", u.runningExtra, []);
+    u.asked = false;
+    u.sweepDone("steam_app_999\n");
+    is("and it is not asked twice", u.asked, false);
+
+    // With the answer, the game the launcher belongs to turns up.
+    const a = mk();
+    a.steamAlias = { steam_app_999: "4000000001" };
+    a.sweepDone("steam_app_999\n");
+    is("a window resolved through its launcher reaches the dock",
+       a.runningExtra, ["steam_app_4000000001"]);
+    is("and counts as running", a.runningIds["steam_app_4000000001"], true);
+    is("while the id the window announced is not an application",
+       a.runningIds["steam_app_999"], undefined);
+
+    // Which is the point: the click has to find a window whose class
+    // is not the one the game is filed under.
+    is("the announced class is what the window is looked for by",
+       a.windowLookup("steam_app_4000000001"), ["^steam_app_999$"]);
+
+    // An alias is believed only when it leads to something real. The
+    // helper reports whatever the process says, and a launcher nobody
+    // has is still nobody.
+    const n = mk();
+    n.steamAlias = { steam_app_999: "4000000002" };
+    n.sweepDone("steam_app_999\n");
+    is("an alias pointing at an id nobody has shows nothing",
+       n.runningExtra, []);
+
+    // And the ordinary case is untouched: a game Steam installed is
+    // found by its own id, with no alias and no helper.
+    const o = mk();
+    o.sweepDone("steam_app_555\n");
+    is("a game Steam installed still goes in on its own",
+       o.runningExtra, ["steam_app_555"]);
+    is("with no question asked", o.asked, undefined);
+    // Twice over, because the id and its last segment are the same
+    // string here. That is how it already was; the lookup stops at
+    // the first pattern that finds anything.
+    is("and is still looked for by its own class",
+       o.windowLookup("steam_app_555")[0],
+       "^(.*\\.)?steam_app_555(\\..*)?$");
 }
 
 // ── The application a notification came from ─────────────────────
@@ -1123,12 +1421,14 @@ function is(what, got, want) {
     const nasty = "game$(touch " + proof + ")odd";
 
     const w = load("services/Windows.qml",
-                   ["windowLookup", "candidatesFor"],
+                   ["windowLookup", "candidatesFor", "reEscape"],
                    { Apps: { settingsId: "shima:settings",
                              settingsClass: "shima",
                              entryFor: () => ({ id: "x", name: nasty,
                                                 startupClass: nasty }) } });
     w.launchers = [];
+    w.classlessTitles = {};
+    w.steamWindowClass = {};
     const pats = w.windowLookup("x");
 
     is("the lookup hands back patterns rather than a script",

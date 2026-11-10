@@ -68,6 +68,23 @@ Singleton {
         if (!probe.running) probe.running = true;
     }
 
+    // Brightness changed from outside — KDE's own slider, a script —
+    // while nothing here was polling. powerdevil says so on the bus;
+    // hearing it and re-reading is what lets the island flash its
+    // display for a change it did not make. Only while the volume
+    // display is on, so the bus is not watched for nothing.
+    Process {
+        id: liveWatch
+        running: Config.data.islandOsd ?? false
+        command: ["busctl", "--user", "monitor", "--match",
+            "type='signal',interface='org.kde.ScreenBrightness',"
+            + "member='BrightnessChanged'"]
+        stdout: SplitParser { onRead: (line) => liveBeat.restart() }
+    }
+
+    // One re-read per burst of signal lines, not per line.
+    Timer { id: liveBeat; interval: 120; onTriggered: root.refresh() }
+
     function parse(text) {
         const found = [];
         const read = {};

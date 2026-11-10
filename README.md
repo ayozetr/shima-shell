@@ -19,7 +19,10 @@ album art. Hovering expands it into one of four modes, switched with the
 scroll wheel or by clicking the dots:
 
 - **Media** — album art, track, transport controls and a progress bar
-- **Control centre** — Wi-Fi, Bluetooth, mute and volume
+- **Control centre** — Wi-Fi, Bluetooth, outputs, brightness, night
+  light and volume. Wi-Fi and Bluetooth unfold a list to join a network
+  or a device, password and all; a press-and-hold on the switch turns
+  the radio off
 - **Status** — CPU, memory and network throughput
 - **Calendar** — month view with a pomodoro timer
 
@@ -49,7 +52,9 @@ the Meta key by default.
 **Clipboard.** What you copied before, on **Meta+V** and in the
 launcher under its own category. Text, files and pictures. Nothing
 outlives the session and nothing reaches the disk, and whatever the
-program that copied it marked as a password is not kept at all.
+program that copied it marked as a password is not kept at all. Copy
+something and a shelf drops from the island for a moment: drag it
+straight into an app or a folder, or tap it to open the history.
 
 **Notifications.** A server of its own, shown on the island or as a
 card, with history that outlasts the shell restarting, do not disturb,
