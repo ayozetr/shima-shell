@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import "services"
@@ -157,8 +158,13 @@ PanelWindow {
         width: 46
         height: 5
         radius: 2.5
-        color: Theme.textSecondary
-        opacity: (win.handle && !win.revealed) ? 0.85 : 0
+        // The cover's own colour while something plays — a sign of life
+        // on the strip that matches what you are listening to — and a
+        // quiet grey otherwise.
+        readonly property bool playing: win.hasMedia && win.player && win.player.isPlaying
+        color: playing ? win.coverColour : Theme.textSecondary
+        Behavior on color { ColorAnimation { duration: Theme.hoverDuration } }
+        opacity: (win.handle && !win.revealed) ? 0.9 : 0
         visible: opacity > 0
         z: 20
         Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
@@ -334,6 +340,71 @@ PanelWindow {
         return players[0];
     }
     readonly property bool hasMedia: player !== null
+
+    // The colours of the album art, for the handle to wear while
+    // something plays — so the strip picks up the cover rather than a
+    // colour from nowhere.
+    //
+    // The reader cannot fetch a remote address, and Spotify and the like
+    // hand the cover over as one; so it is pulled down to a file first,
+    // under a name that alternates, so the reader is handed a url it has
+    // not seen and reads the new cover rather than the cached old one. A
+    // local cover is read where it already is.
+    property url artLocal: ""
+    property int artGen: 0
+
+    Process {
+        id: artFetch
+        property string dest: ""
+        onExited: (code) => { if (code === 0) win.artLocal = "file://" + artFetch.dest; }
+    }
+
+    function updateArt() {
+        const u = (win.player && win.player.trackArtUrl)
+            ? String(win.player.trackArtUrl) : "";
+        if (u === "") { win.artLocal = ""; return; }
+        if (u.indexOf("file://") === 0) { win.artLocal = u; return; }
+        if (u.indexOf("/") === 0) { win.artLocal = "file://" + u; return; }
+        if (Paths.cacheDir === "") { win.artLocal = ""; return; }
+        win.artGen = (win.artGen + 1) % 2;
+        artFetch.dest = Paths.cacheDir + "/nowplaying-art-" + win.artGen;
+        artFetch.command = ["sh", "-c", 'curl -sL --max-time 8 -o "$1" "$2"',
+                            "shima", artFetch.dest, u];
+        artFetch.running = true;
+    }
+
+    onPlayerChanged: win.updateArt()
+    Component.onCompleted: win.updateArt()
+    Connections {
+        target: win.player
+        function onTrackArtUrlChanged() { win.updateArt(); }
+    }
+
+    ColorQuantizer {
+        id: artColours
+        source: win.artLocal
+        // Four buckets, not eight: the handful of tones the cover is
+        // really made of, so the liveliest of them is a colour the cover
+        // actually wears, not a stray pixel's accent.
+        depth: 2
+        rescaleSize: 64     // plenty for a palette, cheap to work out
+    }
+
+    // The liveliest one: saturated, and neither near-black nor washed
+    // out, so it shows on the dark strip. The cover's own grey if it has
+    // no real colour, the accent if there is no cover at all.
+    readonly property color coverColour: {
+        const cs = artColours.colors;
+        if (!cs || cs.length === 0) return Theme.accent;
+        let best = cs[0], bestScore = -1;
+        for (const c of cs) {
+            const v = c.hsvValue;
+            const score = c.hsvSaturation
+                * ((v > 0.3 && v < 0.95) ? v : v * 0.25);
+            if (score > bestScore) { bestScore = score; best = c; }
+        }
+        return best;
+    }
 
     onHasMediaChanged: Cava.setActive(hasMedia && player.isPlaying)
     Connections {
