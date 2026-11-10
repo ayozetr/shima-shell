@@ -38,6 +38,20 @@ Singleton {
     // The island sets this; the countdown stops while it is true.
     property bool shelfHeld: false
 
+    // wl-paste --watch hands over whatever is on the clipboard the
+    // moment it starts, before anything has been copied — and on a
+    // fresh start, with an empty history, that first reading looks new.
+    // So the shelf is armed a breath after the watchers are up, with
+    // that initial reading already swallowed; a reload, which starts
+    // them again, is the same story and the same answer.
+    property bool shelfArmed: false
+    onAvailableChanged: if (root.available) shelfArmTimer.restart()
+    Timer {
+        id: shelfArmTimer
+        interval: 2000
+        onTriggered: root.shelfArmed = true
+    }
+
     Timer {
         id: shelfTimer
         interval: 5000
@@ -54,7 +68,7 @@ Singleton {
     }
 
     function showShelf(entry) {
-        if (!root.shelfWanted || !entry) return;
+        if (!root.shelfWanted || !root.shelfArmed || !entry) return;
         root.shelfHeld = false;
         root.shelf = entry;
         shelfTimer.restart();
