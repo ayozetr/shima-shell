@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+#
+# Watches for the Google Fast Pair battery advertisement (BLE service
+# data 0xFE2C) that earbuds broadcast when their case is opened, and
+# prints one line per opening with the battery of the left bud, the
+# right bud and the case.
+#
+# Earbuds only broadcast this while sitting in an open case; once they
+# are in your ears and connected they stop, so there is no other moment
+# to read the three figures. Catching it means an LE scan has to be
+# running, so this is spawned only while the island's Fast Pair peek is
+# switched on, and it stops the scan the moment it goes away.
+#
+# It leans on BlueZ over D-Bus (python-dbus). Output, one tab-separated
+# line per opened case (de-duplicated within a few seconds):
+#
+#   addr <TAB> name <TAB> left <TAB> right <TAB> case <TAB> rssi
+#
+# with each level 0-100, or -1 where the device did not report it.
+# Nothing is printed for anything that is not a Fast Pair battery
+# frame, and the shell side decides whether the name is one of yours.
+import sys, time
+import dbus, dbus.mainloop.glib
+from gi.repository import GLib
+
+BLUEZ = "org.bluez"
+FP_UUID = "0000fe2c-0000-1000-8000-00805f9b34fb"
+DEBOUNCE = 3.0          # one line per opening, not per repeated frame
+LABELS = ("left", "right", "case")
+
+dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+bus = dbus.SystemBus()
+
+
+def adapter_path():
+    om = dbus.Interface(bus.get_object(BLUEZ, "/"),
+                        "org.freedesktop.DBus.ObjectManager")
+    for path, ifaces in om.GetManagedObjects().items():
+        if "org.bluez.Adapter1" in ifaces:
+            return path
+    return None
+
+
+def decode_battery(raw):
+    # The non-discoverable Fast Pair payload is a version byte and then
+    # a run of fields, each a (length<<4 | type) header. The battery is
+    # type 3 (shown) or 4 (hidden); its bytes are left, right, case,
+    # with bit 7 the charging flag and 0xFF meaning "not reported".
+    b = list(raw)
+    i = 1 if b else 0
+    for _ in range(8):
+        if i >= len(b):
+            break
+        header = b[i]; i += 1
+        length = header >> 4
+        typ = header & 0x0F
+        field = b[i:i + length]; i += length
+        if typ in (0x03, 0x04) and length in (2, 3):
+            vals = [(-1 if v == 0xFF else (v & 0x7F)) for v in field]
+            while len(vals) < 3:
+                vals.append(-1)
+            return vals
+    return None
+
+
+last_emit = {}
+
+
+def report(path, props):
+    sd = props.get("ServiceData")
+    if not sd or FP_UUID not in sd:
+        return
+    raw = bytes(int(x) & 0xFF for x in sd[FP_UUID])
+    vals = decode_battery(raw)
+    if vals is None:
+        return
+    addr = path.split("/dev_")[-1].replace("_", ":") if "/dev_" in path else path
+    now = time.time()
+    if now - last_emit.get(addr, 0) < DEBOUNCE:
+        return
+    last_emit[addr] = now
+    name = str(props.get("Name", props.get("Alias", addr)))
+    rssi = int(props["RSSI"]) if "RSSI" in props else 0
+    # Tabs, and the name scrubbed of any, so the shell side can split on
+    # them without a surprise.
+    name = name.replace("\t", " ").replace("\n", " ")
+    print(f"{addr}\t{name}\t{vals[0]}\t{vals[1]}\t{vals[2]}\t{rssi}", flush=True)
+    # The advertisement is byte-identical on every opening (the salt is
+    # fixed), so once the device is in BlueZ's cache the daemon sees no
+    # change and never signals again — the peek shows the first time and
+    # never after. Forgetting the device makes the next opening arrive
+    # fresh, as a newly discovered one. Only the unpaired advertiser is
+    # removed, never a device you actually paired.
+    try:
+        p = dbus.Interface(bus.get_object(BLUEZ, path),
+                           "org.freedesktop.DBus.Properties")
+        paired = bool(p.Get("org.bluez.Device1", "Paired"))
+    except dbus.DBusException:
+        paired = False
+    if not paired:
+        try:
+            adapter.RemoveDevice(path)
+        except dbus.DBusException:
+            pass
+
+
+def on_props(interface, changed, invalidated, path=None):
+    if interface == "org.bluez.Device1":
+        report(path, changed)
+
+
+def on_added(path, ifaces):
+    if "org.bluez.Device1" in ifaces:
+        report(path, ifaces["org.bluez.Device1"])
+
+
+ADAPTER = adapter_path()
+if not ADAPTER:
+    print("no bluetooth adapter", file=sys.stderr)
+    sys.exit(1)
+
+bus.add_signal_receiver(on_props,
+                        dbus_interface="org.freedesktop.DBus.Properties",
+                        signal_name="PropertiesChanged",
+                        arg0="org.bluez.Device1", path_keyword="path")
+bus.add_signal_receiver(on_added,
+                        dbus_interface="org.freedesktop.DBus.ObjectManager",
+                        signal_name="InterfacesAdded")
+
+adapter = dbus.Interface(bus.get_object(BLUEZ, ADAPTER), "org.bluez.Adapter1")
+try:
+    adapter.SetDiscoveryFilter({"Transport": "le",
+                                "DuplicateData": dbus.Boolean(True)})
+except dbus.DBusException as e:
+    print("filter:", e, file=sys.stderr)
+try:
+    adapter.StartDiscovery()
+except dbus.DBusException as e:
+    print("discovery:", e, file=sys.stderr)
+    sys.exit(1)
+
+loop = GLib.MainLoop()
+
+
+def stop(*_):
+    try:
+        adapter.StopDiscovery()
+    except Exception:
+        pass
+    loop.quit()
+
+
+# When the island stops asking for it, the shell kills this and the
+# D-Bus connection dies with it; BlueZ drops a discovery session whose
+# owner has gone, so nothing is left scanning. The finally below is for
+# the clean, timed exit used when testing from a terminal.
+
+# An optional run length, mostly for testing from a terminal.
+if len(sys.argv) > 1:
+    try:
+        GLib.timeout_add_seconds(int(sys.argv[1]), lambda: (stop(), False)[1])
+    except ValueError:
+        pass
+
+try:
+    loop.run()
+finally:
+    try:
+        adapter.StopDiscovery()
+    except Exception:
+        pass

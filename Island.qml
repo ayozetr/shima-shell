@@ -111,13 +111,13 @@ PanelWindow {
         z: 1
         anchors.horizontalCenter: parent.horizontalCenter
         y: 0
-        width: (win.expanded || win.peeking) ? Theme.islandExpandedWidth
-                                             : Theme.islandCollapsedWidth
+        width: (win.expanded || win.banner) ? Theme.islandExpandedWidth
+                                            : Theme.islandCollapsedWidth
         height: {
             if (win.expanded)
                 return Math.max(win.topMargin, Theme.islandExpandedMargin)
                        + win.expandedHeight;
-            if (win.peeking) return win.topMargin + win.peekHeight;
+            if (win.banner) return win.topMargin + win.peekHeight;
             return win.topMargin + Theme.islandCollapsedHeight;
         }
 
@@ -161,7 +161,7 @@ PanelWindow {
         ? Config.number(Config.data.islandMargin, 8, 0, 400) : 0
 
     // It won't hide while expanded, obviously.
-    readonly property bool revealed: !autoHide || hovering || expanded || peeking
+    readonly property bool revealed: !autoHide || hovering || expanded || banner
 
     property bool hovering: false
 
@@ -176,7 +176,12 @@ PanelWindow {
     property bool overIsland: false
     property bool overReach: false
 
-    readonly property bool expanded: !win.peeking && (win.overIsland || win.overReach)
+    // Reads the two flags directly, not through `banner`: going through
+    // it put expanded → banner → shelving → shelf → expanded, a loop Qt
+    // flagged. Named apart, the way the peek has always been, they form
+    // the same short cycle the peek does and that Qt lets stand.
+    readonly property bool expanded: !win.peeking && !win.shelving && !win.btShowing
+                                     && (win.overIsland || win.overReach)
     readonly property bool pointerNear: win.overIsland || win.overReach
 
     onPointerNearChanged: {
@@ -193,10 +198,46 @@ PanelWindow {
     // It only takes the island when the island is idle: interrupting
     // someone who is in the middle of changing the volume would be
     // worse than making them wait. Missed ones are in the history.
+    // The clipboard shelf shares this strip with the notification
+    // peek. A copy is something you have just this moment done, so it
+    // takes the slot over a notification passing through.
+    readonly property var shelf: (win.expanded || !Config.onScreen(
+        Config.data.islandScreens, win.screenName)) ? null : Clipboard.shelf
+    readonly property bool shelving: win.shelf !== null
+
+    // The battery an opened earbud case just announced, sharing the
+    // same strip. Infrequent and deliberate, so it sits over the other
+    // two when they coincide.
+    readonly property var btBat: (win.expanded || !Config.onScreen(
+        Config.data.islandScreens, win.screenName)) ? null : BtBattery.peek
+    readonly property bool btShowing: win.btBat !== null
+
+    // The shelf is kept out of this binding on purpose: peek reading
+    // shelving, with shelving reading shelf and shelf reading expanded,
+    // was part of the loop. The shelf takes the slot instead by sitting
+    // over the notification, which is hidden while it does.
     readonly property var peek: (win.expanded || !Config.onScreen(
         Config.data.islandScreens, win.screenName)) ? null : Notifications.peek
     readonly property bool peeking: win.peek !== null
+
+    // Any of the three filling the strip: what the geometry below
+    // reacts to, where the notification, the shelf and the battery want
+    // the same thing of it. Only geometry reads this — never
+    // `expanded`, or the loop comes back.
+    readonly property bool banner: win.peeking || win.shelving || win.btShowing
     readonly property int peekHeight: 84
+
+    // Held open while the pointer is on it, the way the notification is.
+    Binding {
+        target: Clipboard
+        property: "shelfHeld"
+        value: win.shelving && win.pointerNear
+    }
+    Binding {
+        target: BtBattery
+        property: "peekHeld"
+        value: win.btShowing && win.pointerNear
+    }
 
     onPeekChanged: {
         if (win.peek) peekTimer.restart();
@@ -265,21 +306,21 @@ PanelWindow {
             if (win.expanded) return Math.max(win.topMargin, Theme.islandExpandedMargin);
             return win.topMargin;
         }
-        width:  (win.expanded || win.peeking) ? Theme.islandExpandedWidth
-                                              : Theme.islandCollapsedWidth
+        width:  (win.expanded || win.banner) ? Theme.islandExpandedWidth
+                                             : Theme.islandCollapsedWidth
         height: win.expanded ? win.expandedHeight
-                             : (win.peeking ? win.peekHeight : Theme.islandCollapsedHeight)
+                             : (win.banner ? win.peekHeight : Theme.islandCollapsedHeight)
         color: Theme.islandBg
         // Width zero rather than a transparent colour: Qt still lays a
         // one-pixel stroke for a transparent border, and it shows up as
         // a faint line across the top of the collapsed island.
-        border.width: (win.expanded || win.peeking) ? 1 : 0
+        border.width: (win.expanded || win.banner) ? 1 : 0
         border.color: Theme.islandBorder
 
         // Collapsed it sits against the top, so only the bottom
         // corners get rounded.
-        topLeftRadius:     (win.expanded || win.peeking || win.floating) ? Theme.islandRadius : 0
-        topRightRadius:    (win.expanded || win.peeking || win.floating) ? Theme.islandRadius : 0
+        topLeftRadius:     (win.expanded || win.banner || win.floating) ? Theme.islandRadius : 0
+        topRightRadius:    (win.expanded || win.banner || win.floating) ? Theme.islandRadius : 0
         bottomLeftRadius:  Theme.islandRadius
         bottomRightRadius: Theme.islandRadius
         readonly property int radius: Theme.islandRadius
@@ -313,6 +354,8 @@ PanelWindow {
                 // when it came for the volume, and the wheel says
                 // which.
                 if (win.peeking) { Notifications.dismissPeek(); return; }
+                if (win.shelving) { Clipboard.dismissShelf(); return; }
+                if (win.btShowing) { BtBattery.dismiss(); return; }
                 if (!win.expanded) return;
                 const dy = e.angleDelta.y !== 0 ? e.angleDelta.y : e.angleDelta.x;
                 if (dy === 0) return;
@@ -325,7 +368,7 @@ PanelWindow {
         CollapsedContent {
             anchors.fill: parent
             player: win.player
-            opacity: (win.expanded || win.peeking) ? 0 : 1
+            opacity: (win.expanded || win.banner) ? 0 : 1
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
         }
@@ -340,7 +383,7 @@ PanelWindow {
             anchors.bottomMargin: 7
             width: 5; height: 5; radius: 2.5
             color: Theme.accent
-            opacity: (!win.expanded && !win.peeking && Notifications.unread > 0) ? 1 : 0
+            opacity: (!win.expanded && !win.banner && Notifications.unread > 0) ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
         }
@@ -350,7 +393,10 @@ PanelWindow {
             anchors.leftMargin: 16
             anchors.rightMargin: 16
             entry: win.peek
-            opacity: win.peeking ? 1 : 0
+            // Hidden under the shelf or the battery when they want the
+            // strip: both are newer, deliberate things. The
+            // notification's own timer still runs it out underneath.
+            opacity: (win.peeking && !win.shelving && !win.btShowing) ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
 
@@ -364,6 +410,39 @@ PanelWindow {
                 }
                 Notifications.dismissPeek();
             }
+        }
+
+        // The shelf, in the same strip: what was just copied, to drag
+        // out or to tap for the history.
+        ClipboardPeek {
+            anchors.fill: parent
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            entry: win.shelf
+            opacity: (win.shelving && !win.btShowing) ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
+
+            onOpenHistory: {
+                Clipboard.dismissShelf();
+                LauncherState.showClipboard();
+            }
+            onDismissed: Clipboard.dismissShelf()
+        }
+
+        // The earbud battery, over the other two: an opened case is an
+        // uncommon, on-purpose moment.
+        BtBatteryPeek {
+            anchors.fill: parent
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            entry: win.btBat
+            opacity: win.btShowing ? 1 : 0
+            visible: opacity > 0
+            z: 1
+            Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
+
+            onDismissed: BtBattery.dismiss()
         }
 
         // Its own strip for the mode indicator, so no content ever

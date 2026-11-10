@@ -142,6 +142,17 @@ Column {
     }
 
     Controls.Row_ {
+        label: I18n.t.clipboardShelf
+        hint: I18n.t.clipboardShelfHint
+        visible: root.c.clipboardHistory ?? true
+        Controls.Toggle_ {
+            anchors.right: parent.right
+            checked: root.c.clipboardShelf ?? true
+            onToggled: (v) => { root.c.clipboardShelf = v; Config.save(); }
+        }
+    }
+
+    Controls.Row_ {
         label: I18n.t.clipboardShortcut
         visible: root.c.clipboardHistory ?? true
         Controls.Toggle_ {

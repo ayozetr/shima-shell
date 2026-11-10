@@ -69,6 +69,7 @@ Times are in milliseconds unless the name says otherwise.
 |---|---|---|
 | `clipboardHistory` | `true` | Keep what you copy. Needs `wl-clipboard` |
 | `clipboardImages` | `true` | Pictures as well as text |
+| `clipboardShelf` | `true` | Hold what you just copied in the island for a moment, to drag into an app or folder |
 | `clipboardShortcutEnabled` | `true` | |
 | `clipboardKey` | `268435542` | A Qt key code with its modifiers. `Meta+V` |
 | `clipboardLabel` | `"Meta+V"` | What the settings window shows for that code |
@@ -87,6 +88,7 @@ when you log out.
 | `notificationCardSeconds` | `12` | 1 to 600 |
 | `notificationHistory` | `50` | How many are kept, 1 to 500 |
 | `doNotDisturb` | `false` | Everything goes to the history and nothing appears |
+| `fastPairPeek` | `false` | Show a Google Fast Pair earbud's battery (each bud and the case) on the island when its case is opened. Keeps a background Bluetooth scan running; needs BlueZ `Experimental = true` and `python-dbus` |
 
 ## The pomodoro
 

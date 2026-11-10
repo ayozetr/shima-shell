@@ -208,9 +208,19 @@ Singleton {
             // ── Clipboard ──────────────────────────────────────
             property bool clipboardHistory:   true
             property bool clipboardImages:    true
+            // The island holding out what you just copied, to drag it
+            // straight into an app or a folder.
+            property bool clipboardShelf:     true
             property bool clipboardShortcutEnabled: true
             property int  clipboardKey:       268435542   // Meta+V
             property string clipboardLabel:   "Meta+V"
+
+            // ── Bluetooth ──────────────────────────────────────
+            // The earbud battery an opened case announces, shown on the
+            // island. Off by default: catching it keeps a background
+            // Bluetooth scan running, which is not a cost to impose on
+            // someone who never asked for it.
+            property bool fastPairPeek:       false
 
             // ── Keeping the machine awake ──────────────────────
             // Kept across restarts only if asked. A machine that will

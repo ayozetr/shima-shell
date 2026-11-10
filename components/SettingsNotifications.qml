@@ -67,6 +67,20 @@ Column {
 
     Item { width: 1; height: 6 }
 
+    Controls.Section_ { text: I18n.t.bluetooth }
+
+    Controls.Row_ {
+        label: I18n.t.fastPairPeek
+        hint: I18n.t.fastPairPeekHint
+        Controls.Toggle_ {
+            anchors.right: parent.right
+            checked: root.c.fastPairPeek ?? false
+            onToggled: (v) => { root.c.fastPairPeek = v; Config.save(); }
+        }
+    }
+
+    Item { width: 1; height: 6 }
+
     Controls.Section_ { text: I18n.t.focus }
 
     Controls.Row_ {

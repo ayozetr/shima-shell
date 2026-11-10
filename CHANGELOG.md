@@ -14,6 +14,34 @@ Since there is no public API here, that means:
 
 ## [Unreleased]
 
+### Added
+
+- Earbud battery on the island. Open a Google Fast Pair case near the
+  machine and the island drops for a few seconds with the charge of the
+  left bud, the right bud and the case — the one moment those three
+  figures are broadcast at all, since earbuds stop once they are in your
+  ears. Off by default, under Notifications · Bluetooth: catching the
+  advertisement keeps a background Bluetooth scan running, and it only
+  interrupts for a device this machine is already paired with. Needs
+  BlueZ with `Experimental = true` and the `python-dbus` package for the
+  helper.
+
+- The control centre's Wi-Fi and Bluetooth switches open a list. A tap
+  on Wi-Fi unfolds the networks in range — signal and a padlock on the
+  secured ones — and joining one you have saved, or an open one, is a
+  tap; a secured one you have not opens a line to type the password
+  into, right there in the island. Bluetooth does the same with the
+  devices around you: tap to connect, pair, or let go of one. Turning
+  either radio off is now a press-and-hold on its switch, so a tap can
+  go looking at the list without dropping your connection — the switch
+  says so on hover.
+- The clipboard shelf: copy something and the island holds it out for a
+  few seconds, to drag straight into an app or a folder — a picture as
+  the file it is, text as text. Tap it instead and the history opens,
+  the same list as Meta+V. On by default; a switch under Launcher ·
+  Clipboard turns it off for those who would rather the island stayed
+  put on every copy.
+
 ## [0.7.0] — 2026-10-03
 
 A week of using it on a second machine, which is a laptop. Everything

@@ -15,6 +15,20 @@ Item {
     // room, and two of them would push the island past the screen.
     property bool showOutputs: false
     property bool showScreens: false
+    property bool showWifi: false
+    property bool showBluetooth: false
+
+    readonly property bool listOpen: root.showOutputs || root.showScreens
+                                   || root.showWifi || root.showBluetooth
+
+    // Opening one list closes the others, so the room is never fought
+    // over. Each tile that unfolds a list calls this with its own.
+    function unfold(which) {
+        root.showOutputs   = which === "outputs";
+        root.showScreens   = which === "screens";
+        root.showWifi      = which === "wifi";
+        root.showBluetooth = which === "bluetooth";
+    }
 
     // The island asks each mode how tall it wants to be. An unfolded
     // list grows with the number of entries, so the last one is not
@@ -24,6 +38,13 @@ Item {
             return 54 + 12 + Math.max(1, Audio.outputs.length) * 33 + 8;
         if (root.showScreens)
             return 54 + 12 + 26 + Math.max(1, Brightness.displays.length) * 40 + 8;
+        // These two measure their own list, password line and all,
+        // rather than count rows: the height of a Wi-Fi entry is not
+        // fixed once a line to type into can open under it.
+        if (root.showWifi)
+            return 54 + 12 + wifiPicker.implicitHeight + 8;
+        if (root.showBluetooth)
+            return 54 + 12 + btPicker.implicitHeight + 8;
         return 120 + (Brightness.available ? 26 : 0)
                    + (Power.available ? 36 : 0);
     }
@@ -36,6 +57,11 @@ Item {
             Layout.fillWidth: true
             spacing: 10
 
+            // A tap unfolds the list of networks — turning the radio on
+            // first if it was off, since an empty list is no answer.
+            // Switching it back off is a press-and-hold: a stray click
+            // on the one switch that drops your connection would be a
+            // poor way to go looking at networks.
             Tile {
                 Layout.fillWidth: true
                 label: I18n.t.wifi
@@ -43,7 +69,15 @@ Item {
                 glyph: "wifi"
                 on: Networking.wifiEnabled
                 available: Networking.wifiHardwareEnabled
-                onTriggered: Networking.wifiEnabled = !Networking.wifiEnabled
+                hint: Networking.wifiEnabled ? I18n.t.holdToOff : ""
+                onTriggered: {
+                    if (!Networking.wifiEnabled) Networking.wifiEnabled = true;
+                    root.unfold(root.showWifi ? "" : "wifi");
+                }
+                onHeld: {
+                    Networking.wifiEnabled = false;
+                    root.showWifi = false;
+                }
             }
             Tile {
                 Layout.fillWidth: true
@@ -52,7 +86,15 @@ Item {
                 glyph: "bt"
                 on: root.adapter ? root.adapter.enabled : false
                 available: root.adapter !== null
-                onTriggered: if (root.adapter) root.adapter.enabled = !root.adapter.enabled
+                hint: (root.adapter && root.adapter.enabled) ? I18n.t.holdToOff : ""
+                onTriggered: {
+                    if (root.adapter && !root.adapter.enabled) root.adapter.enabled = true;
+                    root.unfold(root.showBluetooth ? "" : "bluetooth");
+                }
+                onHeld: {
+                    if (root.adapter) root.adapter.enabled = false;
+                    root.showBluetooth = false;
+                }
             }
             // Muting lives on the speaker icon next to the slider, so
             // this slot is free for choosing where the sound goes.
@@ -63,10 +105,7 @@ Item {
                 glyph: "output"
                 on: root.showOutputs
                 available: Audio.ready
-                onTriggered: {
-                    root.showOutputs = !root.showOutputs;
-                    root.showScreens = false;
-                }
+                onTriggered: root.unfold(root.showOutputs ? "" : "outputs")
             }
             // Night light is a switch like the first two, not a
             // brightness control: it shifts the colour, not the level.
@@ -87,7 +126,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            visible: !root.showOutputs && !root.showScreens
+            visible: !root.listOpen
 
             // Click to mute; the icon itself says which state you're in.
             Glyph {
@@ -135,7 +174,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            visible: !root.showOutputs && !root.showScreens && Brightness.available
+            visible: !root.listOpen && Brightness.available
 
             // With a second monitor the sun becomes a button, the way
             // the speaker is one: it unfolds a bar per screen.
@@ -154,10 +193,7 @@ Item {
                     hoverEnabled: true
                     enabled: Brightness.displays.length > 1
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        root.showScreens = true;
-                        root.showOutputs = false;
-                    }
+                    onClicked: root.unfold("screens")
                 }
             }
 
@@ -183,7 +219,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            visible: !root.showOutputs && !root.showScreens && Power.available
+            visible: !root.listOpen && Power.available
 
             Repeater {
                 model: Power.profiles
@@ -271,6 +307,20 @@ Item {
             onClosed: root.showScreens = false
         }
 
+        // ── Networks, in place of the switches' rows ──────────────
+        WifiPicker {
+            id: wifiPicker
+            Layout.fillWidth: true
+            visible: root.showWifi
+        }
+
+        // ── Bluetooth devices, the same way ───────────────────────
+        BluetoothPicker {
+            id: btPicker
+            Layout.fillWidth: true
+            visible: root.showBluetooth
+        }
+
         Item { Layout.fillHeight: true }
     }
 
@@ -294,7 +344,12 @@ Item {
         // further down. What this means is whether there is anything
         // there to switch.
         property bool available: true
+        // A word shown over the switch on hover, for a gesture that is
+        // not obvious: the press-and-hold that turns Wi-Fi and
+        // Bluetooth off, where a plain tap now opens their list.
+        property string hint: ""
         signal triggered()
+        signal held()
 
         readonly property color tint: tile.on ? Theme.accentText
             : (tile.waiting ? Theme.accent : Theme.textSecondary)
@@ -341,7 +396,9 @@ Item {
         }
 
         MouseArea {
+            id: tileArea
             anchors.fill: parent
+            hoverEnabled: true
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             cursorShape: tile.available ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: (e) => {
@@ -355,6 +412,23 @@ Item {
                     tile.triggered();
                 }
             }
+            // Holding is the way off, now that a tap opens the list.
+            // Qt swallows the click that would otherwise follow a hold,
+            // so the two gestures do not both fire.
+            onPressAndHold: (e) => {
+                if (e.button === Qt.LeftButton && tile.available) tile.held();
+            }
+        }
+
+        // The hint for the hold, over the switch while the pointer
+        // rests on it. Centred above, and lifted clear of the row.
+        ToolTipLabel {
+            show: tileArea.containsMouse && tile.hint !== ""
+            text: tile.hint
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.top
+            anchors.bottomMargin: 4
+            z: 30
         }
     }
 }

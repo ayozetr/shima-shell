@@ -24,6 +24,62 @@ Singleton {
     readonly property bool wantImages: Config.data.clipboardImages ?? true
     readonly property int limit: 50
 
+    // The shelf: when something is copied, the island holds it out for
+    // a few seconds to be dragged straight into an app or a folder, the
+    // way a picture off a phone goes where it is going without ever
+    // being filed. On by default; a line in the settings turns it off
+    // for those to whom a panel dropping down on every copy is a
+    // nuisance rather than a hand.
+    readonly property bool shelfWanted: Config.data.clipboardShelf ?? true
+
+    // What is on the shelf right now, or null. The island reads this.
+    property var shelf: null
+    // Held open while the pointer is on it — it is being reached for.
+    // The island sets this; the countdown stops while it is true.
+    property bool shelfHeld: false
+
+    Timer {
+        id: shelfTimer
+        interval: 5000
+        onTriggered: root.shelf = null
+    }
+
+    // The clock is wound by hand rather than bound to a condition, so
+    // each new copy gets its own full few seconds and a pointer resting
+    // on it pauses the countdown rather than cutting it short.
+    onShelfHeldChanged: {
+        if (root.shelf === null) return;
+        if (root.shelfHeld) shelfTimer.stop();
+        else shelfTimer.restart();
+    }
+
+    function showShelf(entry) {
+        if (!root.shelfWanted || !entry) return;
+        root.shelfHeld = false;
+        root.shelf = entry;
+        shelfTimer.restart();
+    }
+
+    function dismissShelf() { root.shelf = null; shelfTimer.stop(); }
+
+    // What a dragged entry hands whatever it is dropped on. A picture
+    // and a copied file go as an address, so a file manager takes them
+    // as the thing and not as a line of text; plain text goes as text.
+    // The runtime directory a picture lives in is a real path, which is
+    // the whole reason images are written there rather than kept in
+    // memory like the text.
+    function dragData(entry) {
+        if (!entry) return ({});
+        if (entry.kind === "image")
+            return { "text/uri-list": "file://" + entry.path + "\r\n",
+                     "text/plain": entry.path };
+        if (root.isFiles(entry.text)) {
+            const uris = entry.text.trim().split(/\s+/).join("\r\n");
+            return { "text/uri-list": uris + "\r\n", "text/plain": entry.text };
+        }
+        return { "text/plain": entry.text };
+    }
+
     // Bigger than this and it is not a clipboard entry, it is a file.
     readonly property int imageLimit: 8 * 1024 * 1024
 
@@ -184,6 +240,15 @@ Singleton {
     }
 
     function add(entry) {
+        // The same thing offered again is not a copy. An application
+        // re-asserts the selection when it takes focus, which fires the
+        // watcher with what is already at the front — and the shelf
+        // popping for it looks like a copy that never happened, with
+        // nothing new in the history to back it up. The history still
+        // takes it (it only moves to the front), but the shelf does not.
+        const fresh = root.entries.length === 0
+                   || root.entries[0].mark !== entry.mark;
+
         // Copying the same thing again moves it back to the front
         // rather than filling the list with itself.
         const next = [entry];
@@ -195,6 +260,10 @@ Singleton {
         }
         root.entries = next;
         root.discard(dropped);
+
+        // Whatever genuinely new just landed is what the shelf holds
+        // out, which is the moment there is something new to drag.
+        if (fresh) root.showShelf(entry);
     }
 
     // A picture that has fallen off the end is a file nobody can reach

@@ -6,7 +6,7 @@ import "../services"
 Canvas {
     id: root
     property string kind: "wifi"   // wifi · bt · mute · output · brightness · night · back
-                                   // · bell · bellOff · trash · awake
+                                   // · bell · bellOff · trash · awake · lock
     property color fill: Theme.textPrimary
 
     onKindChanged: requestPaint()
@@ -174,6 +174,26 @@ Canvas {
             ctx.moveTo(w * 0.30, h * 0.50);
             ctx.lineTo(w * 0.70, h * 0.50);
             ctx.stroke();
+        } else if (kind === "lock") {
+            // A small padlock: the shackle as an arc, the body a
+            // rounded box. Drawn so it still reads at ten pixels, next
+            // to the name of a network that wants a password.
+            ctx.lineWidth = Math.max(1.3, w * 0.11);
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.arc(w * 0.50, h * 0.44, w * 0.20, Math.PI, 0);
+            ctx.stroke();
+
+            const bx = w * 0.24, by = h * 0.44, bw = w * 0.52, bh = h * 0.44;
+            const r = w * 0.08;
+            ctx.beginPath();
+            ctx.moveTo(bx + r, by);
+            ctx.arcTo(bx + bw, by, bx + bw, by + bh, r);
+            ctx.arcTo(bx + bw, by + bh, bx, by + bh, r);
+            ctx.arcTo(bx, by + bh, bx, by, r);
+            ctx.arcTo(bx, by, bx + bw, by, r);
+            ctx.closePath();
+            ctx.fill();
         } else if (kind === "back") {
             ctx.lineWidth = Math.max(1.4, w * 0.13);
             ctx.lineCap = "round";

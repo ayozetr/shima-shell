@@ -67,7 +67,7 @@ function is(what, got, want) {
 // ── The clipboard ────────────────────────────────────────────────
 {
     const c = load("services/Clipboard.qml",
-                   ["isFiles", "preview", "matches"]);
+                   ["isFiles", "preview", "matches", "dragData"]);
 
     is("a file address is recognised",
        c.isFiles("file:///home/ayoze/x.pdf"), true);
@@ -93,6 +93,27 @@ function is(what, got, want) {
        c.matches({ kind: "image", path: "/x.png" }, "x"), false);
     is("with nothing typed, everything counts",
        c.matches({ kind: "image", path: "/x.png" }, ""), true);
+
+    // What a dragged entry hands whatever it is dropped on. A picture
+    // and a copied file go as an address so a file manager takes them
+    // as the thing; plain text goes as text and offers no address at
+    // all, or a folder would make a file out of a sentence.
+    is("a dragged picture is offered as a file address",
+       c.dragData({ kind: "image", path: "/run/u/clips/1.png" }),
+       { "text/uri-list": "file:///run/u/clips/1.png\r\n",
+         "text/plain": "/run/u/clips/1.png" });
+    is("dragged plain text is offered as text only",
+       c.dragData({ kind: "text", text: "hello" }),
+       { "text/plain": "hello" });
+    is("a dragged file keeps being a file",
+       c.dragData({ kind: "text", text: "file:///home/ayoze/a.pdf" }),
+       { "text/uri-list": "file:///home/ayoze/a.pdf\r\n",
+         "text/plain": "file:///home/ayoze/a.pdf" });
+    is("several dragged files come apart into a list",
+       c.dragData({ kind: "text",
+                    text: "file:///a%20b.txt\nfile:///c.txt" }),
+       { "text/uri-list": "file:///a%20b.txt\r\nfile:///c.txt\r\n",
+         "text/plain": "file:///a%20b.txt\nfile:///c.txt" });
 }
 
 // ── Which screens something is pinned to ─────────────────────────
@@ -288,6 +309,37 @@ function is(what, got, want) {
     // says "no town chosen yet" — and is not where it does not.
     is("zero, where zero is allowed", number(0, 10, 0, 100), 0);
     is("zero, where it is not", number(0, 25, 1, 600), 1);
+}
+
+// ── Telling one list of launcher entries from another ────────────
+//
+// The grid is rebuilt only when the list really changed. A clipboard
+// entry has no id, and the old test called two different ones the same
+// — so re-copying a picture left the launcher pointing at the file it
+// had just deleted, and the thumbnail came up blank.
+{
+    const { sameList } = load("services/LauncherState.qml", ["sameList"]);
+
+    const a = { id: "firefox" }, b = { id: "discord" };
+    is("the same array is the same list", sameList([a, b], [a, b]), true);
+    is("a different length is a different list",
+       sameList([a], [a, b]), false);
+    // Apps are known by their id, so a remade object with the same id
+    // is still the same entry. This is what the id is there for.
+    is("same id, new object, still the same",
+       sameList([{ id: "firefox" }], [{ id: "firefox" }]), true);
+    is("a different id is a different entry",
+       sameList([{ id: "firefox" }], [{ id: "kate" }]), false);
+
+    // Clipboard entries have no id. Two different ones must not be
+    // mistaken for one, or the launcher keeps the stale one.
+    const clipOld = { kind: "image", path: "/clips/1.png", mark: "m" };
+    const clipNew = { kind: "image", path: "/clips/2.png", mark: "m" };
+    is("the very same clip object is the same", sameList([clipOld], [clipOld]), true);
+    is("a re-copied picture is a new entry, not the old one",
+       sameList([clipNew], [clipOld]), false);
+    is("a changed clip in a list of the same length is noticed",
+       sameList([clipNew, b], [clipOld, b]), false);
 }
 
 // ── The language ─────────────────────────────────────────────────
