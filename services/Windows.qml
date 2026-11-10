@@ -119,8 +119,18 @@ Singleton {
         // class, and any program whose name happened to be the start
         // of somebody else's class would have lit up in the dock
         // without being open.
-        if (game && entry.name && entry.name.indexOf(" ") === -1)
-            out.push(entry.name.toLowerCase());
+        // A one-word name goes in as itself; a name with spaces goes
+        // in with them taken out. A native Linux game names its window
+        // after itself run together -- Core Keeper installs as "Core
+        // Keeper" and its window class is "CoreKeeper" -- so the spaced
+        // form the catalogue carries never matches. matchesProcess
+        // already strips spaces for the pinned ones; this does the same
+        // for a running game that is not pinned, which goes through the
+        // index instead and so stayed out of the dock while on screen.
+        if (game && entry.name) {
+            const nm = entry.name.toLowerCase();
+            out.push(nm.indexOf(" ") === -1 ? nm : nm.replace(/ /g, ""));
+        }
 
         return out;
     }

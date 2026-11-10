@@ -374,6 +374,13 @@ function is(what, got, want) {
         id: "terraria", execString: "steam steam://rungameid/105600",
         name: "Terraria"
     };
+    // A game built for Linux whose name is more than one word: its
+    // window class is the name run together, "CoreKeeper", while the
+    // catalogue carries it with the space.
+    const coreKeeper = {
+        id: "Core Keeper", execString: "steam steam://rungameid/1621690",
+        name: "Core Keeper"
+    };
     // Named after something longer than a process name can be.
     const long = {
         id: "supercalifragilistic", execString: "/usr/bin/supercalifragilistic",
@@ -400,14 +407,19 @@ function is(what, got, want) {
     is("a Steam game answers to its number and not to steam",
        a.candidatesFor(terraria),
        ["terraria", "terraria", "steam_app_105600", "terraria"]);
-    // The name is only read for games, and only a one-word name: it
-    // is how a game built for Linux is recognised, since its window is
-    // called after its own binary and that is nowhere in the .desktop.
+    // The name is only read for games: it is how a game built for
+    // Linux is recognised, since its window is called after its own
+    // binary and that is nowhere in the .desktop. A one-word name goes
+    // in as itself; a longer one goes in run together, the way the
+    // window class spells it.
     is("an application that is not a game is not matched on its name",
        a.candidatesFor({ id: "x.foo", execString: "/usr/bin/foo", name: "Bar" }),
        ["x.foo", "foo", "foo"]);
+    is("a game with a two-word name answers to it run together",
+       a.candidatesFor(coreKeeper),
+       ["core keeper", "core keeper", "steam_app_1621690", "corekeeper"]);
 
-    const idx = apps([dolphin, terraria, long, hidden]);
+    const idx = apps([dolphin, terraria, coreKeeper, long, hidden]);
     idx.buildIndex();
 
     is("a window class finds its application",
@@ -418,6 +430,10 @@ function is(what, got, want) {
     // "terraria.bin.x86_64" is the binary of a game built for Linux.
     is("a binary with its architecture stuck on the end still finds it",
        idx.idForClass("terraria.bin.x86_64"), "terraria");
+    // Core Keeper installs as "Core Keeper" and its window announces
+    // "CoreKeeper"; the spaced form the catalogue carries would miss it.
+    is("a two-word game is found by its name run together",
+       idx.idForClass("corekeeper"), "Core Keeper");
     // The kernel cuts a process name at fifteen characters.
     is("a name cut short by the kernel still finds it",
        idx.idForClass("supercalifragil"), "supercalifragilistic");
