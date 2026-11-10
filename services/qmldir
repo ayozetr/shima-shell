@@ -29,3 +29,5 @@ singleton Shortcuts 1.0 Shortcuts.qml
 singleton Autostart 1.0 Autostart.qml
 singleton Updates 1.0 Updates.qml
 singleton BtBattery 1.0 BtBattery.qml
+singleton Osd 1.0 Osd.qml
+singleton ActiveWindow 1.0 ActiveWindow.qml

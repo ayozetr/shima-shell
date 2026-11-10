@@ -59,7 +59,10 @@ Times are in milliseconds unless the name says otherwise.
 | `islandFloating` | `false` | Lift it off the edge |
 | `islandMargin` | `8` | How far off, when floating. 0 to 400 |
 | `islandAutoHide` | `false` | |
+| `islandAutoHideMaximized` | `false` | Auto-hide only steps aside for a maximised or fullscreen window, and stays out over the desktop |
 | `islandHideDelay` | `700` | 100 to 60000 |
+| `islandOsd` | `false` | Flash the volume level on the island when it changes. KDE shows its own, so leave one of the two off |
+| `islandHideHandle` | `false` | While hidden, leave a small handle at the top edge to see and pull from |
 | `islandScreens` | `""` | As `dockScreens` |
 | `clock24` | `true` | 24-hour clock |
 

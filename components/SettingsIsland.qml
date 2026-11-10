@@ -98,12 +98,44 @@ Column {
     }
 
     Controls.Row_ {
+        label: I18n.t.hideForWindows
+        hint: I18n.t.hideForWindowsHint
+        visible: root.c.islandAutoHide ?? false
+        Controls.Toggle_ {
+            anchors.right: parent.right
+            checked: root.c.islandAutoHideMaximized ?? false
+            onToggled: (v) => { root.c.islandAutoHideMaximized = v; Config.save(); }
+        }
+    }
+
+    Controls.Row_ {
+        label: I18n.t.hideHandle
+        hint: I18n.t.hideHandleHint
+        visible: root.c.islandAutoHide ?? false
+        Controls.Toggle_ {
+            anchors.right: parent.right
+            checked: root.c.islandHideHandle ?? false
+            onToggled: (v) => { root.c.islandHideHandle = v; Config.save(); }
+        }
+    }
+
+    Controls.Row_ {
         label: I18n.t.hideDelay
         visible: root.c.islandAutoHide ?? false
         Controls.Slider_ {
             from: 200; to: 2000; step: 50; suffix: " ms"
             value: root.c.islandHideDelay ?? 700
             onMoved: (v) => { root.c.islandHideDelay = v; Config.save(); }
+        }
+    }
+
+    Controls.Row_ {
+        label: I18n.t.volumeOsd
+        hint: I18n.t.volumeOsdHint
+        Controls.Toggle_ {
+            anchors.right: parent.right
+            checked: root.c.islandOsd ?? false
+            onToggled: (v) => { root.c.islandOsd = v; Config.save(); }
         }
     }
 

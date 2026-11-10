@@ -137,12 +137,31 @@ PanelWindow {
         // which is not always the same size — the dock's strip carries
         // the same note for the same reason. A strip narrower than the
         // screen is an island that does not come back at the edges.
+        //
+        // Taller while a handle is sitting there, so the handle and the
+        // few pixels around it all bring the island back.
         width: win.width
-        height: 3
+        height: (win.handle && !win.revealed) ? 16 : 3
         y: 0
         HoverHandler {
             onHoveredChanged: if (hovered) win.hovering = true
         }
+    }
+
+    // The handle: a small bar at the very top while the island is
+    // hidden, so there is a thing to reach for instead of a blind edge.
+    // Shown only when asked for and only while away.
+    Rectangle {
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: 4
+        width: 46
+        height: 5
+        radius: 2.5
+        color: Theme.textSecondary
+        opacity: (win.handle && !win.revealed) ? 0.85 : 0
+        visible: opacity > 0
+        z: 20
+        Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
     }
 
     // Background blur, if asked for. Off by default because the island
@@ -156,12 +175,32 @@ PanelWindow {
     }
 
     readonly property bool autoHide: Config.data.islandAutoHide ?? false
+    // When set, auto-hide only steps aside for a window that is in the
+    // way — one maximised or fullscreen on top — and stays out over the
+    // bare desktop. Off, auto-hide tucks away all the time, as it did.
+    readonly property bool hideForWindows: Config.data.islandAutoHideMaximized ?? false
+    // Leave a small handle at the top edge while hidden, something to
+    // see and to pull from, rather than nothing at all.
+    readonly property bool handle: Config.data.islandHideHandle ?? false
     readonly property bool floating: Config.data.islandFloating ?? false
     readonly property int  topMargin: floating
         ? Config.number(Config.data.islandMargin, 8, 0, 400) : 0
 
+    // A window covering the top of this screen, where the island sits —
+    // the active one maximised or fullscreen over it. Worked out from
+    // its geometry (via ActiveWindow), which is also what keeps it to
+    // the screen the window is actually on, not both at once.
+    readonly property bool windowCovering: win.screen
+        && ActiveWindow.coversTop(win.screen.x, win.screen.y,
+                                  win.screen.width, win.screen.height)
+
+    // Whether, right now, it wants to be tucked away: auto-hide on, and
+    // either hiding always or hiding because a window is in the way.
+    readonly property bool wantHidden: win.autoHide
+        && (!win.hideForWindows || win.windowCovering)
+
     // It won't hide while expanded, obviously.
-    readonly property bool revealed: !autoHide || hovering || expanded || banner
+    readonly property bool revealed: !wantHidden || hovering || expanded || banner
 
     property bool hovering: false
 
@@ -181,6 +220,7 @@ PanelWindow {
     // flagged. Named apart, the way the peek has always been, they form
     // the same short cycle the peek does and that Qt lets stand.
     readonly property bool expanded: !win.peeking && !win.shelving && !win.btShowing
+                                     && !win.osding
                                      && (win.overIsland || win.overReach)
     readonly property bool pointerNear: win.overIsland || win.overReach
 
@@ -190,7 +230,7 @@ PanelWindow {
             else peekTimer.restart();
         }
         if (win.pointerNear) { hideTimer.stop(); win.hovering = true; }
-        else if (win.autoHide) hideTimer.restart();
+        else if (win.wantHidden) hideTimer.restart();
     }
 
     // ── A notification passing through ─────────────────────────
@@ -212,6 +252,12 @@ PanelWindow {
         Config.data.islandScreens, win.screenName)) ? null : BtBattery.peek
     readonly property bool btShowing: win.btBat !== null
 
+    // The volume display, flashing as you change it. The most immediate
+    // of the lot — you just pressed a key — so it sits over the rest.
+    readonly property var osd: (win.expanded || !Config.onScreen(
+        Config.data.islandScreens, win.screenName)) ? null : Osd.peek
+    readonly property bool osding: win.osd !== null
+
     // The shelf is kept out of this binding on purpose: peek reading
     // shelving, with shelving reading shelf and shelf reading expanded,
     // was part of the loop. The shelf takes the slot instead by sitting
@@ -224,7 +270,7 @@ PanelWindow {
     // reacts to, where the notification, the shelf and the battery want
     // the same thing of it. Only geometry reads this — never
     // `expanded`, or the loop comes back.
-    readonly property bool banner: win.peeking || win.shelving || win.btShowing
+    readonly property bool banner: win.peeking || win.shelving || win.btShowing || win.osding
     // The battery wants more room than a line of text: it carries three
     // readings, and a photo of each when one has been put there.
     readonly property int peekHeight: win.btShowing ? 108 : 84
@@ -239,6 +285,18 @@ PanelWindow {
         target: BtBattery
         property: "peekHeld"
         value: win.btShowing && win.pointerNear
+    }
+    Binding {
+        target: Osd
+        property: "held"
+        value: win.osding && win.pointerNear
+    }
+    // Held shut while the island is open, so changing the volume from
+    // its own slider does not flash the display over that slider.
+    Binding {
+        target: Osd
+        property: "inhibited"
+        value: win.expanded
     }
 
     onPeekChanged: {
@@ -358,6 +416,7 @@ PanelWindow {
                 if (win.peeking) { Notifications.dismissPeek(); return; }
                 if (win.shelving) { Clipboard.dismissShelf(); return; }
                 if (win.btShowing) { BtBattery.dismiss(); return; }
+                if (win.osding) { Osd.dismiss(); return; }
                 if (!win.expanded) return;
                 const dy = e.angleDelta.y !== 0 ? e.angleDelta.y : e.angleDelta.x;
                 if (dy === 0) return;
@@ -398,7 +457,7 @@ PanelWindow {
             // Hidden under the shelf or the battery when they want the
             // strip: both are newer, deliberate things. The
             // notification's own timer still runs it out underneath.
-            opacity: (win.peeking && !win.shelving && !win.btShowing) ? 1 : 0
+            opacity: (win.peeking && !win.shelving && !win.btShowing && !win.osding) ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
 
@@ -421,7 +480,7 @@ PanelWindow {
             anchors.leftMargin: 16
             anchors.rightMargin: 16
             entry: win.shelf
-            opacity: (win.shelving && !win.btShowing) ? 1 : 0
+            opacity: (win.shelving && !win.btShowing && !win.osding) ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
 
@@ -439,12 +498,26 @@ PanelWindow {
             anchors.leftMargin: 16
             anchors.rightMargin: 16
             entry: win.btBat
-            opacity: win.btShowing ? 1 : 0
+            opacity: (win.btShowing && !win.osding) ? 1 : 0
             visible: opacity > 0
             z: 1
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
 
             onDismissed: BtBattery.dismiss()
+        }
+
+        // The volume display, over all the rest.
+        OsdPeek {
+            anchors.fill: parent
+            anchors.leftMargin: 18
+            anchors.rightMargin: 18
+            entry: win.osd
+            opacity: win.osding ? 1 : 0
+            visible: opacity > 0
+            z: 2
+            Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
+
+            onDismissed: Osd.dismiss()
         }
 
         // Its own strip for the mode indicator, so no content ever
