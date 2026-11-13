@@ -257,6 +257,12 @@ quickshell_hint() {
         fedora|nobara|bazzite)
             say "  sudo dnf copr enable errornointernet/quickshell && sudo dnf install quickshell" ;;
         ubuntu|linuxmint|pop|zorin|elementary|neon)
+            # Ubuntu 26.10 and later have it in universe; say so rather
+            # than send people to somebody else's archive for nothing.
+            if apt-cache policy quickshell 2>/dev/null | grep -qE 'Candidate: [0-9]'; then
+                say "  sudo apt install quickshell"
+                return
+            fi
             # `|| ppa=$?` and not a bare call: this script runs under
             # `set -e`, and a bare command that answers non-zero ends it
             # there and then. The answer here is non-zero precisely when
@@ -393,6 +399,13 @@ ppa_ask_launchpad() {
 # and it says what is being agreed to and how to undo it.
 add_ppa_quickshell() {
     ppa="ppa:avengemedia/danklinux"
+
+    # Ubuntu 26.10 and later carry Quickshell in universe; prefer the
+    # distribution's own package over trusting somebody else's archive.
+    if apt-cache policy quickshell 2>/dev/null | grep -qE 'Candidate: [0-9]'; then
+        pm_install quickshell
+        return
+    fi
 
     ppa_has_quickshell
     case $? in
