@@ -145,6 +145,7 @@ happen.
 | `shortcutLabel` | `"Meta"` | |
 | `keepAwakeRemember` | `false` | Bring "keep awake" back switched on after a restart. Off on purpose: a machine that will not sleep because of something switched on days ago is hard to work out |
 | `keepAwakeOn` | `false` | What it was last set to, when the above is on |
+| `brightnessRescan` | `false` | Brightness is borrowed from powerdevil, which now and then registers only some of the DDC monitors at login — a startup race — leaving the per-screen control one screen short. On, Shima restarts powerdevil once so it finds the rest. Leave off unless a screen actually goes missing: a monitor with no brightness control of its own would trip it for nothing |
 
 ## What is not here
 
