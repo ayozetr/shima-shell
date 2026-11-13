@@ -518,6 +518,27 @@ PanelWindow {
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
         }
 
+        // The microphone is live — an amber dot, the way a phone shows
+        // it. A privacy light that blinked off the moment you reached
+        // for the island would be no warning at all, so it lives here
+        // rather than in CollapsedContent and outlasts the expansion:
+        // tucked by the album art at rest, and up in the free top-left
+        // corner once expanded, clear of the mode dots on the right and
+        // of the content, which starts lower down. It steps aside only
+        // for a passing peek, which owns the whole strip for its moment.
+        Rectangle {
+            width: 7; height: 7; radius: 3.5
+            color: "#ff9f0a"
+            z: 40
+            x: win.expanded ? 14 : (shell.width - width - 46)
+            y: win.expanded ? 11 : (Theme.islandCollapsedHeight - height) / 2
+            opacity: (Privacy.enabled && Privacy.micActive && !win.banner) ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
+            Behavior on x { NumberAnimation { duration: Theme.springDuration; easing.type: Easing.OutCubic } }
+            Behavior on y { NumberAnimation { duration: Theme.springDuration; easing.type: Easing.OutCubic } }
+        }
+
         NotificationPeek {
             anchors.fill: parent
             anchors.leftMargin: 16

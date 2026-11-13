@@ -228,6 +228,8 @@ var strings = {
     hideForWindowsHint: "Se queda sobre el escritorio; se aparta solo cuando una ventana está maximizada o en pantalla completa",
     volumeOsd: "Nivel de volumen",
     volumeOsdHint: "El volumen asoma en la isla al cambiarlo. KDE muestra el suyo, que quizá quieras desactivar",
+    privacyMic: "Punto de micrófono",
+    privacyMicHint: "Un punto ámbar en la isla mientras se graba el micrófono",
     hideHandle: "Mostrar un tirador",
     hideHandleHint: "Deja una pequeña barra en el borde superior mientras está oculta, para verla y tirar de ella",
     hideDelay: "Tarda en esconderse",

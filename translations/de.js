@@ -228,6 +228,8 @@ var strings = {
     hideForWindowsHint: "Bleibt über dem Desktop; weicht nur, wenn ein Fenster maximiert oder im Vollbild ist",
     volumeOsd: "Lautstärkeanzeige",
     volumeOsdHint: "Die Lautstärke erscheint beim Ändern auf der Insel. KDE zeigt seine eigene, die du vielleicht ausschalten willst",
+    privacyMic: "Mikrofon-Punkt",
+    privacyMicHint: "Ein bernsteinfarbener Punkt auf der Insel, während das Mikrofon aufnimmt",
     hideHandle: "Griff anzeigen",
     hideHandleHint: "Lässt im Verborgenen eine kleine Leiste am oberen Rand, zum Sehen und Herausziehen",
     hideDelay: "Verzögerung vor dem Ausblenden",

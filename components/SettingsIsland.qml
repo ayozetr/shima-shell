@@ -150,6 +150,16 @@ Column {
     }
 
     Controls.Row_ {
+        label: I18n.t.privacyMic
+        hint: I18n.t.privacyMicHint
+        Controls.Toggle_ {
+            anchors.right: parent.right
+            checked: root.c.privacyMic ?? true
+            onToggled: (v) => { root.c.privacyMic = v; Config.save(); }
+        }
+    }
+
+    Controls.Row_ {
         label: I18n.t.opacity
         Controls.Slider_ {
             from: 0.2; to: 1; step: 0.01

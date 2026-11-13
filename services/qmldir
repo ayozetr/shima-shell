@@ -32,3 +32,4 @@ singleton BtBattery 1.0 BtBattery.qml
 singleton Osd 1.0 Osd.qml
 singleton ActiveWindow 1.0 ActiveWindow.qml
 singleton UserInfo 1.0 UserInfo.qml
+singleton Privacy 1.0 Privacy.qml

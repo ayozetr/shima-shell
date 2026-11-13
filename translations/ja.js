@@ -216,6 +216,8 @@ var strings = {
     hideForWindowsHint: "デスクトップ上では出たまま、ウィンドウが最大化または全画面のときだけよけます",
     volumeOsd: "音量表示",
     volumeOsdHint: "音量を変えるとアイランドに表示します。KDE も独自に表示するので、そちらは切ってもよいでしょう",
+    privacyMic: "マイク表示",
+    privacyMicHint: "マイクが録音中の間、アイランドに琥珀色の点を表示します",
     hideHandle: "ハンドルを表示",
     hideHandleHint: "隠れている間、上端に小さなバーを残し、見えて引き出せるようにします",
     hideDelay: "隠すまでの遅延",

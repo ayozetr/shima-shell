@@ -228,6 +228,8 @@ var strings = {
     hideForWindowsHint: "Reste au-dessus du bureau ; s'écarte seulement quand une fenêtre est maximisée ou en plein écran",
     volumeOsd: "Affichage du volume",
     volumeOsdHint: "Le volume apparaît dans l'îlot quand vous le changez. KDE affiche le sien, que vous voudrez peut-être désactiver",
+    privacyMic: "Point micro",
+    privacyMicHint: "Un point ambre sur l'îlot pendant que le micro enregistre",
     hideHandle: "Afficher une poignée",
     hideHandleHint: "Laisse une petite barre en haut quand elle est cachée, pour la voir et la tirer",
     hideDelay: "Délai avant de se masquer",

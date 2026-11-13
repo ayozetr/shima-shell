@@ -228,6 +228,8 @@ var strings = {
     hideForWindowsHint: "Es queda sobre l'escriptori; s'aparta només quan una finestra està maximitzada o a pantalla completa",
     volumeOsd: "Nivell de volum",
     volumeOsdHint: "El volum apareix a l'illa en canviar-lo. KDE mostra el seu, que potser vols desactivar",
+    privacyMic: "Punt de micròfon",
+    privacyMicHint: "Un punt ambre a l'illa mentre es grava el micròfon",
     hideHandle: "Mostra una nansa",
     hideHandleHint: "Deixa una petita barra a la vora de dalt mentre està amagada, per veure-la i estirar-la",
     hideDelay: "Temps abans d'amagar-se",

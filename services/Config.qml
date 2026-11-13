@@ -154,6 +154,9 @@ Singleton {
             // The volume on-screen display, in the island. Off because
             // KDE shows its own and two at once is one too many.
             property bool   islandOsd:        false
+            // An amber dot on the island while the microphone is being
+            // recorded, the way a phone warns you.
+            property bool   privacyMic:       true
 
             // 24-hour clock by default, which is what a Spanish locale
             // expects; the previous hardcoded format was 12-hour.

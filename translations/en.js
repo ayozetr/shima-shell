@@ -216,6 +216,8 @@ var strings = {
     hideForWindowsHint: "Stays out over the desktop; steps aside only when a window is maximised or fullscreen",
     volumeOsd: "Volume display",
     volumeOsdHint: "The volume flashes on the island when you change it. KDE shows its own, which you may want to turn off",
+    privacyMic: "Microphone dot",
+    privacyMicHint: "An amber dot on the island while the microphone is being recorded",
     hideHandle: "Show a handle",
     hideHandleHint: "Leaves a small bar at the top edge while hidden, to see and pull it from",
     hideDelay: "Delay before hiding",
