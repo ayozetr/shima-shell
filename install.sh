@@ -1056,7 +1056,9 @@ do_install() {
     cp "$SRC/docs/settings.md" "$SHARE/docs/" 2>/dev/null || true
     chmod +x "$SHARE/helper/shima-shortcuts" "$SHARE/helper/shima-games" \
         "$SHARE/helper/shima-tray-menu" \
-        "$SHARE/helper/shima-steam-windows" 2>/dev/null || true
+        "$SHARE/helper/shima-steam-windows" \
+        "$SHARE/helper/shima-fastpair" \
+        "$SHARE/helper/shima-window-cover" 2>/dev/null || true
 
     cp "$SRC/shima" "$BIN"
     chmod +x "$BIN"

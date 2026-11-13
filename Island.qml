@@ -196,9 +196,7 @@ PanelWindow {
     // the active one maximised or fullscreen over it. Worked out from
     // its geometry (via ActiveWindow), which is also what keeps it to
     // the screen the window is actually on, not both at once.
-    readonly property bool windowCovering: win.screen
-        && ActiveWindow.coversTop(win.screen.x, win.screen.y,
-                                  win.screen.width, win.screen.height)
+    readonly property bool windowCovering: ActiveWindow.coversScreen(win.screenName)
 
     // Whether, right now, it wants to be tucked away: auto-hide on, and
     // either hiding always or hiding because a window is in the way.

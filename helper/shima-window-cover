@@ -1,0 +1,69 @@
+#!/bin/sh
+# Print, as JSON, which outputs have a non-minimised maximised or
+# fullscreen window on them, e.g. {"DP-1":true}. An empty object when
+# none, and on any failure, so the caller can always parse the output.
+#
+# Shima's island reads this to step aside for a window that covers it —
+# including one sitting behind whatever is focused, which asking only for
+# the active window used to miss.
+#
+# KWin has no public "is a window covering this screen" call, so this
+# runs a one-shot KWin script that reads the window list — the one place
+# the maximised, fullscreen and minimised state lives — prints the answer
+# to the journal, and reads it back. Local scripting is the only door
+# KWin leaves open for this.
+set -u
+
+fail() { printf '{}\n'; exit 0; }
+
+command -v busctl >/dev/null 2>&1 || fail
+command -v journalctl >/dev/null 2>&1 || fail
+
+marker="shimacover_${$}_$(date +%s)"
+script=$(mktemp --suffix=.js 2>/dev/null) || fail
+
+cat > "$script" <<EOF
+const ws = (typeof workspace.windowList === "function")
+    ? workspace.windowList() : workspace.clientList();
+var out = {};
+for (var i = 0; i < ws.length; i++) {
+    var w = ws[i];
+    if (!w || !w.normalWindow || w.minimized) continue;
+    // maximizeMode 3 is maximised in both directions; a window maximised
+    // only one way does not cover the island, so it does not count.
+    if (!(w.fullScreen || w.maximizeMode === 3)) continue;
+    if (w.output && w.output.name) out[w.output.name] = true;
+}
+print("$marker " + JSON.stringify(out));
+EOF
+
+since=$(date '+%Y-%m-%d %H:%M:%S')
+id=$(busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting \
+        loadScript ss "$script" "$marker" 2>/dev/null | awk '{print $2}')
+case "${id:-}" in
+    ''|*[!0-9]*) rm -f "$script"; fail ;;
+esac
+
+busctl --user call "org.kde.KWin" "/Scripting/Script$id" \
+    org.kde.kwin.Script run >/dev/null 2>&1
+
+res=""
+i=0
+while [ "$i" -lt 30 ]; do
+    res=$(journalctl --user --since "$since" -o cat 2>/dev/null \
+            | grep "$marker " | tail -1)
+    [ -n "$res" ] && break
+    i=$((i + 1))
+    sleep 0.05
+done
+
+# Leave no script object behind: unload by the name it was loaded under.
+busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting \
+    unloadScript s "$marker" >/dev/null 2>&1
+rm -f "$script"
+
+if [ -n "$res" ]; then
+    printf '%s\n' "${res#*"$marker" }"
+else
+    printf '{}\n'
+fi
