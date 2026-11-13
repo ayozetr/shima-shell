@@ -151,8 +151,9 @@ Singleton {
             // and to pull from.
             property bool   islandHideHandle: false
             property int    islandHideDelay:  700
-            // The volume on-screen display, in the island. Off because
-            // KDE shows its own and two at once is one too many.
+            // The volume and brightness on-screen display, in the
+            // island. Off because KDE shows its own and two at once is
+            // one too many.
             property bool   islandOsd:        false
             // An amber dot on the island while the microphone is being
             // recorded, the way a phone warns you.

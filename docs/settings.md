@@ -61,7 +61,7 @@ Times are in milliseconds unless the name says otherwise.
 | `islandAutoHide` | `false` | |
 | `islandAutoHideMaximized` | `false` | Auto-hide only steps aside for a maximised or fullscreen window, and stays out over the desktop |
 | `islandHideDelay` | `700` | 100 to 60000 |
-| `islandOsd` | `false` | Flash the volume level on the island when it changes. KDE shows its own, so leave one of the two off |
+| `islandOsd` | `false` | Flash the volume or brightness level on the island when it changes. KDE shows its own, so leave one of the two off |
 | `privacyMic` | `true` | An amber dot on the island while the microphone is being recorded |
 | `islandHideHandle` | `false` | While hidden, leave a small handle at the top edge to see and pull from |
 | `islandScreens` | `""` | As `dockScreens` |
