@@ -12,9 +12,9 @@ work all the same.
 | **Gentoo** | Everything works, blur included. Quickshell comes from the GURU overlay, which has to be enabled first. See the note below. |
 | **Fedora KDE 44** | Everything works, blur included. The installer offers you the COPR that carries Quickshell. |
 | **openSUSE Tumbleweed** | Everything works, blur included. The installer prints the two lines that add the repository and stops there, for you to run them. |
-| **Kubuntu · Ubuntu 26.04** | Everything works except blur, which its Plasma is too old for. The installer offers you the PPA that carries Quickshell. |
+| **Kubuntu · Ubuntu 26.04** | Everything works except blur, which its Plasma is too old for. The installer offers you the PPA that carries Quickshell. On 26.10 and later it is in Ubuntu's own `universe`, and the installer takes it from there instead. |
 | **NixOS 26.05** | Everything works except blur, same reason. See the note below on declaring it. |
-| **Debian 13 (trixie)** | Everything works except the settings window, which takes the shell down when it opens. Set things by hand meanwhile — every option is in [settings.md](settings.md). |
+| **Debian 13 (trixie)** | Quickshell is only in `trixie-backports`, which the installer enables for you. Everything then works except the settings window, which takes the shell down when it opens. Set things by hand meanwhile — every option is in [settings.md](settings.md). |
 | **KDE Neon** | Nobody builds Quickshell for its base (Ubuntu 24.04), so you have to build it yourself first. With that done, everything works, blur included. |
 
 ## What it needs

@@ -109,6 +109,8 @@ Singleton {
         if (root.signature(found) !== root.signature(root.displays))
             root.displays = found;
 
+        root.maybeRescan();
+
         // A reading taken right after a drag still reports the old
         // value, because the monitor has not caught up yet. Trust what
         // was asked for until it has.
@@ -116,6 +118,39 @@ Singleton {
             root.levels = read;
             root.syncRatio();
         }
+    }
+
+    // ── Nudging powerdevil when it came up short ─────────────────
+    //
+    // Powerdevil now and then registers only some of the DDC monitors
+    // after login (a race: it reads the bus before a monitor has woken
+    // on it, and then never looks again), and since the brightness is
+    // borrowed from it, the per-screen control collapses to the one it
+    // saw. There is no "detect again" on its bus to call — the only way
+    // back is to restart it, by which time the bus is awake and it
+    // finds them all. Off unless asked for: a screen with no brightness
+    // control of its own would read here as a missing one and restart
+    // powerdevil for nothing.
+    readonly property bool rescan: Config.data.brightnessRescan ?? false
+    property int rescanTries: 0
+
+    Process { id: rescanProc }
+    // Re-read a few seconds after a restart, once powerdevil is back and
+    // has had time to find the screens; parse() then checks again, and
+    // stops once the count is right or the tries run out.
+    Timer { id: afterRescan; interval: 3500; onTriggered: root.refresh() }
+
+    function maybeRescan() {
+        if (!root.rescan || root.rescanTries >= 2) return;
+        // Qt's own count of the outputs, which does not depend on
+        // powerdevil: if it sees more screens than powerdevil did,
+        // powerdevil missed some.
+        if (Quickshell.screens.length <= root.displays.length) return;
+        root.rescanTries++;
+        rescanProc.command = ["systemctl", "--user", "restart",
+                              "plasma-powerdevil.service"];
+        rescanProc.running = true;
+        afterRescan.restart();
     }
 
     function signature(list) {

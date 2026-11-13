@@ -3,31 +3,45 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Where the active window sits, so the island can step aside for one
-// that is maximised or fullscreen over it.
+// Which screens have a window covering them, so the island can step
+// aside for one that is maximised or fullscreen over it.
 //
 // KWin does not speak the wlr foreign-toplevel protocol Quickshell
-// reads, so there is nothing to subscribe to: this asks kdotool — which
-// goes through KWin's own scripting — for the active window's geometry,
-// and only while something actually wants it. A window the size of a
-// screen, sitting at its top, is covering the island there; which
-// screen is which is why the geometry is compared and not just a flag.
+// reads, and its own bus has no "is a window covering this screen" call.
+// So the helper runs a one-shot KWin script that reads the window list —
+// the one place the maximised, fullscreen and minimised state lives —
+// and answers which outputs are covered.
+//
+// Two things fall out of asking KWin the window list rather than, as
+// before, kdotool for the active window's geometry. A maximised window
+// sitting behind whatever is focused now counts, where before only the
+// focused one did — a browser left maximised on one screen while you
+// type on another kept the island showing over it. And the answer comes
+// back as output names straight from KWin, so no screen geometry is
+// compared here any more, which is what used to go wrong on a scaled
+// display.
 Singleton {
     id: root
 
     // Polling runs only while the feature that needs it is on, so an
-    // untouched install never spawns kdotool on a timer.
+    // untouched install never runs the helper on a timer.
     readonly property bool wanted: (Config.data.islandAutoHide ?? false)
                                 && (Config.data.islandAutoHideMaximized ?? false)
 
-    // { x, y, w, h } of the active window in layout coordinates, or
-    // null when there is none (the desktop has the focus) or kdotool is
-    // not installed.
-    property var rect: null
+    // Empty when started by hand with `qs`: only the launcher script
+    // knows where the helper was installed. Same as the other helpers.
+    readonly property string helper:
+        Paths.dataDir !== "" ? Paths.dataDir + "/helper/shima-window-cover" : ""
+
+    // Output name → true for every screen that has a maximised or
+    // fullscreen window (not minimised) on it.
+    property var covered: ({})
+
+    function coversScreen(name) { return root.covered[name] === true; }
 
     Timer {
-        running: root.wanted
-        interval: 1000
+        running: root.wanted && root.helper !== ""
+        interval: 1200
         repeat: true
         triggeredOnStart: true
         onTriggered: if (!probe.running) probe.running = true
@@ -35,29 +49,20 @@ Singleton {
 
     Process {
         id: probe
-        command: ["kdotool", "getactivewindow", "getwindowgeometry"]
+        command: root.helper !== "" ? ["sh", root.helper] : ["true"]
         stdout: StdioCollector { onStreamFinished: root.parse(text) }
-        onExited: (code) => { if (code !== 0) root.rect = null; }
+        // The helper answers {} on any trouble and exits 0, so a non-zero
+        // exit is the process itself failing: treat it as nothing covered
+        // rather than leave a stale answer holding the island hidden.
+        onExited: (code) => { if (code !== 0) root.covered = ({}); }
     }
 
     function parse(text) {
-        // Position: X,Y  /  Geometry: WxH — both may carry a fraction,
-        // since a scaled screen rarely lands on a whole pixel.
-        const pos = text.match(/Position:\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)/);
-        const geo = text.match(/Geometry:\s*([\d.]+)\s*x\s*([\d.]+)/);
-        if (!pos || !geo) { root.rect = null; return; }
-        root.rect = { x: parseFloat(pos[1]), y: parseFloat(pos[2]),
-                      w: parseFloat(geo[1]), h: parseFloat(geo[2]) };
-    }
-
-    // Does the active window cover the top centre of this screen, where
-    // the island lives? A maximised or fullscreen window does; a window
-    // on another screen, or a small one, does not.
-    function coversTop(sx, sy, sw, sh) {
-        const r = root.rect;
-        if (!r) return false;
-        const px = sx + sw / 2;
-        const py = sy + 3;
-        return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+        try {
+            const o = JSON.parse(text);
+            root.covered = (o && typeof o === "object") ? o : ({});
+        } catch (e) {
+            root.covered = ({});
+        }
     }
 }

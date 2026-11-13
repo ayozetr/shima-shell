@@ -151,9 +151,13 @@ Singleton {
             // and to pull from.
             property bool   islandHideHandle: false
             property int    islandHideDelay:  700
-            // The volume on-screen display, in the island. Off because
-            // KDE shows its own and two at once is one too many.
+            // The volume and brightness on-screen display, in the
+            // island. Off because KDE shows its own and two at once is
+            // one too many.
             property bool   islandOsd:        false
+            // An amber dot on the island while the microphone is being
+            // recorded, the way a phone warns you.
+            property bool   privacyMic:       true
 
             // 24-hour clock by default, which is what a Spanish locale
             // expects; the previous hardcoded format was 12-hour.
@@ -239,6 +243,20 @@ Singleton {
             // hard thing to work out from the outside.
             property bool keepAwakeRemember:  false
             property bool keepAwakeOn:        false
+
+            // ── Brightness ─────────────────────────────────────
+            // Powerdevil, which this borrows the brightness from, now
+            // and then registers only some of the DDC monitors after
+            // login — a startup race where it reads the I2C bus before a
+            // monitor has woken on it, and then never goes back. When
+            // that happens the per-screen control collapses to the one
+            // screen it did see. On: if powerdevil ends up with fewer
+            // screens than are actually there, restart it once so it
+            // finds the rest. Off by default, because restarting a
+            // service of KDE's is not a thing to do on a machine that
+            // did not ask for it — a screen with no brightness control
+            // of its own is a false alarm there.
+            property bool brightnessRescan:   false
 
             // ── Colour ─────────────────────────────────────────
             property string accent:           "#ffffff"

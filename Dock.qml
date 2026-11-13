@@ -126,7 +126,18 @@ PanelWindow {
         y: win.atTop ? 0 : win.height - height
 
         HoverHandler {
-            onHoveredChanged: if (hovered) win.hovering = true
+            id: edgeHover
+            // Losing the edge has to arm the hide as well, or a pointer
+            // that grazed the strip — waking the dock — and left without
+            // ever reaching the pill leaves `hovering` stuck on, with
+            // nothing ever started to turn it off and the dock sitting
+            // out for good. The pill's handler only armed it for its own
+            // leave, so a wake that never became a proper hover was never
+            // undone.
+            onHoveredChanged: {
+                if (hovered) { hideTimer.stop(); win.hovering = true; }
+                else if (win.autoHide && !dockHover.hovered) hideTimer.restart();
+            }
         }
     }
     Region {
@@ -212,7 +223,7 @@ PanelWindow {
             id: dockHover
             onHoveredChanged: {
                 if (hovered) { hideTimer.stop(); win.hovering = true; }
-                else if (win.autoHide) hideTimer.restart();
+                else if (win.autoHide && !edgeHover.hovered) hideTimer.restart();
             }
         }
 

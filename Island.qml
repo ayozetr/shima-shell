@@ -196,9 +196,7 @@ PanelWindow {
     // the active one maximised or fullscreen over it. Worked out from
     // its geometry (via ActiveWindow), which is also what keeps it to
     // the screen the window is actually on, not both at once.
-    readonly property bool windowCovering: win.screen
-        && ActiveWindow.coversTop(win.screen.x, win.screen.y,
-                                  win.screen.width, win.screen.height)
+    readonly property bool windowCovering: ActiveWindow.coversScreen(win.screenName)
 
     // Whether, right now, it wants to be tucked away: auto-hide on, and
     // either hiding always or hiding because a window is in the way.
@@ -518,6 +516,27 @@ PanelWindow {
             opacity: (!win.expanded && !win.banner && Notifications.unread > 0) ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
+        }
+
+        // The microphone is live — an amber dot, the way a phone shows
+        // it. A privacy light that blinked off the moment you reached
+        // for the island would be no warning at all, so it lives here
+        // rather than in CollapsedContent and outlasts the expansion:
+        // tucked by the album art at rest, and up in the free top-left
+        // corner once expanded, clear of the mode dots on the right and
+        // of the content, which starts lower down. It steps aside only
+        // for a passing peek, which owns the whole strip for its moment.
+        Rectangle {
+            width: 7; height: 7; radius: 3.5
+            color: "#ff9f0a"
+            z: 40
+            x: win.expanded ? 14 : (shell.width - width - 46)
+            y: win.expanded ? 11 : (Theme.islandCollapsedHeight - height) / 2
+            opacity: (Privacy.enabled && Privacy.micActive && !win.banner) ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
+            Behavior on x { NumberAnimation { duration: Theme.springDuration; easing.type: Easing.OutCubic } }
+            Behavior on y { NumberAnimation { duration: Theme.springDuration; easing.type: Easing.OutCubic } }
         }
 
         NotificationPeek {

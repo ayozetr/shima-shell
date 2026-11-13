@@ -2,13 +2,15 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// The level that flashes on the island when you change the volume with
-// the keys — the on-screen display, moved into the notch.
+// The level that flashes on the island when you change the volume or
+// the brightness with the keys — the on-screen display, moved into the
+// notch.
 //
 // Off by default: KDE shows its own, and two at once is one too many.
 // Whoever would rather have this one turns it on and, if they like,
-// turns the other off. Only volume for now; brightness needs the shell
-// to be told of a change it does not currently hear while idle.
+// turns the other off. Brightness only reaches it while this is on,
+// since that is the only time the Brightness service bothers to listen
+// to powerdevil for changes made from outside.
 Singleton {
     id: root
 
