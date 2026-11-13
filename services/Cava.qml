@@ -33,10 +33,18 @@ Singleton {
         // by hand and nobody has created it.
         command: ["sh", "-c",
             "mkdir -p \"$(dirname \"$1\")\" && "
+            // Capture the default sink's monitor by name, not `auto`.
+            // `auto` takes the default *source*, which here is the
+            // microphone — and opening a capture on the mic drags its
+            // volume up to 100% under flat-volumes, which is not ours to
+            // do and not what a music visualiser wants anyway. Fall back
+            // to auto only if the sink cannot be read.
+            + "mon=\"$(pactl get-default-sink 2>/dev/null).monitor\"; "
+            + "[ \"$mon\" = \".monitor\" ] && mon=auto; "
             + "printf '[general]\\nframerate=60\\nbars=" + root.bars + "\\nautosens=1\\n"
-            + "[input]\\nmethod=pulse\\nsource=auto\\n"
+            + "[input]\\nmethod=pulse\\nsource=%s\\n"
             + "[output]\\nmethod=raw\\ndata_format=ascii\\nascii_max_range=1000\\n"
-            + "channels=mono\\n[smoothing]\\nnoise_reduction=35\\n' > \"$1\"",
+            + "channels=mono\\n[smoothing]\\nnoise_reduction=35\\n' \"$mon\" > \"$1\"",
             "shima", root.configPath]
         // Only if it is still wanted. Pausing in the same moment as
         // starting used to leave the config being written after the
