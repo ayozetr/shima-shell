@@ -527,16 +527,30 @@ PanelWindow {
         // of the content, which starts lower down. It steps aside only
         // for a passing peek, which owns the whole strip for its moment.
         Rectangle {
+            id: micDot
             width: 7; height: 7; radius: 3.5
             color: "#ff9f0a"
             z: 40
-            x: win.expanded ? 14 : (shell.width - width - 46)
-            y: win.expanded ? 11 : (Theme.islandCollapsedHeight - height) / 2
-            opacity: (Privacy.enabled && Privacy.micActive && !win.banner) ? 1 : 0
+            readonly property bool shown: Privacy.enabled && Privacy.micActive && !win.banner
+            // Which of its two homes it sits at. It lags win.expanded on
+            // purpose, so the move lands mid-fade: the dot fades out
+            // where it was, hops across while invisible, and fades back
+            // in at the other home, instead of sliding over the clock.
+            property bool atExpanded: win.expanded
+            x: atExpanded ? 14 : (shell.width - width - 46)
+            y: atExpanded ? 11 : (Theme.islandCollapsedHeight - height) / 2
+            opacity: (shown && atExpanded === win.expanded) ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
-            Behavior on x { NumberAnimation { duration: Theme.springDuration; easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.springDuration; easing.type: Easing.OutCubic } }
+            Connections {
+                target: win
+                function onExpandedChanged() { micDotHop.restart(); }
+            }
+            Timer {
+                id: micDotHop
+                interval: Theme.fadeDuration
+                onTriggered: micDot.atExpanded = win.expanded
+            }
         }
 
         NotificationPeek {
